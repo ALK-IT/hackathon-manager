@@ -42,6 +42,8 @@ cd frontend
 npm run storybook
 ```
 
+Wdrożony Storybook (auto po push do `main`, workflow `storybook-pages`): https://alk-it.github.io/hackathon-manager/
+
 Nowy współdzielony komponent UI → dodaj go tutaj (nie duplikuj w miejscu użycia) + plik `.stories.tsx`.
 
 ## AI agenci (code review / security review / UX review)
