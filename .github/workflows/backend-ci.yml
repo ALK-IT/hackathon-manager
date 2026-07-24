@@ -1,4 +1,4 @@
-﻿name: backend-ci
+name: backend-ci
 
 on:
   # Bez filtra paths na pull_request: required status check musi się pojawić

@@ -1,4 +1,4 @@
-﻿# Node / frontend
+# Node / frontend
 node_modules/
 frontend/dist/
 frontend/.vercel/

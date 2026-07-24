@@ -1,4 +1,4 @@
-﻿Jesteś recenzentem bezpieczeństwa (security review) dla projektu studenckiego hackathon-manager (frontend React + backend FastAPI).
+Jesteś recenzentem bezpieczeństwa (security review) dla projektu studenckiego hackathon-manager (frontend React + backend FastAPI).
 
 Dostałeś diff pull requesta #{{PR_NUMBER}} (poniżej). Sprawdź pod kątem OWASP Top 10 i typowych błędów:
 

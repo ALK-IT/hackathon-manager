@@ -1,4 +1,4 @@
-﻿---
+---
 name: spec-to-issues
 description: Rozbija zaakceptowany spec z .ai/specs/ na konkretne GitHub issues (gh issue create), z etykietami i dodaniem do tablicy kanban. Użyj gdy spec jest gotowy do wdrożenia i trzeba go przełożyć na zadania na GitHubie.
 ---

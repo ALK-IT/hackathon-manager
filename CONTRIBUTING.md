@@ -1,4 +1,4 @@
-﻿# Jak pracujemy — hackathon-manager
+# Jak pracujemy — hackathon-manager
 
 ## Branże
 

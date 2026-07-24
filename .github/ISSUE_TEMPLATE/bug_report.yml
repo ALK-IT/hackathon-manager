@@ -1,4 +1,4 @@
-﻿name: Zgłoszenie błędu
+name: Zgłoszenie błędu
 description: Zgłoś błąd w aplikacji
 labels: ["bug"]
 body:

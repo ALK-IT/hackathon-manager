@@ -1,4 +1,4 @@
-﻿# hackathon-manager
+# hackathon-manager
 
 Projekt studencki ALK. Monorepo: React (frontend) + FastAPI (backend).
 

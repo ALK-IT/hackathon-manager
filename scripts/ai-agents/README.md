@@ -1,4 +1,4 @@
-﻿# AI agenci (code review / security review / UX review)
+# AI agenci (code review / security review / UX review)
 
 Lokalne skrypty reagujące na zmiany w GitHub, uruchamiane u Ciebie (lub członka zespołu)
 przez lokalnie zalogowany **Claude Code** (subskrypcja Claude — bez klucza API i bez

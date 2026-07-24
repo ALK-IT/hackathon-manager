@@ -1,4 +1,4 @@
-﻿name: dependency-audit
+name: dependency-audit
 
 on:
   pull_request:

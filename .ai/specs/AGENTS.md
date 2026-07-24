@@ -1,4 +1,4 @@
-﻿# Zasady pracy ze specyfikacjami (dla ludzi i agentów AI)
+# Zasady pracy ze specyfikacjami (dla ludzi i agentów AI)
 
 - Każda nietrywialna funkcjonalność / zmiana architektury dostaje spec w `.ai/specs/` **przed** albo **w trakcie** pierwszej implementacji.
 - Nazwa pliku: `SPEC-XXX-RRRR-MM-DD-krotki-tytul.md` (XXX = kolejny numer, 3 cyfry).

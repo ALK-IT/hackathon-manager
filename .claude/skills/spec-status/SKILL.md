@@ -1,4 +1,4 @@
-﻿---
+---
 name: spec-status
 description: Audytuje .ai/specs/ — dla każdego specu sprawdza status deklarowany vs rzeczywisty stan (powiązane PR-y/issues/commity), raportuje rozjazd dokumentacji z kodem. Użyj okresowo albo przed planowaniem, żeby sprawdzić czy specy są aktualne.
 ---

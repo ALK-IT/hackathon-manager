@@ -1,4 +1,4 @@
-﻿# hackathon-manager
+# hackathon-manager
 
 Aplikacja do zarządzania hakatonami
 

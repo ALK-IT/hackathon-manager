@@ -1,4 +1,4 @@
-﻿---
+---
 name: time-report
 description: Zlicza czas spędzony na zadaniach z komentarzy na GitHubie (konwencja "⏱ Xh - opis" na issues/PR), agreguje per osoba i per zadanie. Użyj do raportu czasu pracy zespołu (np. na potrzeby prowadzącego).
 ---

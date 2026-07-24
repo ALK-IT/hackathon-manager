@@ -1,4 +1,4 @@
-﻿---
+---
 name: new-spec
 description: Analiza wymagań dla nowej funkcjonalności — zadaje pytania doprecyzowujące, tworzy spec w .ai/specs/ na bazie TEMPLATE.md i dopisuje go do indeksu. Użyj gdy ktoś opisuje nowy pomysł/feature i trzeba go przekuć w spec przed implementacją.
 ---

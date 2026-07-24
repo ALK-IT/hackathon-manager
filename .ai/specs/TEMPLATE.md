@@ -1,4 +1,4 @@
-﻿# SPEC-XXX: {Tytuł}
+# SPEC-XXX: {Tytuł}
 
 **Status:** Proponowany
 **Data:** 2026-07-24
