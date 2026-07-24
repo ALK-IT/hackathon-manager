@@ -26,7 +26,7 @@ hackathon-manager/
 
 ## Sposób pracy (spec-driven development)
 
-Przed implementacją nietrywialnej funkcjonalności powstaje krótki spec w [.ai/specs/](.ai/specs/README.md) (wzorowane na [open-mercato](https://github.com/open-mercato/open-mercato)). Specy: [SPEC-001 — Hello World](.ai/specs/SPEC-001-hello-world.md), [SPEC-002 — Postgres + Redis + ORM](.ai/specs/SPEC-002-2026-07-24-postgres-redis-przyklad.md). Pełny workflow pracy (branże, commity, PR, kanban, etykiety): [CONTRIBUTING.md](CONTRIBUTING.md).
+Przed implementacją nietrywialnej funkcjonalności powstaje krótki spec w [.ai/specs/](.ai/specs/README.md) (wzorowane na [open-mercato](https://github.com/open-mercato/open-mercato)). Specy: [SPEC-001 — Hello World](.ai/specs/SPEC-001-hello-world.md), [SPEC-002 — Postgres + Redis + ORM](.ai/specs/implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md). Pełny workflow pracy (branże, commity, PR, kanban, etykiety): [CONTRIBUTING.md](CONTRIBUTING.md).
 
 W Claude Code dostępne są skille do tego procesu: `/new-spec` (analiza wymagań → spec), `/spec-to-issues` (spec → GitHub issues + kanban), `/spec-status` (audyt statusów speców vs PR-y/issues).
 
@@ -52,7 +52,7 @@ Nowy współdzielony komponent UI → dodaj go tutaj (nie duplikuj w miejscu uż
 
 ## Baza danych i cache (Postgres + Redis)
 
-Przykładowy, celowo minimalny wzorzec architektury na jednej encji (`Hackathon`: `id`, `name`) — reszta (CRUD, walidacja, kolejne encje, testy jednostkowe) to zadanie dla zespołu. Szczegóły i "co dalej": [SPEC-002](.ai/specs/SPEC-002-2026-07-24-postgres-redis-przyklad.md).
+Przykładowy, celowo minimalny wzorzec architektury na jednej encji (`Hackathon`: `id`, `name`) — reszta (CRUD, walidacja, kolejne encje, testy jednostkowe) to zadanie dla zespołu. Szczegóły i "co dalej": [SPEC-002](.ai/specs/implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md).
 
 - **ORM:** SQLAlchemy 2.0 (async, `asyncpg`) — modele w `backend/app/models.py`.
 - **Migracje:** Alembic (`backend/alembic/`). Nowa migracja: `cd backend && alembic revision -m "opis"`, zastosowanie: `alembic upgrade head` (Docker robi to automatycznie przy starcie kontenera).

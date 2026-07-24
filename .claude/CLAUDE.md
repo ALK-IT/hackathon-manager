@@ -5,7 +5,7 @@ Projekt studencki ALK. Monorepo: React (frontend) + FastAPI (backend).
 ## Struktura
 
 - `frontend/` — React + Vite + TypeScript. Deploy: Vercel (auto na push do `main`). Komponenty UI w `src/design-system/` (Storybook), nie duplikuj ich lokalnie w widokach.
-- `backend/` — FastAPI + Python 3.12. Deploy: Railway (auto na push do `main`). Postgres (SQLAlchemy async + Alembic) + Redis (cache-aside). Wzorzec: router → `app/services/` (logika + cache) → `app/repositories/` (jedyne miejsce z zapytaniami do bazy). Nowe endpointy trzymaj się tego podziału, nie pisz SQL/ORM-query bezpośrednio w routerze. Zobacz [SPEC-002](../.ai/specs/SPEC-002-2026-07-24-postgres-redis-przyklad.md).
+- `backend/` — FastAPI + Python 3.12. Deploy: Railway (auto na push do `main`). Postgres (SQLAlchemy async + Alembic) + Redis (cache-aside). Wzorzec: router → `app/services/` (logika + cache) → `app/repositories/` (jedyne miejsce z zapytaniami do bazy). Nowe endpointy trzymaj się tego podziału, nie pisz SQL/ORM-query bezpośrednio w routerze. Zobacz [SPEC-002](../.ai/specs/implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md).
 - `scripts/ai-agents/` — lokalni agenci AI (code/security/UX review), triggerowani etykietą `ai-review` na PR.
 
 ## Komendy
