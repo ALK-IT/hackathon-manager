@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from './design-system/Button'
+import { HackathonList } from './features/hackathons/HackathonList'
 import './App.css'
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
@@ -30,6 +31,7 @@ function App() {
       <p>Frontend (React + Vite) połączony z backendem (FastAPI):</p>
       {error ? <p style={{ color: 'crimson' }}>{error}</p> : <p>{message}</p>}
       <Button onClick={fetchHello}>Odśwież</Button>
+      <HackathonList />
     </main>
   )
 }
