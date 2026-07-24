@@ -9,8 +9,12 @@ Projekt studencki ALK. Monorepo zawierające frontend (React) i backend (FastAPI
 ```
 hackathon-manager/
 ├── frontend/                  # React + Vite + TypeScript + Storybook (design system)
-│   └── src/design-system/     # Katalog komponentów UI (Button, tokens...)
-├── backend/                   # FastAPI + Python
+│   ├── src/design-system/     # Katalog komponentów UI (Button, tokens...)
+│   └── src/features/          # Funkcjonalności (np. hackathons/)
+├── backend/                   # FastAPI + Python (SQLAlchemy async + Alembic + Redis)
+│   ├── app/repositories/      # Wzorzec Repository (dostęp do bazy)
+│   ├── app/services/          # Wzorzec Service (logika biznesowa, cache)
+│   └── alembic/               # Migracje schematu bazy
 ├── .ai/specs/                 # Specyfikacje (spec-driven development)
 ├── scripts/ai-agents/         # Lokalni AI agenci: code/security/UX review
 ├── .github/                   # Workflows (CI, CodeQL, gitleaks, audyt zależności), szablony PR/issue, CODEOWNERS
@@ -22,7 +26,7 @@ hackathon-manager/
 
 ## Sposób pracy (spec-driven development)
 
-Przed implementacją nietrywialnej funkcjonalności powstaje krótki spec w [.ai/specs/](.ai/specs/README.md) (wzorowane na [open-mercato](https://github.com/open-mercato/open-mercato)). Pierwszy spec: [SPEC-001 — Hello World](.ai/specs/SPEC-001-hello-world.md). Pełny workflow pracy (branże, commity, PR, kanban, etykiety): [CONTRIBUTING.md](CONTRIBUTING.md).
+Przed implementacją nietrywialnej funkcjonalności powstaje krótki spec w [.ai/specs/](.ai/specs/README.md) (wzorowane na [open-mercato](https://github.com/open-mercato/open-mercato)). Specy: [SPEC-001 — Hello World](.ai/specs/SPEC-001-hello-world.md), [SPEC-002 — Postgres + Redis + ORM](.ai/specs/SPEC-002-2026-07-24-postgres-redis-przyklad.md). Pełny workflow pracy (branże, commity, PR, kanban, etykiety): [CONTRIBUTING.md](CONTRIBUTING.md).
 
 W Claude Code dostępne są skille do tego procesu: `/new-spec` (analiza wymagań → spec), `/spec-to-issues` (spec → GitHub issues + kanban), `/spec-status` (audyt statusów speców vs PR-y/issues).
 
@@ -45,6 +49,16 @@ npm run storybook
 Wdrożony Storybook (auto po push do `main`, workflow `storybook-pages`): https://alk-it.github.io/hackathon-manager/
 
 Nowy współdzielony komponent UI → dodaj go tutaj (nie duplikuj w miejscu użycia) + plik `.stories.tsx`.
+
+## Baza danych i cache (Postgres + Redis)
+
+Przykładowy, celowo minimalny wzorzec architektury na jednej encji (`Hackathon`: `id`, `name`) — reszta (CRUD, walidacja, kolejne encje, testy jednostkowe) to zadanie dla zespołu. Szczegóły i "co dalej": [SPEC-002](.ai/specs/SPEC-002-2026-07-24-postgres-redis-przyklad.md).
+
+- **ORM:** SQLAlchemy 2.0 (async, `asyncpg`) — modele w `backend/app/models.py`.
+- **Migracje:** Alembic (`backend/alembic/`). Nowa migracja: `cd backend && alembic revision -m "opis"`, zastosowanie: `alembic upgrade head` (Docker robi to automatycznie przy starcie kontenera).
+- **Wzorce:** Repository (`app/repositories/`, cała komunikacja z bazą) + Service (`app/services/`, logika biznesowa i cache-aside w Redis). Router (`app/main.py`) woła tylko service, nigdy repozytorium/bazy bezpośrednio.
+- **Endpoint przykładowy:** `GET /api/hackathons` — lista `{id, name}`, cache w Redis (60s TTL).
+- **Lokalnie bez Dockera:** potrzebujesz uruchomionego Postgresa i Redisa (patrz `docker-compose.yml` dla danych dostępowych) albo po prostu `docker compose up postgres redis`.
 
 ## AI agenci (code review / security review / UX review)
 
