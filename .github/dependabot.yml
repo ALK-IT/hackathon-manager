@@ -5,15 +5,14 @@ updates:
     schedule:
       interval: "weekly"
     ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+      # TypeScript 7 to na razie beta, koliduje z typescript-eslint (peer dep <6.1.0).
+      # Reszta major bumpów jest OK - projekt ma trzymać najnowsze wersje.
+      - dependency-name: "typescript"
+        versions: ["7.x"]
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
       interval: "weekly"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
