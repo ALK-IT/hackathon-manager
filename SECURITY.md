@@ -1,4 +1,4 @@
-﻿# Polityka bezpieczeństwa — hackathon-manager
+# Polityka bezpieczeństwa — hackathon-manager
 
 ## Zgłaszanie podatności
 

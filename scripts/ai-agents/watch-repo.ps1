@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 Odpytuje repo o otwarte PR-y z etykietą 'ai-review' i odpala dla każdego review-pr.ps1
 (lokalny Claude Code, subskrypcja - bez API-key/billing per token).

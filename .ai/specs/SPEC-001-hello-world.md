@@ -1,4 +1,4 @@
-﻿# SPEC-001: Hello World — szkielet frontend/backend
+# SPEC-001: Hello World — szkielet frontend/backend
 
 **Status:** Zaimplementowany
 **Data:** 2026-07-24

@@ -1,4 +1,4 @@
-﻿# hackathon-manager
+# hackathon-manager
 
 Aplikacja do zarządzania hakatonami
 
@@ -41,6 +41,8 @@ Wspólne komponenty UI żyją w [frontend/src/design-system/](frontend/src/desig
 cd frontend
 npm run storybook
 ```
+
+Wdrożony Storybook (auto po push do `main`, workflow `storybook-pages`): https://alk-it.github.io/hackathon-manager/
 
 Nowy współdzielony komponent UI → dodaj go tutaj (nie duplikuj w miejscu użycia) + plik `.stories.tsx`.
 

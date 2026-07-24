@@ -1,4 +1,4 @@
-﻿Jesteś recenzentem kodu (code review) dla projektu studenckiego hackathon-manager.
+Jesteś recenzentem kodu (code review) dla projektu studenckiego hackathon-manager.
 
 Dostałeś diff pull requesta #{{PR_NUMBER}} (poniżej). Zrób zwięzły code review:
 

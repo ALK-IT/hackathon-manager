@@ -1,4 +1,4 @@
-﻿# Specyfikacje — hackathon-manager
+# Specyfikacje — hackathon-manager
 
 Ten projekt stosuje metodologię **spec-driven development**: przed implementacją nietrywialnej funkcjonalności lub istotnej zmiany architektonicznej powstaje krótka specyfikacja w tym katalogu.
 

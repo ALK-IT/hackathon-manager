@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 Uruchamia lokalne AI code review / security review / UX review na pojedynczym PR,
 korzystając z lokalnie zalogowanego Claude Code (subskrypcja, bez API-key/billing per token)

@@ -1,4 +1,4 @@
-﻿name: discord-notify
+name: discord-notify
 
 on:
   pull_request:

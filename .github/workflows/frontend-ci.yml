@@ -1,10 +1,10 @@
-﻿name: frontend-ci
+name: frontend-ci
 
 on:
+  # Bez filtra paths na pull_request: required status check musi się pojawić
+  # na KAŻDYM PR, inaczej branch protection wisi na "oczekiwany" check w nieskończoność
+  # dla PR-ów, które nie dotykają frontend/.
   pull_request:
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-ci.yml"
   push:
     branches: [main]
     paths:

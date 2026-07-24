@@ -1,4 +1,4 @@
-﻿## Opis zmian
+## Opis zmian
 
 <!-- Co zmieniono i dlaczego -->
 

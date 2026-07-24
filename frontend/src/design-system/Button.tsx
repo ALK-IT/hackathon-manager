@@ -1,4 +1,4 @@
-﻿import type { ButtonHTMLAttributes } from 'react'
+import type { ButtonHTMLAttributes } from 'react'
 import { colors, radius, spacing, typography } from './tokens'
 
 type Variant = 'primary' | 'danger' | 'ghost'
