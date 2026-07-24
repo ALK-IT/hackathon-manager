@@ -121,8 +121,11 @@ cd backend && pytest
 
 ## Deploy
 
-- **Frontend** — Vercel, automatyczny deploy po merge do `main` (workflow `deploy-frontend`).
-- **Backend** — Railway, automatyczny deploy po merge do `main` (workflow `deploy-backend`).
+- **Frontend** — Vercel, automatyczny deploy po merge do `main` (workflow `deploy-frontend`). Root Directory w projekcie Vercel musi być ustawiony na `frontend` (patrz `frontend/vercel.json`).
+- **Backend** — Railway, automatyczny deploy po merge do `main` (workflow `deploy-backend`). Wymaga jednorazowego setupu w Railway:
+  1. Serwis backendu: **Settings → Source → Root Directory** = `backend`.
+  2. W projekcie Railway dodaj: **+ New → Database → Add PostgreSQL** i **Add Redis** (osobne serwisy, `docker-compose.yml` obowiązuje tylko lokalnie).
+  3. Serwis backendu → **Variables** → `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`, `REDIS_URL` = `${{Redis.REDIS_URL}}`.
 
 Wymagane sekrety repozytorium (Settings → Secrets and variables → Actions):
 

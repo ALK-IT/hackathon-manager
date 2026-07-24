@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app.db import normalize_database_url
 from app.models import Base
 
 config = context.config
@@ -19,9 +20,11 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://hackathon:hackathon@localhost:5432/hackathon_manager",
+DATABASE_URL = normalize_database_url(
+    os.environ.get(
+        "DATABASE_URL",
+        "postgresql+asyncpg://hackathon:hackathon@localhost:5432/hackathon_manager",
+    )
 )
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
