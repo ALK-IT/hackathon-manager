@@ -15,12 +15,12 @@ Nie zgłaszaj podatności bezpieczeństwa jako publiczny issue. Zamiast tego:
 
 ## Mechanizmy bezpieczeństwa w tym repo
 
-- **CodeQL** — statyczna analiza (JS/TS + Python) na każdym PR i cotygodniowo.
-- **Gitleaks** — skan sekretów w commitach na każdym PR.
+- **CodeQL** — statyczna analiza (JS/TS + Python) na każdym PR i cotygodniowo. **Wymaga GitHub Advanced Security** — na prywatnym repo z planem Free workflow jest automatycznie pomijany (nie failuje), aktywuje się sam gdy repo jest publiczne albo organizacja ma GHAS.
+- **Gitleaks** — skan sekretów w commitach na każdym PR (OSS, działa zawsze, bez licencji/planu).
 - **Dependency audit** — `npm audit` / `pip-audit` na każdym PR i cotygodniowo.
 - **Dependabot** — automatyczne PR-y z aktualizacjami zależności (npm, pip, actions).
 - **AI security review** — lokalny agent (`scripts/ai-agents/`) uruchamiany etykietą `ai-review`, sprawdza OWASP Top 10 w diffie PR-a.
-- **Branch protection** na `main` — wymagane review, przechodzące CI, brak force-push.
+- **Branch protection** na `main` — wymagane review, przechodzące CI, brak force-push. **Uwaga:** na prywatnym repo z planem Free organizacji GitHub też tego nie wymusza technicznie (wymaga GitHub Team+) — zasady zostają jako konwencja zespołu.
 
 ## Zasady dla współtwórców
 
