@@ -25,3 +25,8 @@ Thumbs.db
 
 *storybook.log
 storybook-static
+
+# Playwright (e2e)
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.cache/

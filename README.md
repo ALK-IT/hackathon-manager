@@ -112,12 +112,24 @@ uvicorn app.main:app --reload
 ## Testy
 
 ```bash
-# frontend
+# frontend (jednostkowe)
 cd frontend && npm run test -- --run
 
-# backend
+# backend (integracyjne, wymaga Postgres+Redis - patrz docker-compose.yml)
 cd backend && pytest
 ```
+
+**E2E (przykładowy smoke test):** sprawdza cały przekrój — frontend + backend + Postgres + Redis razem, przez `docker compose`:
+
+```bash
+docker compose up -d --build
+cd frontend
+npx playwright install --with-deps chromium   # jednorazowo
+npm run test:e2e
+docker compose down -v
+```
+
+Odpala się automatycznie w CI (workflow `e2e`, niewymagany do mergu — informacyjny).
 
 ## Deploy
 
