@@ -19,5 +19,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 |---|---|---|---|
 | SPEC-001 | Hello World — szkielet frontend/backend | Zaimplementowany | [SPEC-001-hello-world.md](SPEC-001-hello-world.md) |
 | SPEC-002 | Postgres + Redis + ORM — przykładowy szkielet architektury | Zaimplementowany | [implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md](implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md) |
+| SPEC-003 | CRUD hackathonów z walidacją i invalidacją cache | Zaakceptowany | [SPEC-003-2026-07-29-crud-hackathonow.md](SPEC-003-2026-07-29-crud-hackathonow.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).
