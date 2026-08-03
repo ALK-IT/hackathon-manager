@@ -1,6 +1,9 @@
 import os
 
-from src.auth.constants import DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES
+from src.auth.constants import (
+    DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES,
+    DEFAULT_REFRESH_TOKEN_EXPIRE_DAYS,
+)
 
 
 def get_access_token_expire_minutes() -> int:
@@ -14,6 +17,20 @@ def get_access_token_expire_minutes() -> int:
         raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES must be an integer") from exc
     if value <= 0:
         raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES must be greater than zero")
+    return value
+
+
+def get_refresh_token_expire_days() -> int:
+    raw_value = os.environ.get(
+        "REFRESH_TOKEN_EXPIRE_DAYS",
+        str(DEFAULT_REFRESH_TOKEN_EXPIRE_DAYS),
+    )
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise RuntimeError("REFRESH_TOKEN_EXPIRE_DAYS must be an integer") from exc
+    if value <= 0:
+        raise RuntimeError("REFRESH_TOKEN_EXPIRE_DAYS must be greater than zero")
     return value
 
 

@@ -26,5 +26,7 @@ def test_expected_routes_are_registered() -> None:
         "/api/hackathons",
         "/api/auth/register",
         "/api/auth/login",
+        "/api/auth/refresh",
+        "/api/auth/logout",
         "/api/auth/me",
     }.issubset(paths)
