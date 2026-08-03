@@ -54,11 +54,19 @@ Nowy współdzielony komponent UI → dodaj go tutaj (nie duplikuj w miejscu uż
 
 Przykładowy, celowo minimalny wzorzec architektury na jednej encji (`Hackathon`: `id`, `name`) — reszta (CRUD, walidacja, kolejne encje, testy jednostkowe) to zadanie dla zespołu. Szczegóły i "co dalej": [SPEC-002](.ai/specs/implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md).
 
-- **ORM:** SQLAlchemy 2.0 (async, `asyncpg`) — modele w `backend/app/models.py`.
+- **ORM:** SQLAlchemy 2.0 (async, `asyncpg`) — modele w `backend/app/models/`.
 - **Migracje:** Alembic (`backend/alembic/`). Nowa migracja: `cd backend && alembic revision -m "opis"`, zastosowanie: `alembic upgrade head` (Docker robi to automatycznie przy starcie kontenera).
 - **Wzorce:** Repository (`app/repositories/`, cała komunikacja z bazą) + Service (`app/services/`, logika biznesowa i cache-aside w Redis). Router (`app/main.py`) woła tylko service, nigdy repozytorium/bazy bezpośrednio.
 - **Endpoint przykładowy:** `GET /api/hackathons` — lista `{id, name}`, cache w Redis (60s TTL).
 - **Lokalnie bez Dockera:** potrzebujesz uruchomionego Postgresa i Redisa (patrz `docker-compose.yml` dla danych dostępowych) albo po prostu `docker compose up postgres redis`.
+
+## Logowanie użytkownika
+
+- `POST /api/auth/register` — rejestracja przez JSON (`name`, `email`, `password`).
+- `POST /api/auth/login` — logowanie formularzem OAuth2 (`username` = e-mail, `password` = hasło).
+- `GET /api/auth/me` — dane zalogowanego użytkownika, wymagany nagłówek `Authorization: Bearer <token>`.
+
+Hasła są przechowywane jako hashe Argon2. JWT wymaga zmiennej `JWT_SECRET_KEY` zawierającej co najmniej 32 znaki. Bezpieczną wartość można wygenerować poleceniem `openssl rand -hex 32`. Czas ważności tokena ustawia opcjonalna zmienna `ACCESS_TOKEN_EXPIRE_MINUTES` (domyślnie 30 minut).
 
 ## AI agenci (code review / security review / UX review)
 
@@ -137,7 +145,7 @@ Odpala się automatycznie w CI (workflow `e2e`, niewymagany do mergu — informa
 - **Backend** — Railway, automatyczny deploy po merge do `main` (workflow `deploy-backend`). Wymaga jednorazowego setupu w Railway:
   1. Serwis backendu: **Settings → Source → Root Directory** = `backend`.
   2. W projekcie Railway dodaj: **+ New → Database → Add PostgreSQL** i **Add Redis** (osobne serwisy, `docker-compose.yml` obowiązuje tylko lokalnie).
-  3. Serwis backendu → **Variables** → `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`, `REDIS_URL` = `${{Redis.REDIS_URL}}`.
+  3. Serwis backendu → **Variables** → `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`, `REDIS_URL` = `${{Redis.REDIS_URL}}`, `JWT_SECRET_KEY` = losowy sekret wygenerowany przez `openssl rand -hex 32`.
 
 Wymagane sekrety repozytorium (Settings → Secrets and variables → Actions):
 
