@@ -33,11 +33,16 @@ services:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql+asyncpg://hackathon:hackathon@postgres:5432/hackathon_manager
       - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-local-development-secret-change-me-1234567890}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    volumes:
+      - ./backend:/app
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
 
   frontend:
     build:
