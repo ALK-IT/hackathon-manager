@@ -10,7 +10,7 @@ Backend nie miał modelu użytkownika ani mechanizmu uwierzytelniania. Nie było
 
 ## Proponowane rozwiązanie
 
-- Model SQLAlchemy `User` z wewnętrznym identyfikatorem, publicznym UUID, nazwą, unikalnym e-mailem, hashem hasła i datą utworzenia.
+- Model SQLAlchemy `User` z wewnętrznym identyfikatorem, publicznym UUID, nazwą, unikalnym e-mailem, hashem hasła, datą utworzenia i rolą `USER`/`ADMIN`.
 - Hasła przechowywane wyłącznie jako hashe Argon2 generowane przez `pwdlib`.
 - Krótkotrwały token dostępu JWT podpisywany algorytmem HS256. Publiczny UUID użytkownika jest zapisywany w polu `sub`, a token zawiera czas wystawienia i wygaśnięcia.
 - Sekret podpisujący pobierany z `JWT_SECRET_KEY`; aplikacja odrzuca sekret krótszy niż 32 znaki. Czas ważności jest konfigurowany przez `ACCESS_TOKEN_EXPIRE_MINUTES` i domyślnie wynosi 30 minut.
@@ -28,6 +28,7 @@ Backend nie miał modelu użytkownika ani mechanizmu uwierzytelniania. Nie było
 - Normalizacja e-maila, walidacja danych i unikalność e-maila.
 - Odpowiedzi `401 Unauthorized` dla niepoprawnych danych lub tokena oraz `409 Conflict` dla zajętego e-maila.
 - Migracja Alembic `0002` tworząca tabelę `users`.
+- Migracja Alembic `0003` dodająca rolę użytkownika z wartością początkową `USER`.
 - Testy hashowania, tokenów, rejestracji i logowania.
 - Konfiguracja lokalnego Dockera oraz Railway przez zmienne środowiskowe.
 
@@ -35,7 +36,7 @@ Backend nie miał modelu użytkownika ani mechanizmu uwierzytelniania. Nie było
 
 - Refresh tokeny, wylogowanie i unieważnianie aktywnych tokenów.
 - Weryfikacja adresu e-mail i reset hasła.
-- Role, uprawnienia i konta administratorów.
+- Egzekwowanie uprawnień na podstawie roli i zarządzanie kontami administratorów.
 - Logowanie przez Google, GitHub lub innych zewnętrznych dostawców.
 - Formularze logowania i rejestracji we frontendzie.
 - Ograniczanie liczby prób logowania (*rate limiting*) i blokowanie kont.
@@ -44,7 +45,7 @@ Backend nie miał modelu użytkownika ani mechanizmu uwierzytelniania. Nie było
 
 - **Frontend:** bez zmian w interfejsie; frontend może korzystać z nowych endpointów i przesyłać token w nagłówku `Authorization: Bearer <token>`.
 - **Backend:** moduły `src/auth/models.py`, `schemas.py`, `repository.py`, `service.py`, `router.py`, `dependencies.py`, `config.py`, `constants.py`, `exceptions.py` i `utils.py`; router uwierzytelniania jest podpięty do aplikacji FastAPI przez zbiorczy `api_router`.
-- **Baza danych / API:** nowa tabela `users`, unikalny indeks publicznego UUID, unikalny e-mail oraz trzy endpointy `/api/auth/*`.
+- **Baza danych / API:** tabela `users`, unikalny indeks publicznego UUID, unikalny e-mail, enum `user_role`, kolumna `role` oraz trzy endpointy `/api/auth/*`.
 - **Konfiguracja:** nowe zmienne `JWT_SECRET_KEY` i `ACCESS_TOKEN_EXPIRE_MINUTES`; nowe zależności PyJWT, pwdlib z Argon2, python-multipart i email-validator.
 
 ## Alternatywy rozważane
@@ -58,3 +59,4 @@ Backend nie miał modelu użytkownika ani mechanizmu uwierzytelniania. Nie było
 
 - 2026-08-03 — utworzono spec po implementacji na prośbę właściciela projektu.
 - 2026-08-03 — zaimplementowano model użytkownika, rejestrację, OAuth2 Password Bearer, JWT, endpoint `/me`, migrację i testy.
+- 2026-08-03 — dodano pole `User.role` oraz migrację `0003` z domyślną rolą `USER` dla istniejących rekordów.
