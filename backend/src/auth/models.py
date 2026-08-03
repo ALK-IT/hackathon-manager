@@ -1,11 +1,18 @@
 import uuid
 from datetime import datetime
-
-from sqlalchemy import DateTime, String, func
+from enum import Enum
+from sqlalchemy import DateTime, String, func, Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.models import Base
+
+
+
+
+class UserRole(str, Enum):
+    USER = "user"
+    ADMIN = "admin"
 
 
 class User(Base):
@@ -26,4 +33,14 @@ class User(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
+    )
+
+    role: Mapped[UserRole] = mapped_column(
+
+        SqlEnum(UserRole, name="user_role"),
+
+        default=UserRole.USER,
+
+        nullable=False,
+
     )
