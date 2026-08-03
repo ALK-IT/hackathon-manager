@@ -1,16 +1,98 @@
+import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 
-from src.hackathons.dependencies import get_hackathon_service
-from src.hackathons.schemas import HackathonRead
+from src.auth.dependencies import get_current_user
+from src.auth.models import User
+from src.hackathons.dependencies import get_current_admin, get_hackathon_service
+from src.hackathons.schemas import (
+    HackathonCreate,
+    HackathonDeleteRequest,
+    HackathonListItem,
+    HackathonRead,
+    HackathonRegistrationStateRead,
+    HackathonUpdate,
+)
 from src.hackathons.service import HackathonService
 
 router = APIRouter(prefix="/api/hackathons", tags=["hackathons"])
 
 
-@router.get("", response_model=list[HackathonRead])
+@router.get("", response_model=list[HackathonListItem])
 async def list_hackathons(
+    current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
-) -> list[dict]:
-    return await service.list_hackathons()
+) -> list[HackathonListItem]:
+    hackathons = await service.list_hackathons(current_user)
+    return [
+        HackathonListItem.from_hackathon(hackathon, current_user.id) for hackathon in hackathons
+    ]
+
+
+@router.post("", response_model=HackathonRead, status_code=status.HTTP_201_CREATED)
+async def create_hackathon(
+    data: HackathonCreate,
+    current_admin: Annotated[User, Depends(get_current_admin)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> HackathonRead:
+    hackathon = await service.create_hackathon(data, current_admin)
+    return HackathonRead.from_hackathon(hackathon, current_admin.id)
+
+
+@router.get("/{public_id}", response_model=HackathonRead)
+async def get_hackathon(
+    public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> HackathonRead:
+    hackathon = await service.get_hackathon(public_id, current_user)
+    return HackathonRead.from_hackathon(hackathon, current_user.id)
+
+
+@router.patch("/{public_id}", response_model=HackathonRead)
+async def update_hackathon(
+    public_id: uuid.UUID,
+    data: HackathonUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> HackathonRead:
+    hackathon = await service.update_hackathon(public_id, data, current_user)
+    return HackathonRead.from_hackathon(hackathon, current_user.id)
+
+
+@router.delete("/{public_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_hackathon(
+    public_id: uuid.UUID,
+    data: HackathonDeleteRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> Response:
+    await service.delete_hackathon(public_id, data.confirm_name, current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{public_id}/open-registration",
+    response_model=HackathonRegistrationStateRead,
+)
+async def open_registration(
+    public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> HackathonRegistrationStateRead:
+    hackathon = await service.open_registration(public_id, current_user)
+    return HackathonRegistrationStateRead.model_validate(hackathon, from_attributes=True)
+
+
+@router.post(
+    "/{public_id}/close-registration",
+    response_model=HackathonRegistrationStateRead,
+)
+async def close_registration(
+    public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> HackathonRegistrationStateRead:
+    hackathon = await service.close_registration(public_id, current_user)
+    return HackathonRegistrationStateRead.model_validate(hackathon, from_attributes=True)
