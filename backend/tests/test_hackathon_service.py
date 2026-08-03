@@ -10,9 +10,8 @@ from app.cache import REDIS_URL
 from app.db import DATABASE_URL
 from app.models import Base, Hackathon
 from app.repositories.hackathon_repository import HackathonRepository
-from app.services.hackathon_service import CACHE_KEY, CACHE_TTL_SECONDS, HackathonService
 from app.schemas import HackathonCreate, HackathonUpdate
-from app.services.hackathon_service import CACHE_KEY, HackathonService
+from app.services.hackathon_service import CACHE_KEY, CACHE_TTL_SECONDS, HackathonService
 
 
 @pytest.fixture
