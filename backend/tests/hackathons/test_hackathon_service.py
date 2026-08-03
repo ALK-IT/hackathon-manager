@@ -5,11 +5,13 @@ import pytest
 from redis.asyncio import from_url
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.cache import REDIS_URL
-from app.db import DATABASE_URL
-from app.models import Base, Hackathon
-from app.repositories.hackathon_repository import HackathonRepository
-from app.services.hackathon_service import CACHE_KEY, CACHE_TTL_SECONDS, HackathonService
+from src.cache import REDIS_URL
+from src.database import DATABASE_URL
+from src.hackathons.constants import CACHE_KEY, CACHE_TTL_SECONDS
+from src.hackathons.models import Hackathon
+from src.hackathons.repository import HackathonRepository
+from src.hackathons.service import HackathonService
+from src.models import Base
 
 
 @pytest.fixture
