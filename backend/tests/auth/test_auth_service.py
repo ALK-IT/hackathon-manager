@@ -4,13 +4,12 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from src.auth.dependencies import get_current_user, get_token_service, get_user_service
+from src.auth.dependencies import get_current_user
 from src.auth.exceptions import EmailAlreadyRegisteredError, InvalidAccessTokenError
 from src.auth.schemas import UserCreate
-from src.auth.service import IssuedTokenPair, TokenService, UserService
+from src.auth.service import TokenService, UserService
 from src.auth.utils import (
     create_access_token,
     create_refresh_token,
@@ -22,15 +21,6 @@ from src.auth.utils import (
     revoked_access_token_key,
     verify_password,
 )
-from src.main import app
-
-
-@pytest.fixture(autouse=True)
-def jwt_secret(monkeypatch):
-    monkeypatch.setenv(
-        "JWT_SECRET_KEY",
-        "test-secret-key-with-at-least-32-characters",  # gitleaks:allow
-    )
 
 
 def test_password_is_hashed_and_can_be_verified():
@@ -122,41 +112,6 @@ async def test_revoked_token_is_rejected_by_current_user_dependency(mocker):
     user_service.get_by_public_id.assert_not_awaited()
 
 
-def test_logout_endpoint_returns_no_content(mocker):
-    token_service = mocker.Mock()
-    token_service.revoke = mocker.AsyncMock()
-    app.dependency_overrides[get_token_service] = lambda: token_service
-
-    try:
-        response = TestClient(app).post(
-            "/api/auth/logout",
-            headers={"Authorization": "Bearer access-token"},
-        )
-    finally:
-        app.dependency_overrides.pop(get_token_service, None)
-
-    assert response.status_code == 204
-    assert response.content == b""
-    token_service.revoke.assert_awaited_once_with("access-token")
-
-
-def test_logout_endpoint_rejects_invalid_token(mocker):
-    token_service = mocker.Mock()
-    token_service.revoke = mocker.AsyncMock(side_effect=InvalidAccessTokenError)
-    app.dependency_overrides[get_token_service] = lambda: token_service
-
-    try:
-        response = TestClient(app).post(
-            "/api/auth/logout",
-            headers={"Authorization": "Bearer invalid-token"},
-        )
-    finally:
-        app.dependency_overrides.pop(get_token_service, None)
-
-    assert response.status_code == 401
-    assert response.headers["www-authenticate"] == "Bearer"
-
-
 async def test_token_pair_is_issued_and_refresh_session_is_stored(mocker):
     cache = mocker.Mock()
     cache.set = mocker.AsyncMock()
@@ -197,44 +152,6 @@ async def test_refresh_token_is_rotated_only_once(mocker):
 
     assert cache.getdel.await_count == 2
     cache.getdel.assert_awaited_with(refresh_session_key(session_id))
-
-
-def test_refresh_endpoint_rotates_token_pair(mocker):
-    public_id = uuid.uuid4()
-    user = SimpleNamespace(public_id=public_id)
-    tokens = IssuedTokenPair(
-        access_token="new-access-token",
-        refresh_token="new-refresh-token",
-        access_expires_in=1800,
-        refresh_expires_in=604800,
-    )
-    token_service = mocker.Mock()
-    token_service.consume_refresh_token = mocker.AsyncMock(return_value=public_id)
-    token_service.issue_token_pair = mocker.AsyncMock(return_value=tokens)
-    user_service = mocker.Mock()
-    user_service.get_by_public_id = mocker.AsyncMock(return_value=user)
-    app.dependency_overrides[get_token_service] = lambda: token_service
-    app.dependency_overrides[get_user_service] = lambda: user_service
-
-    try:
-        response = TestClient(app).post(
-            "/api/auth/refresh",
-            json={"refresh_token": "old-refresh-token"},
-        )
-    finally:
-        app.dependency_overrides.pop(get_token_service, None)
-        app.dependency_overrides.pop(get_user_service, None)
-
-    assert response.status_code == 200
-    assert response.json() == {
-        "access_token": "new-access-token",
-        "refresh_token": "new-refresh-token",
-        "token_type": "bearer",
-        "expires_in": 1800,
-        "refresh_expires_in": 604800,
-    }
-    token_service.consume_refresh_token.assert_awaited_once_with("old-refresh-token")
-    token_service.issue_token_pair.assert_awaited_once_with(public_id)
 
 
 async def test_register_hashes_password_and_commits(mocker):

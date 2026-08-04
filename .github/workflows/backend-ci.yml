@@ -41,6 +41,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql+asyncpg://hackathon:hackathon@localhost:5432/hackathon_manager
+      TEST_DATABASE_URL: postgresql+asyncpg://hackathon:hackathon@localhost:5432/hackathon_manager
       REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v7
