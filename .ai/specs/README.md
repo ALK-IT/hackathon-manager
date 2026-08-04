@@ -21,5 +21,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-002 | Postgres + Redis + ORM — przykładowy szkielet architektury | Zaimplementowany | [implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md](implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md) |
 | SPEC-003 | Rejestracja i logowanie użytkowników przez JWT | Zaimplementowany | [implemented/SPEC-003-2026-08-03-logowanie-jwt.md](implemented/SPEC-003-2026-08-03-logowanie-jwt.md) |
 | SPEC-004 | CRUD hackathonów i kontekstowe uprawnienia organizatorów | Zaimplementowany | [implemented/SPEC-004-2026-08-03-crud-hackathonow.md](implemented/SPEC-004-2026-08-03-crud-hackathonow.md) |
+| SPEC-005 | Walidacja wejścia i spójny kontrakt błędów API | Zaakceptowany | [SPEC-005-2026-08-04-kontrakt-bledow-api.md](implemented/SPEC-005-2026-08-04-kontrakt-bledow-api.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

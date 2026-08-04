@@ -14,6 +14,7 @@ from src.hackathons.exceptions import (
     HackathonPermissionDeniedError,
     InvalidConfirmNameError,
     InvalidDateRangeError,
+    InvalidTeamSizeError,
     RegistrationAlreadyClosedError,
     RegistrationAlreadyOpenError,
 )
@@ -395,6 +396,51 @@ async def test_validation_error_has_stable_contract(api_client):
 
     assert response.status_code == 422
     assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_code"),
+    [
+        (AdminRequiredError(), 403, "ADMIN_REQUIRED"),
+        (HackathonNotFoundError(), 404, "HACKATHON_NOT_FOUND"),
+        (HackathonPermissionDeniedError(), 403, "PERMISSION_DENIED"),
+        (InvalidDateRangeError(), 422, "INVALID_DATE_RANGE"),
+        (InvalidTeamSizeError(), 422, "INVALID_TEAM_SIZE"),
+        (InvalidConfirmNameError(), 400, "INVALID_CONFIRM_NAME"),
+        (RegistrationAlreadyOpenError(), 409, "REGISTRATION_ALREADY_OPEN"),
+        (RegistrationAlreadyClosedError(), 409, "REGISTRATION_ALREADY_CLOSED"),
+    ],
+)
+async def test_hackathon_errors_use_shared_api_contract(
+    api_client,
+    api_service,
+    error,
+    expected_status,
+    expected_code,
+):
+    client, _admin = api_client
+    api_service.get_hackathon.side_effect = error
+
+    response = await client.get(f"/api/hackathons/{uuid.uuid4()}")
+
+    assert response.status_code == expected_status
+    assert response.json() == {
+        "error_code": expected_code,
+        "detail": error.detail,
+    }
+
+
+def test_hackathon_openapi_documents_shared_error_models():
+    responses = app.openapi()["paths"]["/api/hackathons/{public_id}"]["get"]["responses"]
+
+    assert responses["404"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/ErrorResponse"
+    }
+    validation_schema = responses["422"]["content"]["application/json"]["schema"]
+    assert validation_schema["anyOf"] == [
+        {"$ref": "#/components/schemas/ErrorResponse"},
+        {"$ref": "#/components/schemas/ValidationErrorResponse"},
+    ]
 
 
 async def test_delete_endpoint_returns_no_content(api_client, api_service):

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Response, status
 
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
+from src.errors import ErrorResponse, ValidationErrorResponse
 from src.hackathons.dependencies import get_current_admin, get_hackathon_service
 from src.hackathons.schemas import (
     HackathonCreate,
@@ -16,7 +17,20 @@ from src.hackathons.schemas import (
 )
 from src.hackathons.service import HackathonService
 
-router = APIRouter(prefix="/api/hackathons", tags=["hackathons"])
+router = APIRouter(
+    prefix="/api/hackathons",
+    tags=["hackathons"],
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid operation"},
+        403: {"model": ErrorResponse, "description": "Insufficient permissions"},
+        404: {"model": ErrorResponse, "description": "Hackathon not found"},
+        409: {"model": ErrorResponse, "description": "State conflict"},
+        422: {
+            "model": ErrorResponse | ValidationErrorResponse,
+            "description": "Validation or domain data error",
+        },
+    },
+)
 
 
 @router.get("", response_model=list[HackathonListItem])
