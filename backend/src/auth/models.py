@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, String, func
 from sqlalchemy import Enum as SqlEnum
@@ -10,6 +11,9 @@ from src.registration.models import Registration
 
 
 from src.models import Base
+
+if TYPE_CHECKING:
+    from src.hackathons.models import Hackathon
 
 
 class UserRole(str, Enum):
@@ -47,4 +51,12 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+    organized_hackathons: Mapped[list["Hackathon"]] = relationship(
+        back_populates="organizer",
+        foreign_keys="Hackathon.organizer_id",
+    )
+    co_organized_hackathons: Mapped[list["Hackathon"]] = relationship(
+        secondary="hackathon_co_organizers",
+        back_populates="co_organizers",
     )

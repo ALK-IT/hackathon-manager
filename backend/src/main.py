@@ -1,10 +1,45 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from src.api import api_router
+from src.hackathons.exceptions import HackathonError
 
 app = FastAPI(title="hackathon-manager API")
 app.include_router(api_router)
+
+
+@app.exception_handler(HackathonError)
+async def handle_hackathon_error(_request: Request, exc: HackathonError) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error_code": exc.error_code, "detail": exc.detail},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_request_validation_error(
+    _request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    errors = [
+        {
+            "location": list(error["loc"]),
+            "message": error["msg"],
+            "type": error["type"],
+        }
+        for error in exc.errors()
+    ]
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error_code": "VALIDATION_ERROR",
+            "detail": "Request validation failed.",
+            "errors": errors,
+        },
+    )
+
 
 app.add_middleware(
     CORSMiddleware,
