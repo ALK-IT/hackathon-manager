@@ -1,0 +1,96 @@
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.registration.models import Registration, RegistrationQuestion
+from src.hackathons.models import Hackathon
+from src.auth.models import User
+
+
+class RegistrationQuestionRepository:
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_hackathon_public_id(
+        self,
+        hackathon_public_id: int,
+    ) -> list[RegistrationQuestion]:
+        result = await self.session.execute(
+            select(RegistrationQuestion)
+            .join(RegistrationQuestion.hackathon)
+            .where(
+                Hackathon.public_id == hackathon_public_id
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_by_public_id(
+        self,
+        question_public_id: uuid.UUID,
+    ) -> RegistrationQuestion | None:
+        result = await self.session.execute(
+            select(RegistrationQuestion).where(
+                RegistrationQuestion.public_id == question_public_id
+            )
+
+        )
+
+        return result.scalar_one_or_none()
+
+    async def create(
+        self,
+        question: RegistrationQuestion,
+
+    ) -> RegistrationQuestion:
+        self.session.add(question)
+        await self.session.flush()
+        return question
+    
+    async def delete(
+        self,
+        question: RegistrationQuestion,
+    ) -> None:
+        await self.session.delete(question)
+
+
+class RegistrationRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_hackathon(self, hackathon_public_id: uuid.UUID) -> Registration | None:
+        result = await self.session.execute(select(Registration)
+                                            .join(Registration.hackathon)
+                                            .where(Hackathon.public_id == hackathon_public_id))
+
+        return result.scalars().all()
+
+
+    async def get_by_hackathon_and_user(self, hackathon_public_id: uuid.UUID, user_public_id: uuid.UUID) -> Registration | None:
+
+        result = await self.session.execute(select(Registration)
+                                            .join(Registration.hackathon)
+                                            .join(Registration.user)
+                                            .where(Hackathon.public_id == hackathon_public_id,
+                                                   User.public_id == user_public_id))
+
+        return result.scalar_one_or_none()
+
+
+    async def create(self, registration: Registration) -> Registration:
+        self.session.add(registration)
+        await self.session.flush()
+        return registration
+
+    async def delete(self, registration: Registration) -> None:
+        await self.session.delete(registration)
+        await self.session.flush()
+
+
+    async def commit(self) -> None:
+        await self.session.commit()
+
+
+    async def rollback(self) -> None:
+        await self.session.rollback()
