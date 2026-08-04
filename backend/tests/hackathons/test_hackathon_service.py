@@ -2,32 +2,15 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from httpx import AsyncClient
 from redis.asyncio import from_url
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.cache import REDIS_URL
-from src.database import DATABASE_URL
 from src.hackathons.constants import CACHE_KEY, CACHE_TTL_SECONDS
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
 from src.hackathons.service import HackathonService
-from src.models import Base
-
-
-@pytest.fixture
-async def session():
-    engine = create_async_engine(DATABASE_URL)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
-    async with session_factory() as s:
-        s.add(Hackathon(name="Test Hackathon"))
-        await s.commit()
-        yield s
-
-    await engine.dispose()
 
 
 @pytest.fixture
@@ -45,14 +28,18 @@ def hackathons_list():
     return hackathons_data
 
 
-async def test_repository_lists_hackathons(session):
+async def test_repository_lists_hackathons(session: AsyncSession):
+    session.add(Hackathon(name="Test Hackathon"))
+    await session.commit()
     repo = HackathonRepository(session)
     hackathons = await repo.list_all()
     assert len(hackathons) == 1
     assert hackathons[0].name == "Test Hackathon"
 
 
-async def test_service_caches_result(session, cache):
+async def test_service_caches_result(session: AsyncSession, cache):
+    session.add(Hackathon(name="Test Hackathon"))
+    await session.commit()
     repo = HackathonRepository(session)
     service = HackathonService(repo, cache)
 
@@ -61,6 +48,22 @@ async def test_service_caches_result(session, cache):
 
     cached_raw = await cache.get(CACHE_KEY)
     assert cached_raw is not None
+
+
+async def test_list_hackathons_endpoint_uses_test_session(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    cache,
+):
+    hackathon = Hackathon(name="Test Hackathon")
+    session.add(hackathon)
+    await session.commit()
+    await session.refresh(hackathon)
+
+    response = await api_client.get("/api/hackathons")
+
+    assert response.status_code == 200
+    assert response.json() == [{"id": hackathon.id, "name": "Test Hackathon"}]
 
 
 async def test_list_hackathons_returns_data_from_cache(mocker, hackathons_list):
