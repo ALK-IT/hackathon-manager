@@ -11,7 +11,7 @@ from src.registration.exceptions import (
     MissingRequiredAnswersError,
     QuestionNotFoundError,
     RegistrationAlreadyExistsError,
-    RegistrationNotFoundError
+    RegistrationNotFoundError,
 )
 from src.registration.models import Registration, RegistrationAnswer, RegistrationQuestion
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
@@ -53,9 +53,7 @@ class RegistrationQuestionService:
         data: RegistrationQuestionCreate,
         current_user: User,
     ) -> RegistrationQuestion:
-        hackathon = await self.hackathon_repository.get_active_by_public_id(
-            hackathon_public_id
-        )
+        hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
 
         if hackathon is None:
             raise HackathonNotFoundError()
@@ -95,24 +93,14 @@ class RegistrationService:
         hackathon_public_id: uuid.UUID,
         current_user: User,
     ) -> Registration:
-        hackathon = await self.hackathon_repository.get_active_by_public_id(
-            hackathon_public_id
-        )
+        hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
 
         if hackathon is None:
             raise HackathonNotFoundError()
 
-        questions = await self.question_repository.get_by_hackathon_public_id(
-            hackathon_public_id
-        )
-        questions_by_public_id = {
-            question.public_id: question
-            for question in questions
-        }
-        submitted_question_ids = {
-            answer.question_public_id
-            for answer in data.answers
-        }
+        questions = await self.question_repository.get_by_hackathon_public_id(hackathon_public_id)
+        questions_by_public_id = {question.public_id: question for question in questions}
+        submitted_question_ids = {answer.question_public_id for answer in data.answers}
 
         valid_question_ids = set(questions_by_public_id)
         invalid_question_ids = submitted_question_ids - valid_question_ids
@@ -123,15 +111,12 @@ class RegistrationService:
             )
 
         required_question_ids = {
-            question.public_id
-            for question in questions
-            if question.is_required
+            question.public_id for question in questions if question.is_required
         }
         missing_required_ids = required_question_ids - submitted_question_ids
         if missing_required_ids:
             raise MissingRequiredAnswersError(
-                "Missing required answers: "
-                f"{sorted(map(str, missing_required_ids))}"
+                "Missing required answers: " f"{sorted(map(str, missing_required_ids))}"
             )
 
         registration = Registration(
@@ -139,9 +124,7 @@ class RegistrationService:
             hackathon_id=hackathon.id,
             answers=[
                 RegistrationAnswer(
-                    question_id=questions_by_public_id[
-                        answer.question_public_id
-                    ].id,
+                    question_id=questions_by_public_id[answer.question_public_id].id,
                     content=answer.content,
                 )
                 for answer in data.answers
@@ -164,9 +147,7 @@ class RegistrationService:
         registration_public_id: uuid.UUID,
         current_user: User,
     ) -> None:
-        registration = await self.registration_repository.get_by_public_id(
-            registration_public_id
-        )
+        registration = await self.registration_repository.get_by_public_id(registration_public_id)
 
         if registration is None:
             raise RegistrationNotFoundError()
@@ -175,10 +156,7 @@ class RegistrationService:
 
         is_admin = current_user.role == UserRole.ADMIN
         is_organizer = current_user.id == hackathon.organizer_id
-        is_co_organizer = any(
-            user.id == current_user.id
-            for user in hackathon.co_organizers
-        )
+        is_co_organizer = any(user.id == current_user.id for user in hackathon.co_organizers)
         is_owner = current_user.id == registration.user_id
 
         if not (is_admin or is_organizer or is_co_organizer or is_owner):

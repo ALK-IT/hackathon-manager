@@ -5,22 +5,21 @@ from src.registration.repository import RegistrationRepository, RegistrationQues
 from src.hackathons.repository import HackathonRepository
 from src.database import get_session
 
+
 def get_registration_question_service(
-        session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
 ) -> RegistrationQuestionRepository:
     return RegistrationQuestionService(
         RegistrationQuestionRepository(session),
         HackathonRepository(session),
-
     )
 
 
 def get_registration_service(
-        session: AsyncSession = Depends(get_session)
-) ->RegistrationRepository:
+    session: AsyncSession = Depends(get_session),
+) -> RegistrationRepository:
     return RegistrationService(
         RegistrationRepository(session),
         RegistrationQuestionRepository(session),
         HackathonRepository(session),
-        
     )

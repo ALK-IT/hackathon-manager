@@ -164,11 +164,12 @@ async def test_admin_deletes_question(
 
     assert response.status_code == 204
     assert response.content == b""
-    assert await session.scalar(
-        select(RegistrationQuestion).where(
-            RegistrationQuestion.public_id == question_public_id
+    assert (
+        await session.scalar(
+            select(RegistrationQuestion).where(RegistrationQuestion.public_id == question_public_id)
         )
-    ) is None
+        is None
+    )
 
 
 async def test_delete_missing_question_returns_not_found(
@@ -220,18 +221,14 @@ async def test_user_creates_registration(
     assert response.status_code == 201
     registration_public_id = uuid.UUID(response.json()["public_id"])
     registration = await session.scalar(
-        select(Registration).where(
-            Registration.public_id == registration_public_id
-        )
+        select(Registration).where(Registration.public_id == registration_public_id)
     )
     assert registration is not None
     assert registration.user_id == participant.id
     assert registration.hackathon_id == hackathon.id
 
     answer = await session.scalar(
-        select(RegistrationAnswer).where(
-            RegistrationAnswer.registration_id == registration.id
-        )
+        select(RegistrationAnswer).where(RegistrationAnswer.registration_id == registration.id)
     )
     assert answer is not None
     assert answer.question_id == question.id
@@ -284,17 +281,16 @@ async def test_owner_deletes_registration(
     registration_public_id = registration.public_id
     force_authenticate(participant)
 
-    response = await api_client.delete(
-        f"/api/registrations/{registration_public_id}"
-    )
+    response = await api_client.delete(f"/api/registrations/{registration_public_id}")
 
     assert response.status_code == 204
     assert response.content == b""
-    assert await session.scalar(
-        select(Registration).where(
-            Registration.public_id == registration_public_id
+    assert (
+        await session.scalar(
+            select(Registration).where(Registration.public_id == registration_public_id)
         )
-    ) is None
+        is None
+    )
 
 
 async def test_delete_missing_registration_returns_not_found(

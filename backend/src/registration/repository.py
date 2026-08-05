@@ -67,11 +67,7 @@ class RegistrationRepository:
             select(Registration)
             .join(Registration.hackathon)
             .where(Hackathon.public_id == hackathon_public_id)
-            .options(
-            selectinload(Registration.hackathon)
-            .selectinload(Hackathon.co_organizers)
-            )
-            
+            .options(selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers))
         )
 
         return list(result.scalars().all())
@@ -85,10 +81,7 @@ class RegistrationRepository:
             .join(Registration.hackathon)
             .join(Registration.user)
             .where(Hackathon.public_id == hackathon_public_id, User.public_id == user_public_id)
-            .options(
-            selectinload(Registration.hackathon)
-            .selectinload(Hackathon.co_organizers)
-        )
+            .options(selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers))
         )
 
         return result.scalar_one_or_none()
@@ -97,10 +90,7 @@ class RegistrationRepository:
         result = await self.session.execute(
             select(Registration)
             .where(Registration.public_id == registration_public_id)
-            .options(
-            selectinload(Registration.hackathon)
-            .selectinload(Hackathon.co_organizers)                
-            )
+            .options(selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers))
         )
 
         return result.scalar_one_or_none()

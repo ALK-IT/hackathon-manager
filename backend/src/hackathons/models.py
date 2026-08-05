@@ -109,5 +109,4 @@ class Hackathon(Base):
     registrations: Mapped[list["Registration"]] = relationship(
         back_populates="hackathon",
         passive_deletes=True,
-
     )

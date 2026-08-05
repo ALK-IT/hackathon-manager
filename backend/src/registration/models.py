@@ -27,7 +27,6 @@ class RegistrationQuestion(Base):
     hackathon_id: Mapped[int] = mapped_column(ForeignKey("hackathons.id", ondelete="CASCADE"))
 
     public_id: Mapped[uuid.UUID] = mapped_column(
-
         UUID(as_uuid=True),
         default=uuid.uuid4,
         unique=True,
