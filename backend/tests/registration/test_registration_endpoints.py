@@ -235,6 +235,66 @@ async def test_user_creates_registration(
     assert answer.content == "My answer"
 
 
+async def test_user_creates_registration_with_multiple_answers(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    required_question = await create_question(
+        session,
+        hackathon,
+        content="Why",
+    )
+    optional_question = await create_question(
+        session,
+        hackathon,
+        content="What",
+        is_required=False,
+    )
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={
+            "answers": [
+                {
+                    "question_public_id": str(required_question.public_id),
+                    "content": "noo",
+                },
+                {
+                    "question_public_id": str(optional_question.public_id),
+                    "content": "yes",
+                },
+            ]
+        },
+    )
+
+    assert response.status_code == 201
+    registration_public_id = uuid.UUID(response.json()["public_id"])
+    registration = await session.scalar(
+        select(Registration).where(Registration.public_id == registration_public_id)
+    )
+    assert registration is not None
+
+    answers = await session.scalars(
+        select(RegistrationAnswer).where(
+            RegistrationAnswer.registration_id == registration.id
+        )
+    )
+    answers_by_question_id = {
+        answer.question_id: answer.content
+        for answer in answers
+    }
+    assert answers_by_question_id == {
+        required_question.id: "noo",
+        optional_question.id: "yes",
+    }
+
+
 async def test_create_registration_rejects_duplicate_question_answers(
     api_client: AsyncClient,
     session: AsyncSession,
