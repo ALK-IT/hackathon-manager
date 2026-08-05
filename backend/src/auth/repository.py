@@ -18,11 +18,6 @@ class UserRepository:
         result = await self.session.execute(select(User).where(User.public_id == public_id))
         return result.scalar_one_or_none()
 
-    async def get_all(self, skip: int = 0, limit: int = 100) -> list[User]:
-        statement = select(User).order_by(User.created_at.desc()).offset(skip).limit(limit)
-        result = await self.session.scalars(statement)
-        return list(result.all())
-
     async def create(self, user: User) -> User:
         self.session.add(user)
         await self.session.flush()
