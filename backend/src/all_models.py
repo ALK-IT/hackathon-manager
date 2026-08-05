@@ -7,9 +7,9 @@ from src.registration.models import (
 )
 
 __all__ = [
-    "User",
     "Hackathon",
     "Registration",
     "RegistrationAnswer",
     "RegistrationQuestion",
+    "User",
 ]

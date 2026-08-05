@@ -7,10 +7,9 @@ from sqlalchemy import DateTime, String, func
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from src.registration.models import Registration
-
 
 from src.models import Base
+from src.registration.models import Registration
 
 if TYPE_CHECKING:
     from src.hackathons.models import Hackathon

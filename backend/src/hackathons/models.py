@@ -16,8 +16,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from src.registration.models import RegistrationQuestion, Registration
+
 from src.models import Base
+from src.registration.models import Registration, RegistrationQuestion
 
 if TYPE_CHECKING:
     from src.auth.models import User
