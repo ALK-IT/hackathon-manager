@@ -1,5 +1,8 @@
+import uuid
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from src.registration.models import RegistrationStatus
 
 
 class RegistrationQuestionCreate(BaseModel):
@@ -8,7 +11,7 @@ class RegistrationQuestionCreate(BaseModel):
 
 
 class RegistrationAnswerCreate(BaseModel):
-    question_id: int
+    question_public_id: uuid.UUID
     content: str = Field(min_length=1, max_length=5000)
 
     @field_validator("content")
@@ -27,9 +30,16 @@ class RegistrationCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_unique_questions(self):
-        question_ids = [answer.question_id for answer in self.answers]
+        question_ids = [answer.question_public_id for answer in self.answers]
 
         if len(question_ids) != len(set(question_ids)):
             raise ValueError("Each question can be answered only once")
 
         return self
+
+
+class RegistrationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    status: RegistrationStatus
