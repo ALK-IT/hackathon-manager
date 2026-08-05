@@ -1,6 +1,6 @@
 import os
 from collections.abc import AsyncIterator, Callable, Iterator
-
+import src.all_models
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (

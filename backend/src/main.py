@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from src.api import api_router
 from src.hackathons.exceptions import HackathonError
+from src.registration.exceptions import RegistrationError
 
 app = FastAPI(title="hackathon-manager API")
 app.include_router(api_router)
@@ -12,6 +13,17 @@ app.include_router(api_router)
 
 @app.exception_handler(HackathonError)
 async def handle_hackathon_error(_request: Request, exc: HackathonError) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error_code": exc.error_code, "detail": exc.detail},
+    )
+
+
+@app.exception_handler(RegistrationError)
+async def handle_registration_error(
+    _request: Request,
+    exc: RegistrationError,
+) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={"error_code": exc.error_code, "detail": exc.detail},
