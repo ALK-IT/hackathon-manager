@@ -16,7 +16,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from src.registration.models import RegistrationQuestion, Registration
 from src.models import Base
 
 if TYPE_CHECKING:
@@ -98,4 +98,16 @@ class Hackathon(Base):
     co_organizers: Mapped[list["User"]] = relationship(
         secondary=hackathon_co_organizers,
         back_populates="co_organized_hackathons",
+    )
+
+    questions: Mapped[list["RegistrationQuestion"]] = relationship(
+        back_populates="hackathon",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    registrations: Mapped[list["Registration"]] = relationship(
+        back_populates="hackathon",
+        passive_deletes=True,
+
     )
