@@ -22,7 +22,10 @@ describe('HackathonList', () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve([{ id: 1, name: 'Test Hackathon' }]),
+        json: () =>
+          Promise.resolve([
+            { public_id: 'f6bdbe89-8d10-4906-b0d0-92fc97d46eba', name: 'Test Hackathon' },
+          ]),
       }),
     )
 
@@ -53,5 +56,21 @@ describe('HackathonList', () => {
     render(<HackathonList />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load hackathons')
+  })
+
+  it('shows an error when the API rejects an unauthenticated request', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+      }),
+    )
+
+    render(<HackathonList />)
+
+    expect(screen.getByRole('heading', { name: 'Hackathony' })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load hackathons')
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 })
