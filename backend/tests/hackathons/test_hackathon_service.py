@@ -1,110 +1,335 @@
-import json
-from types import SimpleNamespace
+import uuid
+from datetime import timedelta
 
 import pytest
-from httpx import AsyncClient
-from redis.asyncio import from_url
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
-from src.cache import REDIS_URL
-from src.hackathons.constants import CACHE_KEY, CACHE_TTL_SECONDS
-from src.hackathons.models import Hackathon
+from src.auth.models import User, UserRole
+from src.hackathons.exceptions import (
+    AdminRequiredError,
+    HackathonNotFoundError,
+    HackathonPermissionDeniedError,
+    InvalidConfirmNameError,
+    InvalidDateRangeError,
+    InvalidTeamSizeError,
+    RegistrationAlreadyClosedError,
+    RegistrationAlreadyOpenError,
+)
 from src.hackathons.repository import HackathonRepository
+from src.hackathons.schemas import HackathonCreate, HackathonUpdate
 from src.hackathons.service import HackathonService
+from tests.hackathons.factories import NOW, HackathonFactory, UserFactory
 
 
 @pytest.fixture
-async def cache():
-    client = from_url(REDIS_URL, decode_responses=True)
-    await client.flushdb()
-    yield client
-    await client.flushdb()
-    await client.aclose()
+def create_data() -> HackathonCreate:
+    return HackathonCreate(
+        name="  Hackathon AI  ",
+        description="  Build something useful  ",
+        start_date=NOW + timedelta(days=1),
+        end_date=NOW + timedelta(days=2),
+        capacity=100,
+        max_team_size=4,
+    )
 
 
 @pytest.fixture
-def hackathons_list():
-    hackathons_data = [{"id": 1, "name": "Python Hackathon"}, {"id": 2, "name": "AI Hackathon"}]
-    return hackathons_data
+def repository(mocker) -> HackathonRepository:
+    repository = mocker.Mock(spec=HackathonRepository)
+    repository.list_accessible = mocker.AsyncMock(return_value=[])
+    repository.get_active_by_public_id = mocker.AsyncMock()
+    repository.get_visible_by_public_id = mocker.AsyncMock()
+    repository.add = mocker.AsyncMock()
+    repository.commit = mocker.AsyncMock()
+    repository.refresh_updated_at = mocker.AsyncMock()
+    repository.rollback = mocker.AsyncMock()
+    return repository
 
 
-async def test_repository_lists_hackathons(session: AsyncSession):
-    session.add(Hackathon(name="Test Hackathon"))
-    await session.commit()
-    repo = HackathonRepository(session)
-    hackathons = await repo.list_all()
-    assert len(hackathons) == 1
-    assert hackathons[0].name == "Test Hackathon"
+def test_create_schema_normalizes_text(create_data: HackathonCreate):
+    assert create_data.name == "Hackathon AI"
+    assert create_data.description == "Build something useful"
 
 
-async def test_service_caches_result(session: AsyncSession, cache):
-    session.add(Hackathon(name="Test Hackathon"))
-    await session.commit()
-    repo = HackathonRepository(session)
-    service = HackathonService(repo, cache)
-
-    result = await service.list_hackathons()
-    assert result == [{"id": result[0]["id"], "name": "Test Hackathon"}]
-
-    cached_raw = await cache.get(CACHE_KEY)
-    assert cached_raw is not None
+def test_create_schema_rejects_invalid_date_range():
+    with pytest.raises(ValidationError):
+        HackathonCreate(
+            name="Hackathon AI",
+            start_date=NOW,
+            end_date=NOW,
+            max_team_size=4,
+        )
 
 
-async def test_list_hackathons_endpoint_uses_test_session(
-    api_client: AsyncClient,
-    session: AsyncSession,
-    cache,
+def test_create_schema_rejects_team_size_greater_than_capacity():
+    with pytest.raises(ValidationError):
+        HackathonCreate(
+            name="Hackathon AI",
+            start_date=NOW,
+            end_date=NOW + timedelta(days=1),
+            capacity=3,
+            max_team_size=4,
+        )
+
+
+def test_create_schema_rejects_datetime_without_timezone():
+    with pytest.raises(ValidationError):
+        HackathonCreate(
+            name="Hackathon AI",
+            start_date=NOW.replace(tzinfo=None),
+            end_date=(NOW + timedelta(days=1)).replace(tzinfo=None),
+            max_team_size=4,
+        )
+
+
+def test_update_schema_rejects_empty_payload():
+    with pytest.raises(ValidationError):
+        HackathonUpdate()
+
+
+def test_update_schema_allows_only_capacity_to_be_null():
+    assert HackathonUpdate(capacity=None).model_dump(exclude_unset=True) == {"capacity": None}
+
+    with pytest.raises(ValidationError):
+        HackathonUpdate(name=None)
+
+
+async def test_admin_can_create_hackathon(
+    repository: HackathonRepository,
+    admin_user: User,
+    create_data: HackathonCreate,
 ):
-    hackathon = Hackathon(name="Test Hackathon")
-    session.add(hackathon)
-    await session.commit()
-    await session.refresh(hackathon)
+    service = HackathonService(repository)
 
-    response = await api_client.get("/api/hackathons")
+    hackathon = await service.create_hackathon(create_data, admin_user)
 
-    assert response.status_code == 200
-    assert response.json() == [{"id": hackathon.id, "name": "Test Hackathon"}]
-
-
-async def test_list_hackathons_returns_data_from_cache(mocker, hackathons_list):
-    cached_data = hackathons_list
-
-    repository = mocker.Mock()
-    cache = mocker.Mock()
-
-    cache.get = mocker.AsyncMock()
-    cache.set = mocker.AsyncMock()
-
-    cache.get.return_value = json.dumps(cached_data)
-
-    service = HackathonService(repository=repository, cache=cache)
-
-    hackathons = await service.list_hackathons()
-
-    assert cached_data == hackathons
-    cache.get.assert_awaited_once_with(CACHE_KEY)
-    cache.set.assert_not_awaited()
+    assert hackathon.organizer is admin_user
+    assert hackathon.name == "Hackathon AI"
+    assert hackathon.registration_open is False
+    repository.add.assert_awaited_once_with(hackathon)
+    repository.commit.assert_awaited_once_with()
+    repository.rollback.assert_not_awaited()
 
 
-async def test_list_hackathons_returns_data_from_repository(mocker, hackathons_list):
-    database_hackathon = [
-        SimpleNamespace(**hackathons_list[0]),
-        SimpleNamespace(**hackathons_list[1]),
-    ]
+async def test_regular_user_cannot_create_hackathon(
+    repository: HackathonRepository,
+    regular_user: User,
+    create_data: HackathonCreate,
+):
+    service = HackathonService(repository)
 
-    repository = mocker.Mock()
-    cache = mocker.Mock()
+    with pytest.raises(AdminRequiredError):
+        await service.create_hackathon(create_data, regular_user)
 
-    cache.get = mocker.AsyncMock(return_value=None)
-    cache.set = mocker.AsyncMock()
+    repository.add.assert_not_awaited()
 
-    repository.list_all = mocker.AsyncMock(return_value=database_hackathon)
-    service = HackathonService(repository=repository, cache=cache)
-    hackathons = await service.list_hackathons()
 
-    assert hackathons == hackathons_list
+async def test_create_rolls_back_database_error(
+    repository: HackathonRepository,
+    admin_user: User,
+    create_data: HackathonCreate,
+):
+    repository.commit.side_effect = SQLAlchemyError("database unavailable")
+    service = HackathonService(repository)
 
-    cache.get.assert_awaited_once_with(CACHE_KEY)
-    cache.set.assert_awaited_once_with(CACHE_KEY, json.dumps(hackathons_list), ex=CACHE_TTL_SECONDS)
+    with pytest.raises(SQLAlchemyError):
+        await service.create_hackathon(create_data, admin_user)
 
-    repository.list_all.assert_awaited_once_with()
+    repository.rollback.assert_awaited_once_with()
+
+
+async def test_list_returns_only_repository_results(
+    repository: HackathonRepository,
+    regular_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    accessible = [hackathon_factory(organizer=regular_user)]
+    repository.list_accessible.return_value = accessible
+    service = HackathonService(repository)
+
+    assert await service.list_hackathons(regular_user) == accessible
+    repository.list_accessible.assert_awaited_once_with(regular_user.id)
+
+
+async def test_get_returns_visible_hackathon(
+    repository: HackathonRepository,
+    regular_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=regular_user)
+    repository.get_visible_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    result = await service.get_hackathon(hackathon.public_id, regular_user)
+
+    assert result is hackathon
+    repository.get_visible_by_public_id.assert_awaited_once_with(
+        hackathon.public_id,
+        regular_user.id,
+    )
+
+
+async def test_get_returns_not_found_when_hackathon_is_not_visible(
+    repository: HackathonRepository,
+    regular_user: User,
+):
+    repository.get_visible_by_public_id.return_value = None
+    service = HackathonService(repository)
+
+    with pytest.raises(HackathonNotFoundError):
+        await service.get_hackathon(uuid.uuid4(), regular_user)
+
+
+async def test_owner_can_update_hackathon(
+    repository: HackathonRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_active_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    result = await service.update_hackathon(
+        hackathon.public_id,
+        HackathonUpdate(name="  Updated Hackathon  ", capacity=None),
+        admin_user,
+    )
+
+    assert result.name == "Updated Hackathon"
+    assert result.capacity is None
+    repository.commit.assert_awaited_once_with()
+    repository.refresh_updated_at.assert_awaited_once_with(hackathon)
+
+
+@pytest.mark.parametrize(
+    ("update", "expected_exception"),
+    [
+        (
+            lambda hackathon: HackathonUpdate(start_date=hackathon.end_date + timedelta(hours=1)),
+            InvalidDateRangeError,
+        ),
+        (
+            lambda _hackathon: HackathonUpdate(capacity=3, max_team_size=4),
+            ValidationError,
+        ),
+    ],
+)
+async def test_update_rejects_invalid_ranges(
+    repository: HackathonRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+    update,
+    expected_exception,
+):
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_active_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    with pytest.raises(expected_exception):
+        await service.update_hackathon(hackathon.public_id, update(hackathon), admin_user)
+
+    repository.commit.assert_not_awaited()
+
+
+async def test_update_rejects_team_size_larger_than_existing_capacity(
+    repository: HackathonRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_active_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    with pytest.raises(InvalidTeamSizeError):
+        await service.update_hackathon(
+            hackathon.public_id,
+            HackathonUpdate(max_team_size=101),
+            admin_user,
+        )
+
+
+async def test_co_organizer_cannot_update_hackathon(
+    repository: HackathonRepository,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
+    owner = user_factory(user_id=1, role=UserRole.ADMIN)
+    co_organizer = user_factory(user_id=2)
+    hackathon = hackathon_factory(organizer=owner, co_organizers=[co_organizer])
+    repository.get_active_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    with pytest.raises(HackathonPermissionDeniedError):
+        await service.update_hackathon(
+            hackathon.public_id,
+            HackathonUpdate(name="Forbidden update"),
+            co_organizer,
+        )
+
+
+async def test_delete_requires_exact_confirmed_name(
+    repository: HackathonRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_active_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    with pytest.raises(InvalidConfirmNameError):
+        await service.delete_hackathon(hackathon.public_id, "hackathon ai", admin_user)
+
+    repository.commit.assert_not_awaited()
+
+
+async def test_delete_marks_hackathon_as_deleted(
+    repository: HackathonRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_active_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    await service.delete_hackathon(hackathon.public_id, hackathon.name, admin_user)
+
+    assert hackathon.is_deleted is True
+    assert hackathon.deleted_at is not None
+    repository.commit.assert_awaited_once_with()
+
+
+async def test_owner_can_open_and_close_registration(
+    repository: HackathonRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_active_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    await service.open_registration(hackathon.public_id, admin_user)
+    assert hackathon.registration_open is True
+
+    await service.close_registration(hackathon.public_id, admin_user)
+    assert hackathon.registration_open is False
+    assert repository.commit.await_count == 2
+
+
+async def test_registration_rejects_repeated_state(
+    repository: HackathonRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    service = HackathonService(repository)
+    open_hackathon = hackathon_factory(organizer=admin_user, registration_open=True)
+    repository.get_active_by_public_id.return_value = open_hackathon
+
+    with pytest.raises(RegistrationAlreadyOpenError):
+        await service.open_registration(open_hackathon.public_id, admin_user)
+
+    closed_hackathon = hackathon_factory(organizer=admin_user, registration_open=False)
+    repository.get_active_by_public_id.return_value = closed_hackathon
+
+    with pytest.raises(RegistrationAlreadyClosedError):
+        await service.close_registration(closed_hackathon.public_id, admin_user)
