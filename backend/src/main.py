@@ -1,16 +1,27 @@
+<<<<<<< HEAD
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+=======
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+>>>>>>> 1d053c36603fd8af12b15712f512814a82231af1
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api import api_router
+<<<<<<< HEAD
 from src.hackathons.exceptions import HackathonError
 from src.registration.exceptions import RegistrationError
+=======
+from src.auth.config import validate_configuration
+>>>>>>> 1d053c36603fd8af12b15712f512814a82231af1
 
 app = FastAPI(title="hackathon-manager API")
 app.include_router(api_router)
 
 
+<<<<<<< HEAD
 @app.exception_handler(HackathonError)
 async def handle_hackathon_error(_request: Request, exc: HackathonError) -> JSONResponse:
     return JSONResponse(
@@ -51,6 +62,12 @@ async def handle_request_validation_error(
             "errors": errors,
         },
     )
+=======
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    validate_configuration()
+    yield
+>>>>>>> 1d053c36603fd8af12b15712f512814a82231af1
 
 
 app.add_middleware(

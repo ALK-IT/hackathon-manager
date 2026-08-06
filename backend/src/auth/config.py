@@ -39,3 +39,7 @@ def get_jwt_secret_key() -> str:
     if len(secret_key) < 32:
         raise RuntimeError("JWT_SECRET_KEY must contain at least 32 characters")
     return secret_key
+
+
+def validate_configuration() -> None:
+    get_jwt_secret_key()

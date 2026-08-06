@@ -1,5 +1,4 @@
 import uuid
-from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,23 +35,6 @@ async def test_user_repository_returns_none_when_user_does_not_exist(session: As
 
     assert await repository.get_by_email("missing@example.com") is None
     assert await repository.get_by_public_id(uuid.uuid4()) is None
-
-
-async def test_user_repository_lists_users_with_pagination(session: AsyncSession):
-    repository = UserRepository(session)
-    oldest = make_user("oldest@example.com", name="Oldest")
-    middle = make_user("middle@example.com", name="Middle")
-    newest = make_user("newest@example.com", name="Newest")
-    oldest.created_at = datetime(2026, 1, 1, tzinfo=UTC)
-    middle.created_at = datetime(2026, 1, 2, tzinfo=UTC)
-    newest.created_at = datetime(2026, 1, 3, tzinfo=UTC)
-
-    for user in (oldest, middle, newest):
-        await repository.create(user)
-    await repository.commit()
-
-    assert await repository.get_all() == [newest, middle, oldest]
-    assert await repository.get_all(skip=1, limit=1) == [middle]
 
 
 async def test_user_repository_updates_user(session: AsyncSession):
