@@ -7,12 +7,31 @@ describe('HackathonList', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
-        json: () => Promise.resolve([{ id: 1, name: 'Test Hackathon' }]),
+        ok: true,
+        json: () =>
+          Promise.resolve([
+            { public_id: 'f6bdbe89-8d10-4906-b0d0-92fc97d46eba', name: 'Test Hackathon' },
+          ]),
       }),
     )
 
     render(<HackathonList />)
 
     expect(await screen.findByText(/Test Hackathon/)).toBeInTheDocument()
+  })
+
+  it('keeps the view stable when the API rejects an unauthenticated request', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+      }),
+    )
+
+    render(<HackathonList />)
+
+    expect(screen.getByRole('heading', { name: 'Hackathony' })).toBeInTheDocument()
+    expect(await screen.findByRole('list')).toBeEmptyDOMElement()
   })
 })

@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator, Callable, Iterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -24,7 +25,15 @@ async def session() -> AsyncIterator[AsyncSession]:
     if not test_database_url:
         pytest.fail("TEST_DATABASE_URL must be set to run database tests")
 
-    engine = create_async_engine(normalize_database_url(test_database_url))
+    normalized_test_database_url = normalize_database_url(test_database_url)
+    test_database_name = make_url(normalized_test_database_url).database
+    if not test_database_name or not test_database_name.endswith("_test"):
+        pytest.fail(
+            "Refusing to reset a database whose name does not end with '_test'. "
+            f"Configured database: {test_database_name!r}"
+        )
+
+    engine = create_async_engine(normalized_test_database_url)
 
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.drop_all)

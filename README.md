@@ -126,19 +126,24 @@ uvicorn src.main:app --reload
 # frontend (jednostkowe)
 cd frontend && npm run test -- --run
 
-# backend (integracyjne, wymaga Postgres+Redis - patrz docker-compose.yml)
-cd backend && pytest
+# backend (odizolowany Postgres i Redis tylko dla testow)
+docker compose -f docker-compose.test.yml run --build --rm backend-test
+docker compose -f docker-compose.test.yml down
 ```
 
 **E2E (przykładowy smoke test):** sprawdza cały przekrój — frontend + backend + Postgres + Redis razem, przez `docker compose`:
 
 ```bash
-docker compose up -d --build
+docker compose -p hackathon-manager-e2e up -d --build
 cd frontend
 npx playwright install --with-deps chromium   # jednorazowo
 npm run test:e2e
-docker compose down -v
+docker compose -p hackathon-manager-e2e down -v
 ```
+
+Osobna nazwa projektu Compose sprawia, ze E2E korzysta z innego wolumenu niz lokalna baza
+developerska. Testy backendu dodatkowo odmawiaja wykonania `drop_all()`, jezeli nazwa bazy nie
+konczy sie na `_test`.
 
 Odpala się automatycznie w CI (workflow `e2e`, niewymagany do mergu — informacyjny).
 

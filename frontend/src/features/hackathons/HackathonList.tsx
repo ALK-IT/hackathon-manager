@@ -3,21 +3,26 @@ import { useEffect, useState } from 'react'
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 interface Hackathon {
-  id: number
+  public_id: string
   name: string
 }
 
-// Minimalny widok - tylko id + name, bez stylowania/paginacji/obsługi błędów.
-// Celowo tak proste: reszta (UI, wyszukiwanie, szczegóły) to zadanie dla studentów.
+// Minimalny widok bez stylowania, paginacji i logowania po stronie frontendu.
 export function HackathonList() {
   const [hackathons, setHackathons] = useState<Hackathon[]>([])
 
   useEffect(() => {
     fetch(`${API_URL}/api/hackathons`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`API returned ${res.status}`)
+        }
+
+        return res.json()
+      })
       .then(setHackathons)
       .catch(() => {
-        // Brak obsługi błędów w UI - celowo, patrz SPEC-002 "poza zakresem".
+        setHackathons([])
       })
   }, [])
 
@@ -26,8 +31,8 @@ export function HackathonList() {
       <h2>Hackathony</h2>
       <ul>
         {hackathons.map((h) => (
-          <li key={h.id}>
-            #{h.id} — {h.name}
+          <li key={h.public_id}>
+            {h.name}
           </li>
         ))}
       </ul>
