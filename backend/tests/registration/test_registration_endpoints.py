@@ -281,14 +281,9 @@ async def test_user_creates_registration_with_multiple_answers(
     assert registration is not None
 
     answers = await session.scalars(
-        select(RegistrationAnswer).where(
-            RegistrationAnswer.registration_id == registration.id
-        )
+        select(RegistrationAnswer).where(RegistrationAnswer.registration_id == registration.id)
     )
-    answers_by_question_id = {
-        answer.question_id: answer.content
-        for answer in answers
-    }
+    answers_by_question_id = {answer.question_id: answer.content for answer in answers}
     assert answers_by_question_id == {
         required_question.id: "noo",
         optional_question.id: "yes",
