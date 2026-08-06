@@ -193,7 +193,9 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
 - **Baza danych:** migracja `0004` rozbudowuje `hackathons`, dodaje constrainty, indeksy i tabelę
   `hackathon_co_organizers`. Usuwa trzy demonstracyjne rekordy z `0001`, ponieważ nie miały
   właściciela i nie mogą istnieć w nowym modelu.
-- **Testy:** jeden plik `tests/hackathons/test_hackathons.py`; cały backend przechodzi 33 testy.
+- **Testy:** osobne pliki dla endpointów, serwisu i repozytorium w `tests/hackathons/`,
+  korzystające ze współdzielonych fixtures i fabryk danych testowych. Testy obejmują także
+  rzeczywiste zapytania repozytorium do odizolowanej bazy PostgreSQL.
 
 ## Alternatywy rozważane
 
@@ -212,3 +214,5 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
 - 2026-08-03 — usunięto cache prywatnej listy i udokumentowano warunki jego przyszłego dodania.
 - 2026-08-03 — migracje sprawdzono przez upgrade/downgrade, a CRUD przetestowano integracyjnie
   na odizolowanej bazie PostgreSQL.
+- 2026-08-05 — po rebase uporządkowano testy zgodnie ze strukturą modułu auth i dodano testy
+  repozytorium, widoczności, soft-delete oraz pełnego kontraktu endpointów.
