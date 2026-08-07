@@ -2,10 +2,8 @@ import json
 
 from redis.asyncio import Redis
 
-from app.repositories.hackathon_repository import HackathonRepository
-
-CACHE_KEY = "hackathons:list"
-CACHE_TTL_SECONDS = 60
+from src.hackathons.constants import CACHE_KEY, CACHE_TTL_SECONDS
+from src.hackathons.repository import HackathonRepository
 
 
 class HackathonService:

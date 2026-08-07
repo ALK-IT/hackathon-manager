@@ -10,8 +10,10 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.db import normalize_database_url
-from app.models import Base
+from src.auth.models import User  # noqa: F401
+from src.database import normalize_database_url
+from src.hackathons.models import Hackathon  # noqa: F401
+from src.models import Base
 
 config = context.config
 
