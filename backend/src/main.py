@@ -6,14 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api import api_router
 from src.auth.config import validate_configuration
 
-app = FastAPI(title="hackathon-manager API")
-app.include_router(api_router)
-
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     validate_configuration()
     yield
+
+
+app = FastAPI(title="hackathon-manager API", lifespan=lifespan)
+app.include_router(api_router)
 
 
 app.add_middleware(
