@@ -35,7 +35,11 @@ class RegistrationQuestionRepository:
         question_public_id: uuid.UUID,
     ) -> RegistrationQuestion | None:
         result = await self.session.execute(
-            select(RegistrationQuestion).where(RegistrationQuestion.public_id == question_public_id)
+            select(RegistrationQuestion)
+            .where(RegistrationQuestion.public_id == question_public_id)
+            .options(
+                selectinload(RegistrationQuestion.hackathon).selectinload(Hackathon.co_organizers)
+            )
         )
 
         return result.scalar_one_or_none()

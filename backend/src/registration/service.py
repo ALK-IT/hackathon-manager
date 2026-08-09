@@ -25,6 +25,14 @@ from src.registration.repository import RegistrationQuestionRepository, Registra
 from src.registration.schema import RegistrationCreate, RegistrationQuestionCreate
 
 
+def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
+    return (
+        current_user.role == UserRole.ADMIN
+        or current_user.id == hackathon.organizer_id
+        or any(user.id == current_user.id for user in hackathon.co_organizers)
+    )
+
+
 class RegistrationQuestionService:
     def __init__(
         self,
@@ -55,7 +63,7 @@ class RegistrationQuestionService:
         if question is None:
             raise QuestionNotFoundError()
 
-        if current_user.role != UserRole.ADMIN:
+        if not _can_manage_hackathon(question.hackathon, current_user):
             raise InvalidPermission()
 
         try:
@@ -76,7 +84,7 @@ class RegistrationQuestionService:
         if hackathon is None:
             raise HackathonNotFoundError()
 
-        if current_user.role != UserRole.ADMIN:
+        if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
         question = RegistrationQuestion(
@@ -105,14 +113,6 @@ class RegistrationService:
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
 
-    @staticmethod
-    def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
-        return (
-            current_user.role == UserRole.ADMIN
-            or current_user.id == hackathon.organizer_id
-            or any(user.id == current_user.id for user in hackathon.co_organizers)
-        )
-
     async def list_registrations(
         self,
         hackathon_public_id: uuid.UUID,
@@ -123,7 +123,7 @@ class RegistrationService:
         if hackathon is None:
             raise HackathonNotFoundError()
 
-        if not self._can_manage_hackathon(hackathon, current_user):
+        if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
         return await self.registration_repository.get_by_hackathon(hackathon_public_id)
@@ -215,7 +215,7 @@ class RegistrationService:
 
         is_owner = current_user.id == registration.user_id
 
-        if not (self._can_manage_hackathon(hackathon, current_user) or is_owner):
+        if not (_can_manage_hackathon(hackathon, current_user) or is_owner):
             raise InvalidPermission()
 
         try:
@@ -238,7 +238,7 @@ class RegistrationService:
 
         hackathon = registration.hackathon
 
-        if not self._can_manage_hackathon(hackathon, current_user):
+        if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
         try:

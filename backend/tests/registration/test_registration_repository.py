@@ -250,3 +250,37 @@ async def test_rollback_discards_registration(
     await repository.rollback()
 
     assert await repository.get_by_public_id(public_id) is None
+
+
+async def test_update_status_registration_accepted(session: AsyncSession, organizer: User):
+    registration = Registration(
+        user=make_user("participant@gmail.com"), hackathon=make_hackathon(organizer)
+    )
+
+    repository = RegistrationRepository(session)
+    await repository.create(registration)
+
+    assert registration.status == RegistrationStatus.PENDING
+
+    new_status = RegistrationStatus.ACCEPTED
+
+    registration = await repository.update_status(registration, new_status)
+
+    assert registration.status == RegistrationStatus.ACCEPTED
+
+
+async def test_update_status_registration_rejected(session: AsyncSession, organizer: User):
+    registration = Registration(
+        user=make_user("participant@gmail.com"), hackathon=make_hackathon(organizer)
+    )
+
+    repository = RegistrationRepository(session)
+    await repository.create(registration)
+
+    assert registration.status == RegistrationStatus.PENDING
+
+    new_status = RegistrationStatus.REJECTED
+
+    registration = await repository.update_status(registration, new_status)
+
+    assert registration.status == RegistrationStatus.REJECTED

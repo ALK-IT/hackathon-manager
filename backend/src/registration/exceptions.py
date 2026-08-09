@@ -39,6 +39,12 @@ class RegistrationAlreadyExistsError(RegistrationError):
     detail = "The user is already registered for this hackathon."
 
 
+class RegistrationClosedError(RegistrationError):
+    status_code = 409
+    error_code = "REGISTRATION_CLOSED"
+    detail = "Registration for this hackathon is closed."
+
+
 class RegistrationNotFoundError(RegistrationError):
     status_code = 404
     error_code = "REGISTRATION_NOT_FOUND"

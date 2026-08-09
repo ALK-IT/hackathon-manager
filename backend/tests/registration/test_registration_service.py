@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from src.auth.models import UserRole
+from src.auth.models import User, UserRole
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
 from src.registration.exceptions import (
@@ -14,9 +14,10 @@ from src.registration.exceptions import (
     MissingRequiredAnswersError,
     QuestionNotFoundError,
     RegistrationAlreadyExistsError,
+    RegistrationClosedError,
     RegistrationNotFoundError,
 )
-from src.registration.models import Registration, RegistrationQuestion
+from src.registration.models import Registration, RegistrationQuestion, RegistrationStatus
 from src.registration.schema import RegistrationCreate, RegistrationQuestionCreate
 from src.registration.service import RegistrationQuestionService, RegistrationService
 
@@ -26,7 +27,7 @@ def make_user(
     user_id: int = 1,
     role: UserRole = UserRole.USER,
 ):
-    return SimpleNamespace(id=user_id, role=role)
+    return SimpleNamespace(id=user_id, public_id=uuid.uuid4(), role=role)
 
 
 def make_question(
@@ -87,7 +88,10 @@ def hackathon_repository(mocker):
 def registration_repository(mocker):
     repository = mocker.Mock()
     repository.get_by_public_id = mocker.AsyncMock()
+    repository.get_by_hackathon = mocker.AsyncMock(return_value=[])
+    repository.get_by_hackathon_and_user = mocker.AsyncMock()
     repository.create = mocker.AsyncMock()
+    repository.update_status = mocker.AsyncMock()
     repository.delete = mocker.AsyncMock()
     repository.commit = mocker.AsyncMock()
     repository.rollback = mocker.AsyncMock()
@@ -135,7 +139,12 @@ async def test_delete_question_rejects_regular_user(
     question_service,
     question_repository,
 ):
-    question_repository.get_by_public_id.return_value = SimpleNamespace()
+    question_repository.get_by_public_id.return_value = SimpleNamespace(
+        hackathon=SimpleNamespace(
+            organizer_id=10,
+            co_organizers=[SimpleNamespace(id=20)],
+        )
+    )
 
     with pytest.raises(InvalidPermission):
         await question_service.delete_question(uuid.uuid4(), make_user())
@@ -148,7 +157,7 @@ async def test_admin_can_delete_question(
     question_service,
     question_repository,
 ):
-    question = SimpleNamespace()
+    question = SimpleNamespace(hackathon=SimpleNamespace())
     question_repository.get_by_public_id.return_value = question
 
     await question_service.delete_question(
@@ -166,7 +175,7 @@ async def test_delete_question_rolls_back_repository_error(
     question_repository,
 ):
     error = RuntimeError("delete failed")
-    question_repository.get_by_public_id.return_value = SimpleNamespace()
+    question_repository.get_by_public_id.return_value = SimpleNamespace(hackathon=SimpleNamespace())
     question_repository.delete.side_effect = error
 
     with pytest.raises(RuntimeError, match="delete failed"):
@@ -196,12 +205,44 @@ async def test_create_question_raises_when_hackathon_does_not_exist(
     question_repository.create.assert_not_awaited()
 
 
+async def test_list_questions_raises_when_hackathon_does_not_exist(
+    question_service,
+    question_repository,
+    hackathon_repository,
+):
+    hackathon_repository.get_active_by_public_id.return_value = None
+
+    with pytest.raises(HackathonNotFoundError):
+        await question_service.list_questions(uuid.uuid4())
+
+    question_repository.get_by_hackathon_public_id.assert_not_awaited()
+
+
+async def test_user_can_list_registration_questions(
+    question_service,
+    question_repository,
+    hackathon_repository,
+):
+    hackathon_public_id = uuid.uuid4()
+    questions = [make_question()]
+    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace()
+    question_repository.get_by_hackathon_public_id.return_value = questions
+
+    result = await question_service.list_questions(hackathon_public_id)
+
+    assert result == questions
+    question_repository.get_by_hackathon_public_id.assert_awaited_once_with(hackathon_public_id)
+
+
 async def test_create_question_rejects_regular_user(
     question_service,
     question_repository,
     hackathon_repository,
 ):
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace()
+    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        organizer_id=10,
+        co_organizers=[SimpleNamespace(id=20)],
+    )
 
     with pytest.raises(InvalidPermission):
         await question_service.create_question(
@@ -211,6 +252,66 @@ async def test_create_question_rejects_regular_user(
         )
 
     question_repository.create.assert_not_awaited()
+
+
+@pytest.mark.parametrize("access_kind", ["organizer", "co_organizer"])
+async def test_organizer_and_co_organizer_can_create_question(
+    access_kind,
+    question_service,
+    question_repository,
+    hackathon_repository,
+):
+    organizer_id = 10
+    co_organizer_id = 20
+    current_user = make_user(
+        user_id=organizer_id if access_kind == "organizer" else co_organizer_id
+    )
+    co_organizer = User(
+        name="Co-organizer",
+        email="co-organizer@example.com",
+        password_hash="hashed-password",
+    )
+    co_organizer.id = co_organizer_id
+    hackathon = make_hackathon()
+    hackathon.organizer_id = organizer_id
+    hackathon.co_organizers = [co_organizer]
+    hackathon_repository.get_active_by_public_id.return_value = hackathon
+    question_repository.create.side_effect = lambda question: question
+
+    result = await question_service.create_question(
+        uuid.uuid4(),
+        RegistrationQuestionCreate(content="Why?"),
+        current_user,
+    )
+
+    assert result.hackathon is hackathon
+    question_repository.create.assert_awaited_once_with(result)
+    question_repository.commit.assert_awaited_once_with()
+
+
+@pytest.mark.parametrize("access_kind", ["organizer", "co_organizer"])
+async def test_organizer_and_co_organizer_can_delete_question(
+    access_kind,
+    question_service,
+    question_repository,
+):
+    organizer_id = 10
+    co_organizer_id = 20
+    current_user = make_user(
+        user_id=organizer_id if access_kind == "organizer" else co_organizer_id
+    )
+    question = SimpleNamespace(
+        hackathon=SimpleNamespace(
+            organizer_id=organizer_id,
+            co_organizers=[SimpleNamespace(id=co_organizer_id)],
+        )
+    )
+    question_repository.get_by_public_id.return_value = question
+
+    await question_service.delete_question(uuid.uuid4(), current_user)
+
+    question_repository.delete.assert_awaited_once_with(question)
+    question_repository.commit.assert_awaited_once_with()
 
 
 async def test_admin_can_create_question(
@@ -274,6 +375,127 @@ async def test_create_registration_raises_when_hackathon_does_not_exist(
     registration_repository.create.assert_not_awaited()
 
 
+async def test_create_registration_rejects_closed_registration(
+    registration_service,
+    registration_repository,
+    question_repository,
+    hackathon_repository,
+):
+    question = make_question()
+    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        id=10,
+        registration_open=False,
+    )
+
+    with pytest.raises(RegistrationClosedError):
+        await registration_service.create_registration(
+            registration_data(question),
+            uuid.uuid4(),
+            make_user(),
+        )
+
+    question_repository.get_by_hackathon_public_id.assert_not_awaited()
+    registration_repository.create.assert_not_awaited()
+
+
+async def test_list_registrations_raises_when_hackathon_does_not_exist(
+    registration_service,
+    registration_repository,
+    hackathon_repository,
+):
+    hackathon_repository.get_active_by_public_id.return_value = None
+
+    with pytest.raises(HackathonNotFoundError):
+        await registration_service.list_registrations(uuid.uuid4(), make_user())
+
+    registration_repository.get_by_hackathon.assert_not_awaited()
+
+
+async def test_list_registrations_rejects_user_without_access(
+    registration_service,
+    registration_repository,
+    hackathon_repository,
+):
+    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        organizer_id=10,
+        co_organizers=[SimpleNamespace(id=20)],
+    )
+
+    with pytest.raises(InvalidPermission):
+        await registration_service.list_registrations(
+            uuid.uuid4(),
+            make_user(user_id=30),
+        )
+
+    registration_repository.get_by_hackathon.assert_not_awaited()
+
+
+@pytest.mark.parametrize("access_kind", ["admin", "organizer", "co_organizer"])
+async def test_authorized_user_can_list_registrations(
+    access_kind,
+    registration_service,
+    registration_repository,
+    hackathon_repository,
+):
+    organizer_id = 10
+    co_organizer_id = 20
+    current_user = make_user(user_id=30)
+    if access_kind == "admin":
+        current_user.role = UserRole.ADMIN
+    elif access_kind == "organizer":
+        current_user.id = organizer_id
+    else:
+        current_user.id = co_organizer_id
+
+    hackathon_public_id = uuid.uuid4()
+    registrations = [SimpleNamespace(public_id=uuid.uuid4())]
+    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        organizer_id=organizer_id,
+        co_organizers=[SimpleNamespace(id=co_organizer_id)],
+    )
+    registration_repository.get_by_hackathon.return_value = registrations
+
+    result = await registration_service.list_registrations(
+        hackathon_public_id,
+        current_user,
+    )
+
+    assert result == registrations
+    registration_repository.get_by_hackathon.assert_awaited_once_with(hackathon_public_id)
+
+
+async def test_get_my_registration_returns_current_users_registration(
+    registration_service,
+    registration_repository,
+):
+    hackathon_public_id = uuid.uuid4()
+    current_user = make_user()
+    registration = SimpleNamespace(public_id=uuid.uuid4())
+    registration_repository.get_by_hackathon_and_user.return_value = registration
+
+    result = await registration_service.get_my_registration(
+        hackathon_public_id,
+        current_user,
+    )
+
+    assert result is registration
+    registration_repository.get_by_hackathon_and_user.assert_awaited_once_with(
+        hackathon_public_id,
+        current_user.public_id,
+    )
+
+
+async def test_get_my_registration_raises_when_registration_does_not_exist(
+    registration_service,
+    registration_repository,
+):
+    current_user = make_user()
+    registration_repository.get_by_hackathon_and_user.return_value = None
+
+    with pytest.raises(RegistrationNotFoundError):
+        await registration_service.get_my_registration(uuid.uuid4(), current_user)
+
+
 async def test_create_registration_rejects_question_from_another_hackathon(
     registration_service,
     registration_repository,
@@ -281,7 +503,10 @@ async def test_create_registration_rejects_question_from_another_hackathon(
     hackathon_repository,
 ):
     submitted_question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(id=10)
+    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        id=10,
+        registration_open=True,
+    )
     question_repository.get_by_hackathon_public_id.return_value = []
 
     with pytest.raises(InvalidRegistrationQuestionError):
@@ -302,7 +527,10 @@ async def test_create_registration_requires_all_required_answers(
 ):
     required_question = make_question(question_id=1, is_required=True)
     optional_question = make_question(question_id=2, is_required=False)
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(id=10)
+    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        id=10,
+        registration_open=True,
+    )
     question_repository.get_by_hackathon_public_id.return_value = [
         required_question,
         optional_question,
@@ -326,7 +554,7 @@ async def test_create_registration_builds_answers_and_commits(
 ):
     required_question = make_question(question_id=11, is_required=True)
     optional_question = make_question(question_id=12, is_required=False)
-    hackathon = SimpleNamespace(id=20)
+    hackathon = SimpleNamespace(id=20, registration_open=True)
     user = make_user(user_id=30)
     hackathon_repository.get_active_by_public_id.return_value = hackathon
     question_repository.get_by_hackathon_public_id.return_value = [
@@ -358,7 +586,10 @@ async def test_create_registration_maps_integrity_error_and_rolls_back(
     hackathon_repository,
 ):
     question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(id=10)
+    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        id=10,
+        registration_open=True,
+    )
     question_repository.get_by_hackathon_public_id.return_value = [question]
     registration_repository.create.side_effect = IntegrityError(
         "INSERT INTO registrations",
@@ -384,7 +615,10 @@ async def test_create_registration_rolls_back_unexpected_error(
     hackathon_repository,
 ):
     question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(id=10)
+    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        id=10,
+        registration_open=True,
+    )
     question_repository.get_by_hackathon_public_id.return_value = [question]
     registration_repository.create.side_effect = RuntimeError("create failed")
 
@@ -482,6 +716,106 @@ async def test_delete_registration_rolls_back_repository_error(
 
     with pytest.raises(RuntimeError, match="delete failed"):
         await registration_service.delete_registration(uuid.uuid4(), current_user)
+
+    registration_repository.rollback.assert_awaited_once_with()
+    registration_repository.commit.assert_not_awaited()
+
+
+async def test_update_status_raises_when_registration_does_not_exist(
+    registration_service,
+    registration_repository,
+):
+    registration_repository.get_by_public_id.return_value = None
+
+    with pytest.raises(RegistrationNotFoundError):
+        await registration_service.update_status(
+            uuid.uuid4(),
+            RegistrationStatus.ACCEPTED,
+            make_user(role=UserRole.ADMIN),
+        )
+
+    registration_repository.update_status.assert_not_awaited()
+
+
+async def test_update_status_rejects_user_without_access(
+    registration_service,
+    registration_repository,
+):
+    registration_repository.get_by_public_id.return_value = SimpleNamespace(
+        hackathon=SimpleNamespace(
+            organizer_id=10,
+            co_organizers=[SimpleNamespace(id=20)],
+        ),
+    )
+
+    with pytest.raises(InvalidPermission):
+        await registration_service.update_status(
+            uuid.uuid4(),
+            RegistrationStatus.ACCEPTED,
+            make_user(user_id=30),
+        )
+
+    registration_repository.update_status.assert_not_awaited()
+
+
+@pytest.mark.parametrize("access_kind", ["admin", "organizer", "co_organizer"])
+async def test_authorized_user_can_update_status(
+    access_kind,
+    registration_service,
+    registration_repository,
+):
+    organizer_id = 10
+    co_organizer_id = 20
+    current_user = make_user(user_id=30)
+    if access_kind == "admin":
+        current_user.role = UserRole.ADMIN
+    elif access_kind == "organizer":
+        current_user.id = organizer_id
+    else:
+        current_user.id = co_organizer_id
+
+    registration = SimpleNamespace(
+        status=RegistrationStatus.PENDING,
+        hackathon=SimpleNamespace(
+            organizer_id=organizer_id,
+            co_organizers=[SimpleNamespace(id=co_organizer_id)],
+        ),
+    )
+    registration_repository.get_by_public_id.return_value = registration
+    registration_repository.update_status.side_effect = (
+        lambda item, status: setattr(item, "status", status) or item
+    )
+
+    result = await registration_service.update_status(
+        uuid.uuid4(),
+        RegistrationStatus.ACCEPTED,
+        current_user,
+    )
+
+    assert result.status is RegistrationStatus.ACCEPTED
+    registration_repository.update_status.assert_awaited_once_with(
+        registration,
+        RegistrationStatus.ACCEPTED,
+    )
+    registration_repository.commit.assert_awaited_once_with()
+    registration_repository.rollback.assert_not_awaited()
+
+
+async def test_update_status_rolls_back_repository_error(
+    registration_service,
+    registration_repository,
+):
+    registration_repository.get_by_public_id.return_value = SimpleNamespace(
+        hackathon=SimpleNamespace(organizer_id=10, co_organizers=[]),
+    )
+    registration_repository.update_status.side_effect = RuntimeError("update failed")
+
+    with pytest.raises(RuntimeError, match="update failed"):
+        await registration_service.update_status(
+            uuid.uuid4(),
+            RegistrationStatus.REJECTED,
+            make_user(user_id=10),
+        )
 
     registration_repository.rollback.assert_awaited_once_with()
     registration_repository.commit.assert_not_awaited()
