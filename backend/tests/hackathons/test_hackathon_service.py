@@ -9,7 +9,6 @@ from src.auth.models import User, UserRole
 from src.hackathons.exceptions import (
     AdminRequiredError,
     HackathonNotFoundError,
-    HackathonPermissionDeniedError,
     InvalidConfirmNameError,
     InvalidDateRangeError,
     InvalidTeamSizeError,
@@ -38,7 +37,7 @@ def create_data() -> HackathonCreate:
 def repository(mocker) -> HackathonRepository:
     repository = mocker.Mock(spec=HackathonRepository)
     repository.list_accessible = mocker.AsyncMock(return_value=[])
-    repository.get_active_by_public_id = mocker.AsyncMock()
+    repository.get_owned_by_public_id = mocker.AsyncMock()
     repository.get_visible_by_public_id = mocker.AsyncMock()
     repository.add = mocker.AsyncMock()
     repository.commit = mocker.AsyncMock()
@@ -187,7 +186,7 @@ async def test_owner_can_update_hackathon(
     hackathon_factory: HackathonFactory,
 ):
     hackathon = hackathon_factory(organizer=admin_user)
-    repository.get_active_by_public_id.return_value = hackathon
+    repository.get_owned_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     result = await service.update_hackathon(
@@ -223,7 +222,7 @@ async def test_update_rejects_invalid_ranges(
     expected_exception,
 ):
     hackathon = hackathon_factory(organizer=admin_user)
-    repository.get_active_by_public_id.return_value = hackathon
+    repository.get_owned_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     with pytest.raises(expected_exception):
@@ -238,7 +237,7 @@ async def test_update_rejects_team_size_larger_than_existing_capacity(
     hackathon_factory: HackathonFactory,
 ):
     hackathon = hackathon_factory(organizer=admin_user)
-    repository.get_active_by_public_id.return_value = hackathon
+    repository.get_owned_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     with pytest.raises(InvalidTeamSizeError):
@@ -249,7 +248,7 @@ async def test_update_rejects_team_size_larger_than_existing_capacity(
         )
 
 
-async def test_co_organizer_cannot_update_hackathon(
+async def test_co_organizer_cannot_distinguish_unowned_hackathon_from_missing_one(
     repository: HackathonRepository,
     user_factory: UserFactory,
     hackathon_factory: HackathonFactory,
@@ -257,15 +256,20 @@ async def test_co_organizer_cannot_update_hackathon(
     owner = user_factory(user_id=1, role=UserRole.ADMIN)
     co_organizer = user_factory(user_id=2)
     hackathon = hackathon_factory(organizer=owner, co_organizers=[co_organizer])
-    repository.get_active_by_public_id.return_value = hackathon
+    repository.get_owned_by_public_id.return_value = None
     service = HackathonService(repository)
 
-    with pytest.raises(HackathonPermissionDeniedError):
+    with pytest.raises(HackathonNotFoundError):
         await service.update_hackathon(
             hackathon.public_id,
             HackathonUpdate(name="Forbidden update"),
             co_organizer,
         )
+
+    repository.get_owned_by_public_id.assert_awaited_once_with(
+        hackathon.public_id,
+        co_organizer.id,
+    )
 
 
 async def test_delete_requires_exact_confirmed_name(
@@ -274,7 +278,7 @@ async def test_delete_requires_exact_confirmed_name(
     hackathon_factory: HackathonFactory,
 ):
     hackathon = hackathon_factory(organizer=admin_user)
-    repository.get_active_by_public_id.return_value = hackathon
+    repository.get_owned_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     with pytest.raises(InvalidConfirmNameError):
@@ -289,7 +293,7 @@ async def test_delete_marks_hackathon_as_deleted(
     hackathon_factory: HackathonFactory,
 ):
     hackathon = hackathon_factory(organizer=admin_user)
-    repository.get_active_by_public_id.return_value = hackathon
+    repository.get_owned_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     await service.delete_hackathon(hackathon.public_id, hackathon.name, admin_user)
@@ -305,7 +309,7 @@ async def test_owner_can_open_and_close_registration(
     hackathon_factory: HackathonFactory,
 ):
     hackathon = hackathon_factory(organizer=admin_user)
-    repository.get_active_by_public_id.return_value = hackathon
+    repository.get_owned_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     await service.open_registration(hackathon.public_id, admin_user)
@@ -323,13 +327,13 @@ async def test_registration_rejects_repeated_state(
 ):
     service = HackathonService(repository)
     open_hackathon = hackathon_factory(organizer=admin_user, registration_open=True)
-    repository.get_active_by_public_id.return_value = open_hackathon
+    repository.get_owned_by_public_id.return_value = open_hackathon
 
     with pytest.raises(RegistrationAlreadyOpenError):
         await service.open_registration(open_hackathon.public_id, admin_user)
 
     closed_hackathon = hackathon_factory(organizer=admin_user, registration_open=False)
-    repository.get_active_by_public_id.return_value = closed_hackathon
+    repository.get_owned_by_public_id.return_value = closed_hackathon
 
     with pytest.raises(RegistrationAlreadyClosedError):
         await service.close_registration(closed_hackathon.public_id, admin_user)

@@ -16,12 +16,6 @@ class HackathonNotFoundError(HackathonError):
     detail = "Hackathon does not exist or you do not have access to it."
 
 
-class HackathonPermissionDeniedError(HackathonError):
-    status_code = 403
-    error_code = "PERMISSION_DENIED"
-    detail = "Only the hackathon owner can perform this operation."
-
-
 class InvalidDateRangeError(HackathonError):
     status_code = 422
     error_code = "INVALID_DATE_RANGE"

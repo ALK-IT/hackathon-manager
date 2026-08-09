@@ -35,11 +35,16 @@ class HackathonRepository:
         result = await self.session.scalars(statement)
         return list(result.unique().all())
 
-    async def get_active_by_public_id(self, public_id: uuid.UUID) -> Hackathon | None:
+    async def get_owned_by_public_id(
+        self,
+        public_id: uuid.UUID,
+        organizer_id: int,
+    ) -> Hackathon | None:
         statement = (
             select(Hackathon)
             .where(
                 Hackathon.public_id == public_id,
+                Hackathon.organizer_id == organizer_id,
                 Hackathon.is_deleted.is_(False),
             )
             .options(*self._with_relationships())

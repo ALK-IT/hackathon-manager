@@ -7,7 +7,6 @@ from src.auth.models import User, UserRole
 from src.hackathons.exceptions import (
     AdminRequiredError,
     HackathonNotFoundError,
-    HackathonPermissionDeniedError,
     InvalidConfirmNameError,
     InvalidDateRangeError,
     InvalidTeamSizeError,
@@ -106,11 +105,9 @@ class HackathonService:
         return hackathon
 
     async def _get_owned_hackathon(self, public_id: uuid.UUID, user: User) -> Hackathon:
-        hackathon = await self.repository.get_active_by_public_id(public_id)
+        hackathon = await self.repository.get_owned_by_public_id(public_id, user.id)
         if hackathon is None:
             raise HackathonNotFoundError
-        if hackathon.organizer_id != user.id:
-            raise HackathonPermissionDeniedError
         return hackathon
 
     @staticmethod
