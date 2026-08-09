@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -43,3 +44,38 @@ class RegistrationResponse(BaseModel):
 
     public_id: uuid.UUID
     status: RegistrationStatus
+
+
+class RegistrationStatusUpdate(BaseModel):
+    status: Literal[
+        RegistrationStatus.ACCEPTED,
+        RegistrationStatus.REJECTED,
+    ]
+
+
+class RegistrationUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+    email: str
+
+
+class RegistrationQuestionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    content: str
+    is_required: bool
+
+
+class RegistrationAnswerResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    content: str
+    question: RegistrationQuestionResponse
+
+
+class RegistrationDetailResponse(RegistrationResponse):
+    user: RegistrationUserResponse
+    answers: list[RegistrationAnswerResponse]

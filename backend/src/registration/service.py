@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from src.auth.models import User, UserRole
 from src.hackathons.exceptions import HackathonNotFoundError
+from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
 from src.registration.exceptions import (
     InvalidPermission,
@@ -11,9 +12,15 @@ from src.registration.exceptions import (
     MissingRequiredAnswersError,
     QuestionNotFoundError,
     RegistrationAlreadyExistsError,
+    RegistrationClosedError,
     RegistrationNotFoundError,
 )
-from src.registration.models import Registration, RegistrationAnswer, RegistrationQuestion
+from src.registration.models import (
+    Registration,
+    RegistrationAnswer,
+    RegistrationQuestion,
+    RegistrationStatus,
+)
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
 from src.registration.schema import RegistrationCreate, RegistrationQuestionCreate
 
@@ -26,6 +33,17 @@ class RegistrationQuestionService:
     ):
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
+
+    async def list_questions(
+        self,
+        hackathon_public_id: uuid.UUID,
+    ) -> list[RegistrationQuestion]:
+        hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
+
+        if hackathon is None:
+            raise HackathonNotFoundError()
+
+        return await self.question_repository.get_by_hackathon_public_id(hackathon_public_id)
 
     async def delete_question(
         self,
@@ -87,6 +105,44 @@ class RegistrationService:
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
 
+    @staticmethod
+    def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
+        return (
+            current_user.role == UserRole.ADMIN
+            or current_user.id == hackathon.organizer_id
+            or any(user.id == current_user.id for user in hackathon.co_organizers)
+        )
+
+    async def list_registrations(
+        self,
+        hackathon_public_id: uuid.UUID,
+        current_user: User,
+    ) -> list[Registration]:
+        hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
+
+        if hackathon is None:
+            raise HackathonNotFoundError()
+
+        if not self._can_manage_hackathon(hackathon, current_user):
+            raise InvalidPermission()
+
+        return await self.registration_repository.get_by_hackathon(hackathon_public_id)
+
+    async def get_my_registration(
+        self,
+        hackathon_public_id: uuid.UUID,
+        current_user: User,
+    ) -> Registration:
+        registration = await self.registration_repository.get_by_hackathon_and_user(
+            hackathon_public_id,
+            current_user.public_id,
+        )
+
+        if registration is None:
+            raise RegistrationNotFoundError()
+
+        return registration
+
     async def create_registration(
         self,
         data: RegistrationCreate,
@@ -97,6 +153,9 @@ class RegistrationService:
 
         if hackathon is None:
             raise HackathonNotFoundError()
+
+        if not hackathon.registration_open:
+            raise RegistrationClosedError()
 
         questions = await self.question_repository.get_by_hackathon_public_id(hackathon_public_id)
         questions_by_public_id = {question.public_id: question for question in questions}
@@ -154,17 +213,41 @@ class RegistrationService:
 
         hackathon = registration.hackathon
 
-        is_admin = current_user.role == UserRole.ADMIN
-        is_organizer = current_user.id == hackathon.organizer_id
-        is_co_organizer = any(user.id == current_user.id for user in hackathon.co_organizers)
         is_owner = current_user.id == registration.user_id
 
-        if not (is_admin or is_organizer or is_co_organizer or is_owner):
+        if not (self._can_manage_hackathon(hackathon, current_user) or is_owner):
             raise InvalidPermission()
 
         try:
             await self.registration_repository.delete(registration)
             await self.registration_repository.commit()
+        except Exception:
+            await self.registration_repository.rollback()
+            raise
+
+    async def update_status(
+        self,
+        registration_public_id: uuid.UUID,
+        new_status: RegistrationStatus,
+        current_user: User,
+    ) -> Registration:
+        registration = await self.registration_repository.get_by_public_id(registration_public_id)
+
+        if registration is None:
+            raise RegistrationNotFoundError()
+
+        hackathon = registration.hackathon
+
+        if not self._can_manage_hackathon(hackathon, current_user):
+            raise InvalidPermission()
+
+        try:
+            registration = await self.registration_repository.update_status(
+                registration,
+                new_status,
+            )
+            await self.registration_repository.commit()
+            return registration
         except Exception:
             await self.registration_repository.rollback()
             raise
