@@ -20,6 +20,15 @@ from src.registration.exceptions import (
 from src.registration.models import Registration, RegistrationQuestion, RegistrationStatus
 from src.registration.schema import RegistrationCreate, RegistrationQuestionCreate
 from src.registration.service import RegistrationQuestionService, RegistrationService
+from src.teams.exceptions import TeamFullError
+from src.teams.models import Team
+from src.teams.schemas import TeamCreateRequest, TeamJoinRequest
+
+
+class ConstraintViolation(Exception):
+    def __init__(self, constraint_name: str):
+        self.constraint_name = constraint_name
+        super().__init__(constraint_name)
 
 
 def make_user(
@@ -50,10 +59,24 @@ def make_hackathon() -> Hackathon:
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
         max_team_size=4,
+        registration_open=True,
     )
 
 
-def registration_data(*questions) -> RegistrationCreate:
+def make_registration_hackathon(
+    *,
+    hackathon_id: int = 10,
+    registration_open: bool = True,
+    max_team_size: int = 4,
+):
+    return SimpleNamespace(
+        id=hackathon_id,
+        registration_open=registration_open,
+        max_team_size=max_team_size,
+    )
+
+
+def registration_data(*questions, team=None) -> RegistrationCreate:
     return RegistrationCreate(
         answers=[
             {
@@ -61,7 +84,8 @@ def registration_data(*questions) -> RegistrationCreate:
                 "content": f"Answer {index}",
             }
             for index, question in enumerate(questions, start=1)
-        ]
+        ],
+        team=team,
     )
 
 
@@ -107,15 +131,24 @@ def question_service(question_repository, hackathon_repository):
 
 
 @pytest.fixture
+def team_service(mocker):
+    service = mocker.Mock()
+    service.resolve_team = mocker.AsyncMock(return_value=None)
+    return service
+
+
+@pytest.fixture
 def registration_service(
     registration_repository,
     question_repository,
     hackathon_repository,
+    team_service,
 ):
     return RegistrationService(
         registration_repository=registration_repository,
         question_repository=question_repository,
         hackathon_repository=hackathon_repository,
+        team_service=team_service,
     )
 
 
@@ -380,22 +413,23 @@ async def test_create_registration_rejects_closed_registration(
     registration_repository,
     question_repository,
     hackathon_repository,
+    team_service,
 ):
-    question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=False,
+    hackathon_repository.get_active_by_public_id.return_value = make_registration_hackathon(
+        registration_open=False
     )
 
     with pytest.raises(RegistrationClosedError):
         await registration_service.create_registration(
-            registration_data(question),
+            registration_data(make_question()),
             uuid.uuid4(),
             make_user(),
         )
 
     question_repository.get_by_hackathon_public_id.assert_not_awaited()
+    team_service.resolve_team.assert_not_awaited()
     registration_repository.create.assert_not_awaited()
+    registration_repository.commit.assert_not_awaited()
 
 
 async def test_list_registrations_raises_when_hackathon_does_not_exist(
@@ -503,10 +537,7 @@ async def test_create_registration_rejects_question_from_another_hackathon(
     hackathon_repository,
 ):
     submitted_question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=True,
-    )
+    hackathon_repository.get_active_by_public_id.return_value = make_registration_hackathon()
     question_repository.get_by_hackathon_public_id.return_value = []
 
     with pytest.raises(InvalidRegistrationQuestionError):
@@ -527,10 +558,7 @@ async def test_create_registration_requires_all_required_answers(
 ):
     required_question = make_question(question_id=1, is_required=True)
     optional_question = make_question(question_id=2, is_required=False)
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=True,
-    )
+    hackathon_repository.get_active_by_public_id.return_value = make_registration_hackathon()
     question_repository.get_by_hackathon_public_id.return_value = [
         required_question,
         optional_question,
@@ -551,10 +579,11 @@ async def test_create_registration_builds_answers_and_commits(
     registration_repository,
     question_repository,
     hackathon_repository,
+    team_service,
 ):
     required_question = make_question(question_id=11, is_required=True)
     optional_question = make_question(question_id=12, is_required=False)
-    hackathon = SimpleNamespace(id=20, registration_open=True)
+    hackathon = make_registration_hackathon(hackathon_id=20)
     user = make_user(user_id=30)
     hackathon_repository.get_active_by_public_id.return_value = hackathon
     question_repository.get_by_hackathon_public_id.return_value = [
@@ -572,11 +601,90 @@ async def test_create_registration_builds_answers_and_commits(
     assert isinstance(result, Registration)
     assert result.user_id == user.id
     assert result.hackathon_id == hackathon.id
+    assert result.team is None
     assert [answer.question_id for answer in result.answers] == [11, 12]
     assert [answer.content for answer in result.answers] == ["Answer 1", "Answer 2"]
+    team_service.resolve_team.assert_awaited_once_with(
+        selection=None,
+        hackathon=hackathon,
+    )
     registration_repository.create.assert_awaited_once_with(result)
     registration_repository.commit.assert_awaited_once_with()
     registration_repository.rollback.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "team_selection",
+    [
+        TeamCreateRequest(action="create", name="Byte Buccaneers"),
+        TeamJoinRequest(action="join", join_code="ABCD1234"),
+    ],
+)
+async def test_create_registration_assigns_team_resolved_from_selection(
+    registration_service,
+    registration_repository,
+    question_repository,
+    hackathon_repository,
+    team_service,
+    team_selection,
+):
+    question = make_question()
+    hackathon = make_registration_hackathon(hackathon_id=20)
+    team = Team(
+        id=40,
+        hackathon_id=hackathon.id,
+        name="Byte Buccaneers",
+        join_code="ABCD1234",
+    )
+    hackathon_repository.get_active_by_public_id.return_value = hackathon
+    question_repository.get_by_hackathon_public_id.return_value = [question]
+    team_service.resolve_team.return_value = team
+    registration_repository.create.side_effect = lambda registration: registration
+    data = registration_data(question, team=team_selection)
+
+    result = await registration_service.create_registration(
+        data,
+        uuid.uuid4(),
+        make_user(),
+    )
+
+    team_service.resolve_team.assert_awaited_once_with(
+        selection=team_selection,
+        hackathon=hackathon,
+    )
+    assert result.team is team
+    registration_repository.create.assert_awaited_once_with(result)
+    registration_repository.commit.assert_awaited_once_with()
+    registration_repository.rollback.assert_not_awaited()
+
+
+async def test_create_registration_rolls_back_when_team_resolution_fails(
+    registration_service,
+    registration_repository,
+    question_repository,
+    hackathon_repository,
+    team_service,
+):
+    question = make_question()
+    hackathon_repository.get_active_by_public_id.return_value = make_registration_hackathon(
+        hackathon_id=20
+    )
+    question_repository.get_by_hackathon_public_id.return_value = [question]
+    team_service.resolve_team.side_effect = TeamFullError()
+
+    with pytest.raises(TeamFullError):
+        await registration_service.create_registration(
+            registration_data(
+                question,
+                team=TeamJoinRequest(action="join", join_code="ABCD1234"),
+            ),
+            uuid.uuid4(),
+            make_user(),
+        )
+
+    registration_repository.create.assert_not_awaited()
+    registration_repository.commit.assert_not_awaited()
+    registration_repository.rollback.assert_awaited_once_with()
 
 
 async def test_create_registration_maps_integrity_error_and_rolls_back(
@@ -586,15 +694,12 @@ async def test_create_registration_maps_integrity_error_and_rolls_back(
     hackathon_repository,
 ):
     question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=True,
-    )
+    hackathon_repository.get_active_by_public_id.return_value = make_registration_hackathon()
     question_repository.get_by_hackathon_public_id.return_value = [question]
     registration_repository.create.side_effect = IntegrityError(
         "INSERT INTO registrations",
         {},
-        Exception("duplicate registration"),
+        ConstraintViolation("uq_application_user_hackathon"),
     )
 
     with pytest.raises(RegistrationAlreadyExistsError):
@@ -615,10 +720,7 @@ async def test_create_registration_rolls_back_unexpected_error(
     hackathon_repository,
 ):
     question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=True,
-    )
+    hackathon_repository.get_active_by_public_id.return_value = make_registration_hackathon()
     question_repository.get_by_hackathon_public_id.return_value = [question]
     registration_repository.create.side_effect = RuntimeError("create failed")
 

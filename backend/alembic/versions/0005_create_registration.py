@@ -70,4 +70,5 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_registrations_public_id"), table_name="registrations")
     op.drop_table("registrations")
     op.drop_table("questions")
+    sa.Enum(name="registration_status").drop(op.get_bind(), checkfirst=True)
     # ### end Alembic commands ###

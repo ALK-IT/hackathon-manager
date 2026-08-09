@@ -126,9 +126,15 @@ uvicorn src.main:app --reload
 # frontend (jednostkowe)
 cd frontend && npm run test -- --run
 
-# backend (integracyjne, wymaga Postgres+Redis - patrz docker-compose.yml)
-cd backend && pytest
+# backend w odizolowanych, nietrwałych kontenerach testowych
+docker compose -f docker-compose.test.yml up --build \
+  --abort-on-container-exit --exit-code-from backend-test
+docker compose -f docker-compose.test.yml down
 ```
+
+Testy backendu wykonują `drop_all()` i `create_all()`, dlatego nie należy wskazywać w
+`TEST_DATABASE_URL` bazy developerskiej ani produkcyjnej. `docker-compose.test.yml` uruchamia
+osobny PostgreSQL w `tmpfs`, dzięki czemu testy nie modyfikują danych zwykłego środowiska.
 
 **E2E (przykładowy smoke test):** sprawdza cały przekrój — frontend + backend + Postgres + Redis razem, przez `docker compose`:
 
