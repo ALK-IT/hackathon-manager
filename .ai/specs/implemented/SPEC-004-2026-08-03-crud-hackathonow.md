@@ -107,14 +107,19 @@ Błędy domenowe mają stabilne pola:
 
 ```json
 {
-  "error_code": "PERMISSION_DENIED",
-  "detail": "Only the hackathon owner can perform this operation."
+  "error_code": "HACKATHON_NOT_FOUND",
+  "detail": "Hackathon does not exist or you do not have access to it."
 }
 ```
 
 Walidacja requestu zwraca `VALIDATION_ERROR` wraz z listą błędnych pól. Pozostałe kody obejmują
-m.in. `ADMIN_REQUIRED`, `HACKATHON_NOT_FOUND`, `INVALID_DATE_RANGE`, `INVALID_TEAM_SIZE`,
+m.in. `ADMIN_REQUIRED`, `INVALID_DATE_RANGE`, `INVALID_TEAM_SIZE`,
 `INVALID_CONFIRM_NAME`, `REGISTRATION_ALREADY_OPEN` i `REGISTRATION_ALREADY_CLOSED`.
+
+Operacje dostępne wyłącznie właścicielowi wyszukują wydarzenie jednocześnie po `public_id`,
+`organizer_id` i stanie soft-delete. Nieistniejący, usunięty oraz należący do innej osoby
+hackathon zwracają ten sam błąd `HACKATHON_NOT_FOUND`. Zapobiega to wykorzystywaniu odpowiedzi
+`403` i `404` do sprawdzania, czy cudzy UUID wskazuje istniejący zasób.
 
 ### Architektura
 
@@ -125,7 +130,8 @@ router → service → repository → PostgreSQL
 ```
 
 - Router odpowiada za HTTP, zależności FastAPI i mapowanie modeli na schematy odpowiedzi.
-- Service zawiera logikę biznesową, kontrolę właściciela i zmianę stanu wydarzenia.
+- Service zawiera logikę biznesową, zleca lookup ograniczony do właściciela i zmienia stan
+  wydarzenia.
 - Repository jest jedyną warstwą wykonującą zapytania SQLAlchemy.
 - Relacje organizatora i współorganizatorów są pobierane przez `selectinload`, co zapobiega N+1
   oraz próbom niejawnego wykonywania zapytań podczas serializacji async.
@@ -216,3 +222,5 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
   na odizolowanej bazie PostgreSQL.
 - 2026-08-05 — po rebase uporządkowano testy zgodnie ze strukturą modułu auth i dodano testy
   repozytorium, widoczności, soft-delete oraz pełnego kontraktu endpointów.
+- 2026-08-10 — operacje właściciela ujednolicono do `404` dla zasobów nieistniejących,
+  usuniętych i należących do innego użytkownika, aby nie ujawniać ich istnienia.

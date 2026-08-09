@@ -5,7 +5,6 @@ from httpx import AsyncClient
 from src.auth.models import User, UserRole
 from src.hackathons.exceptions import (
     HackathonNotFoundError,
-    HackathonPermissionDeniedError,
     InvalidConfirmNameError,
     RegistrationAlreadyOpenError,
 )
@@ -206,6 +205,7 @@ async def test_registration_endpoints_return_current_state(
 async def test_all_endpoints_require_access_token(
     hackathon_client: AsyncClient,
     force_authenticate,
+    mock_hackathon_service: HackathonService,
 ):
     public_id = uuid.uuid4()
     force_authenticate(None)
@@ -228,6 +228,13 @@ async def test_all_endpoints_require_access_token(
     ]
 
     assert [response.status_code for response in responses] == [401] * len(responses)
+    mock_hackathon_service.list_hackathons.assert_not_awaited()
+    mock_hackathon_service.create_hackathon.assert_not_awaited()
+    mock_hackathon_service.get_hackathon.assert_not_awaited()
+    mock_hackathon_service.update_hackathon.assert_not_awaited()
+    mock_hackathon_service.delete_hackathon.assert_not_awaited()
+    mock_hackathon_service.open_registration.assert_not_awaited()
+    mock_hackathon_service.close_registration.assert_not_awaited()
 
 
 async def test_request_rejects_fields_managed_by_backend(
@@ -261,12 +268,12 @@ async def test_domain_errors_have_stable_http_contract(
         ),
         (
             mock_hackathon_service.update_hackathon,
-            HackathonPermissionDeniedError,
+            HackathonNotFoundError,
             "PATCH",
             f"/api/hackathons/{public_id}",
             {"name": "Updated"},
-            403,
-            "PERMISSION_DENIED",
+            404,
+            "HACKATHON_NOT_FOUND",
         ),
         (
             mock_hackathon_service.delete_hackathon,
