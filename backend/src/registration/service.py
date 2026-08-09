@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy.exc import IntegrityError
 
 from src.auth.models import User, UserRole
+from src.database import get_integrity_error_constraint
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
@@ -23,6 +24,7 @@ from src.registration.models import (
 )
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
 from src.registration.schema import RegistrationCreate, RegistrationQuestionCreate
+from src.teams.service import TeamService
 
 
 def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
@@ -108,10 +110,12 @@ class RegistrationService:
         registration_repository: RegistrationRepository,
         question_repository: RegistrationQuestionRepository,
         hackathon_repository: HackathonRepository,
+        team_service: TeamService,
     ):
         self.registration_repository = registration_repository
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
+        self.team_service = team_service
 
     async def list_registrations(
         self,
@@ -175,28 +179,36 @@ class RegistrationService:
         missing_required_ids = required_question_ids - submitted_question_ids
         if missing_required_ids:
             raise MissingRequiredAnswersError(
-                "Missing required answers: " f"{sorted(map(str, missing_required_ids))}"
+                f"Missing required answers: {sorted(map(str, missing_required_ids))}"
             )
 
-        registration = Registration(
-            user_id=current_user.id,
-            hackathon_id=hackathon.id,
-            answers=[
-                RegistrationAnswer(
-                    question_id=questions_by_public_id[answer.question_public_id].id,
-                    content=answer.content,
-                )
-                for answer in data.answers
-            ],
-        )
-
         try:
+            team = await self.team_service.resolve_team(
+                selection=data.team,
+                hackathon=hackathon,
+            )
+
+            registration = Registration(
+                user_id=current_user.id,
+                hackathon_id=hackathon.id,
+                team=team,
+                answers=[
+                    RegistrationAnswer(
+                        question_id=questions_by_public_id[answer.question_public_id].id,
+                        content=answer.content,
+                    )
+                    for answer in data.answers
+                ],
+            )
+
             registration = await self.registration_repository.create(registration)
             await self.registration_repository.commit()
             return registration
         except IntegrityError as error:
             await self.registration_repository.rollback()
-            raise RegistrationAlreadyExistsError() from error
+            if get_integrity_error_constraint(error) == "uq_application_user_hackathon":
+                raise RegistrationAlreadyExistsError() from error
+            raise
         except Exception:
             await self.registration_repository.rollback()
             raise

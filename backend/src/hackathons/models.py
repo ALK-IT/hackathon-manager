@@ -22,6 +22,7 @@ from src.registration.models import Registration, RegistrationQuestion
 
 if TYPE_CHECKING:
     from src.auth.models import User
+    from src.teams.models import Team
 
 
 hackathon_co_organizers = Table(
@@ -108,6 +109,11 @@ class Hackathon(Base):
     )
 
     registrations: Mapped[list["Registration"]] = relationship(
+        back_populates="hackathon",
+        passive_deletes=True,
+    )
+
+    teams: Mapped[list["Team"]] = relationship(
         back_populates="hackathon",
         passive_deletes=True,
     )
