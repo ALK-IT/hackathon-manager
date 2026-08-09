@@ -6,7 +6,12 @@ from sqlalchemy.orm import selectinload
 
 from src.auth.models import User
 from src.hackathons.models import Hackathon
-from src.registration.models import Registration, RegistrationQuestion
+from src.registration.models import (
+    Registration,
+    RegistrationAnswer,
+    RegistrationQuestion,
+    RegistrationStatus,
+)
 
 
 class RegistrationQuestionRepository:
@@ -21,6 +26,7 @@ class RegistrationQuestionRepository:
             select(RegistrationQuestion)
             .join(RegistrationQuestion.hackathon)
             .where(Hackathon.public_id == hackathon_public_id)
+            .order_by(RegistrationQuestion.id)
         )
         return list(result.scalars().all())
 
@@ -67,7 +73,12 @@ class RegistrationRepository:
             select(Registration)
             .join(Registration.hackathon)
             .where(Hackathon.public_id == hackathon_public_id)
-            .options(selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers))
+            .options(
+                selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
+                selectinload(Registration.user),
+                selectinload(Registration.answers).selectinload(RegistrationAnswer.question),
+            )
+            .order_by(Registration.id)
         )
 
         return list(result.scalars().all())
@@ -80,8 +91,16 @@ class RegistrationRepository:
             select(Registration)
             .join(Registration.hackathon)
             .join(Registration.user)
-            .where(Hackathon.public_id == hackathon_public_id, User.public_id == user_public_id)
-            .options(selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers))
+            .where(
+                Hackathon.public_id == hackathon_public_id,
+                Hackathon.is_deleted.is_(False),
+                User.public_id == user_public_id,
+            )
+            .options(
+                selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
+                selectinload(Registration.user),
+                selectinload(Registration.answers).selectinload(RegistrationAnswer.question),
+            )
         )
 
         return result.scalar_one_or_none()
@@ -94,6 +113,15 @@ class RegistrationRepository:
         )
 
         return result.scalar_one_or_none()
+
+    async def update_status(
+        self,
+        registration: Registration,
+        new_status: RegistrationStatus,
+    ) -> Registration:
+        registration.status = new_status
+        await self.session.flush()
+        return registration
 
     async def create(self, registration: Registration) -> Registration:
         self.session.add(registration)
