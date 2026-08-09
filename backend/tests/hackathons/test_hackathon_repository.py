@@ -63,7 +63,7 @@ async def test_repository_adds_and_reads_hackathon(session: AsyncSession):
     await repository.add(hackathon)
     await repository.commit()
 
-    result = await repository.get_active_by_public_id(hackathon.public_id)
+    result = await repository.get_owned_by_public_id(hackathon.public_id, owner.id)
     assert result is hackathon
     assert result.organizer is owner
     assert result.co_organizers == []
@@ -148,7 +148,22 @@ async def test_get_visible_allows_owner_and_co_organizer_but_hides_other_users(
     assert unrelated_result is None
 
 
-async def test_get_active_hides_soft_deleted_hackathon(session: AsyncSession):
+async def test_get_owned_hides_hackathon_from_other_users(session: AsyncSession):
+    owner = await persist_user(
+        session,
+        email="owner@example.com",
+        role=UserRole.ADMIN,
+    )
+    unrelated = await persist_user(session, email="unrelated@example.com")
+    hackathon = make_hackathon(owner, name="Hackathon AI")
+    session.add(hackathon)
+    await session.commit()
+    repository = HackathonRepository(session)
+
+    assert await repository.get_owned_by_public_id(hackathon.public_id, unrelated.id) is None
+
+
+async def test_get_owned_hides_soft_deleted_hackathon(session: AsyncSession):
     owner = await persist_user(
         session,
         email="owner@example.com",
@@ -163,7 +178,7 @@ async def test_get_active_hides_soft_deleted_hackathon(session: AsyncSession):
     await session.commit()
     repository = HackathonRepository(session)
 
-    assert await repository.get_active_by_public_id(deleted.public_id) is None
+    assert await repository.get_owned_by_public_id(deleted.public_id, owner.id) is None
     assert await repository.get_visible_by_public_id(deleted.public_id, owner.id) is None
 
 
