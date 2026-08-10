@@ -14,6 +14,7 @@ from src.cache import get_cache
 from src.database import get_session
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
 
 def get_user_service(session: Annotated[AsyncSession, Depends(get_session)]) -> UserService:
