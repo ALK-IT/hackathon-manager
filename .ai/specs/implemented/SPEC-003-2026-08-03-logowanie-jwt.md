@@ -2,6 +2,7 @@
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-03
+**Ostatnia aktualizacja:** 2026-08-11
 **Autorzy:** Patryk Nisgorski, Codex
 
 ## Kontekst / Problem
@@ -19,6 +20,7 @@ Backend nie miał modelu użytkownika ani mechanizmu uwierzytelniania. Nie było
   - `token_type=access` — rozróżnienie tokena dostępu od refresh tokena,
   - `sid` — identyfikator sesji łączący access token z refresh tokenem.
 - Refresh token JWT zawierający dodatkowo `token_type=refresh` oraz unikalne `sid`. Refresh token jest jednorazowy: poprawne odświeżenie atomowo usuwa jego sesję z Redis i wydaje nową parę tokenów z nowym `sid`.
+- Refresh token jest przekazywany wyłącznie w cookie `HttpOnly` o ścieżce `/api/auth`; atrybuty `Secure` i `SameSite` są konfigurowalne zależnie od środowiska.
 - Sekret podpisujący pobierany z `JWT_SECRET_KEY` i mający co najmniej 32 znaki.
 - Czas ważności tokena konfigurowany przez `ACCESS_TOKEN_EXPIRE_MINUTES`, domyślnie 30 minut.
 - Czas ważności refresh tokena konfigurowany przez `REFRESH_TOKEN_EXPIRE_DAYS`, domyślnie 7 dni.
@@ -61,38 +63,30 @@ Zwraca:
 ```json
 {
   "access_token": "<access-jwt>",
-  "refresh_token": "<refresh-jwt>",
   "token_type": "bearer",
-  "expires_in": 1800,
-  "refresh_expires_in": 604800
+  "expires_in": 1800
 }
 ```
 
 Niepoprawny e-mail lub hasło zwraca `401 Unauthorized` z nagłówkiem `WWW-Authenticate: Bearer`. Dla nieistniejącego e-maila wykonywane jest sprawdzenie hasła względem sztucznego hasha, aby ograniczyć możliwość rozpoznawania istniejących kont na podstawie czasu odpowiedzi.
 
-Login zapisuje w Redis sesję refresh jako `auth:refresh_session:<sid> -> 1` z TTL równym czasowi ważności refresh tokena. Pełna treść refresh tokena nie jest przechowywana po stronie serwera.
+Login zapisuje w Redis sesję refresh jako `auth:refresh_session:<sid> -> 1` z TTL równym czasowi ważności refresh tokena. Pełna treść refresh tokena nie jest przechowywana po stronie serwera. Token trafia do przeglądarki przez nagłówek `Set-Cookie` i nie jest zwracany w JSON.
 
 ### `POST /api/auth/refresh`
 
-Przyjmuje JSON:
+Odczytuje refresh token z cookie `HttpOnly`; nie przyjmuje go w treści żądania.
 
-```json
-{
-  "refresh_token": "<refresh-jwt>"
-}
-```
-
-Poprawny refresh token atomowo pobiera i usuwa swoją sesję z Redis poleceniem `GETDEL`, a endpoint wydaje nową parę tokenów w formacie odpowiedzi logowania. Nowa para otrzymuje nowe `sid`, dlatego stary refresh token jest jednorazowy i jego ponowne użycie zwraca `401 Unauthorized`. `401` zwracane jest także dla tokena uszkodzonego, wygasłego, wylogowanego, tokena typu access oraz użytkownika, który już nie istnieje. Frontend po odświeżeniu zawsze zastępuje oba tokeny i wykonuje logout aktualnym access tokenem.
+Poprawny refresh token atomowo pobiera i usuwa swoją sesję z Redis poleceniem `GETDEL`, a endpoint zwraca nowy access token i ustawia obrócony refresh token w cookie. Nowa para otrzymuje nowe `sid`, dlatego stary refresh token jest jednorazowy i jego ponowne użycie zwraca `401 Unauthorized`. `401` zwracane jest także przy braku cookie oraz dla tokena uszkodzonego, wygasłego, wylogowanego, tokena niewłaściwego typu lub użytkownika, który już nie istnieje.
 
 ### `POST /api/auth/logout`
 
-Wymaga nagłówka:
+Opcjonalnie przyjmuje nagłówek:
 
 ```text
 Authorization: Bearer <token>
 ```
 
-Poprawny, niewygasły access token zostaje unieważniony do końca swojego czasu ważności, a powiązana z jego `sid` sesja refresh jest usuwana. Endpoint zwraca `204 No Content`. Ponowne wylogowanie tym samym tokenem również zwraca `204`, natomiast refresh token, token uszkodzony lub wygasły zwraca `401 Unauthorized`.
+Poprawny, niewygasły access token zostaje unieważniony do końca swojego czasu ważności, a powiązana z jego `sid` sesja refresh jest usuwana. Endpoint usuwa także sesję refresh wskazaną przez cookie i kasuje samo cookie. Wylogowanie jest idempotentne i zwraca `204 No Content` również przy braku albo niepoprawnym tokenie.
 
 Redis przechowuje klucz z prefiksem `auth:revoked_access_token:` i skrótem SHA-256 tokena oraz TTL wyliczonym na podstawie pola `exp`. Pełna treść JWT nie jest zapisywana w Redisie.
 
@@ -138,6 +132,7 @@ Pole `role` nie jest obecnie zwracane przez `UserRead`, zapisywane w JWT ani uż
 - Hashowanie i weryfikacja haseł przez Argon2.
 - Wystawianie i weryfikacja krótkotrwałych tokenów JWT.
 - Wystawianie refresh tokenów, jednorazowa rotacja i rozróżnianie typów tokenów.
+- Przekazywanie refresh tokena w cookie `HttpOnly` i usuwanie cookie podczas logout.
 - Wylogowanie i unieważnianie pojedynczych tokenów dostępu przy użyciu Redis.
 - Unieważnianie sesji refresh powiązanej z access tokenem podczas logout.
 - Podstawowa rola `USER`/`ADMIN` przechowywana w bazie.
@@ -153,28 +148,28 @@ Pole `role` nie jest obecnie zwracane przez `UserRead`, zapisywane w JWT ani uż
 - Wykrywanie całej rodziny skradzionych refresh tokenów po próbie ponownego użycia starego tokena.
 - Weryfikacja adresu e-mail i reset hasła.
 - Logowanie przez Google, GitHub lub innych zewnętrznych dostawców.
-- Formularze logowania i rejestracji we frontendzie.
+- Klient, formularze i routing uwierzytelniania we frontendzie — opisane w `SPEC-004`.
 - Ograniczanie liczby prób logowania (*rate limiting*) i blokowanie kont.
 
 ## Wpływ
 
-- **Frontend:** odpowiedź logowania zawiera dwa tokeny. Frontend używa access tokena w `Authorization`, wywołuje `/api/auth/refresh` po jego wygaśnięciu i po każdej rotacji zastępuje oba tokeny. Przed usunięciem tokenów lokalnych wywołuje `/api/auth/logout` z aktualnym access tokenem.
+- **Frontend:** odpowiedź logowania zawiera access token, natomiast refresh token jest zarządzany przez przeglądarkę jako cookie `HttpOnly`. Implementację klienta opisuje `SPEC-004`.
 - **Backend:** moduły w `src/auth/`: `models.py`, `schemas.py`, `repository.py`, `service.py`, `router.py`, `dependencies.py`, `config.py`, `constants.py`, `exceptions.py` i `utils.py`.
 - **Baza danych:** tabela `users`, unikalny indeks `public_id`, unikalny e-mail, typ `user_role` i wymagana kolumna `role`.
 - **Redis:** krótkotrwałe wpisy blokujące wylogowane tokeny oraz aktywne sesje refresh. Niedostępność Redis uniemożliwia bezpieczne logowanie, odświeżanie i sprawdzenie unieważnienia tokenu.
-- **Konfiguracja:** `JWT_SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `REFRESH_TOKEN_EXPIRE_DAYS` oraz zależności PyJWT, pwdlib z Argon2, python-multipart i email-validator.
+- **Konfiguracja:** `JWT_SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `REFRESH_TOKEN_EXPIRE_DAYS`, `AUTH_COOKIE_SECURE`, `AUTH_COOKIE_SAMESITE`, `FRONTEND_ORIGINS` oraz zależności PyJWT, pwdlib z Argon2, python-multipart i email-validator. CORS dopuszcza credentials dla skonfigurowanych originów.
 
 ## Kryteria akceptacji
 
 - Poprawna rejestracja zwraca `201`, zapisuje użytkownika i nie ujawnia hasha hasła.
 - Rejestracja istniejącego e-maila zwraca `409`.
-- Poprawne dane logowania zwracają access token, refresh token i czasy ich ważności.
+- Poprawne dane logowania zwracają access token i ustawiają refresh token w cookie `HttpOnly`; refresh token nie występuje w JSON.
 - Refresh token nie może zostać użyty jako access token ani access token jako refresh token.
-- Poprawny refresh token wydaje nową parę tokenów, a jego ponowne użycie zwraca `401`.
+- Poprawne refresh cookie wydaje nowy access token, obraca refresh token, a ponowne użycie starego tokena zwraca `401`.
 - Niepoprawne dane logowania zwracają `401` bez ujawniania, czy e-mail istnieje.
 - Poprawny token umożliwia pobranie użytkownika przez `/api/auth/me`.
 - Niepoprawny lub wygasły token zwraca `401`.
-- Logout poprawnego tokena zwraca `204`, zapisuje wyłącznie skrót tokena z TTL, usuwa powiązaną sesję refresh i powoduje odrzucanie tokena przez chronione endpointy.
+- Logout zwraca `204`, usuwa refresh cookie i jego sesję, a dla poprawnego access tokena zapisuje wyłącznie jego skrót z TTL oraz powoduje odrzucanie tokena przez chronione endpointy.
 - Wpis unieważnienia automatycznie znika z Redis po pierwotnym czasie wygaśnięcia JWT.
 - Nowy użytkownik otrzymuje rolę `USER`.
 - Istniejący użytkownicy po migracji `0003` mają rolę `USER`.
@@ -183,11 +178,11 @@ Pole `role` nie jest obecnie zwracane przez `UserRead`, zapisywane w JWT ani uż
 
 ## Alternatywy rozważane
 
-- **Sesja serwerowa i cookie** — odłożone. JWT upraszcza komunikację oddzielnego frontendu z API. Bezpieczne cookie powinno zostać ponownie rozważone przed implementacją logowania w przeglądarce.
+- **Pełna sesja serwerowa bez JWT** — odłożona. Access JWT upraszcza autoryzację API, a Redis przechowuje tylko stan potrzebny do rotacji refresh tokenów i unieważniania access tokenów.
 - **Zewnętrzny dostawca tożsamości** — odrzucony na tym etapie jako zbyt rozbudowany dla podstawowego konta użytkownika.
 - **Bcrypt** — odrzucony na rzecz Argon2 obsługiwanego przez `pwdlib`.
 - **Refresh token wielokrotnego użytku bez stanu serwerowego** — odrzucony, ponieważ przejęty token działałby aż do `exp` i nie dałoby się go unieważnić podczas logout.
-- **Refresh token w HttpOnly Secure cookie** — zalecany do ponownego rozważenia przy implementacji frontendu. Obecny kontrakt zwraca token w JSON, ponieważ API nie ma jeszcze ustalonego modelu domen, cookies i ochrony CSRF.
+- **Refresh token zwracany w JSON** — odrzucony, ponieważ frontend musiałby udostępnić go kodowi JavaScript. Wybrano cookie `HttpOnly` z konfigurowalnymi `Secure`, `SameSite` i originami CORS.
 - **Rola w JWT** — odłożona, aby zmiana roli nie wymagała oczekiwania na wygaśnięcie wcześniej wydanego tokena.
 
 ## Changelog
@@ -199,3 +194,4 @@ Pole `role` nie jest obecnie zwracane przez `UserRead`, zapisywane w JWT ani uż
 - 2026-08-03 — dodano logout oraz czasową listę unieważnionych tokenów JWT w Redisie.
 - 2026-08-03 — dodano jednorazowe refresh tokeny, rotację sesji w Redis oraz unieważnianie refresh tokena podczas logout.
 - 2026-08-03 — uproszczono rotację refresh tokena do `GETDEL` i nowego `sid`, usuwając własny skrypt Lua.
+- 2026-08-11 — przeniesiono refresh token z odpowiedzi JSON do cookie `HttpOnly`, dodano konfigurację cookie i CORS oraz powiązano frontend z `SPEC-004`.
