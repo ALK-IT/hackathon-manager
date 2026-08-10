@@ -1,7 +1,14 @@
-FROM node:20-alpine AS build
+FROM node:20-alpine AS base
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
+
+FROM base AS development
+COPY . .
+EXPOSE 5173
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+FROM base AS build
 COPY . .
 ARG VITE_API_URL=http://localhost:8000
 ENV VITE_API_URL=$VITE_API_URL
