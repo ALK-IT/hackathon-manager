@@ -126,9 +126,8 @@ uvicorn src.main:app --reload
 # frontend (jednostkowe)
 cd frontend && npm run test -- --run
 
-# backend (odizolowany Postgres i Redis tylko dla testow)
-docker compose -f docker-compose.test.yml run --build --rm backend-test
-docker compose -f docker-compose.test.yml down
+# backend (korzysta z osobnej bazy postgres-test z docker-compose.yml)
+docker compose run --build --rm backend pytest
 ```
 
 **E2E (przykładowy smoke test):** sprawdza cały przekrój — frontend + backend + Postgres + Redis razem, przez `docker compose`:
