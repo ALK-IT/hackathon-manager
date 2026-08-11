@@ -27,7 +27,7 @@ Nowy projekt studencki potrzebuje działającego od zera szkieletu: frontend roz
 ## Wpływ
 
 - Frontend: `src/App.tsx`, zmienna środowiskowa `VITE_API_URL`.
-- Backend: `app/main.py`, endpoint `/api/hello`.
+- Backend: `src/main.py`, endpoint `/api/hello`.
 - Baza danych / API: brak (na tym etapie).
 
 ## Alternatywy rozważane
