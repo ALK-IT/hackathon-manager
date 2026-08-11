@@ -13,7 +13,8 @@ szczegółów, edytowania ani usuwania wydarzeń. Brakowało również właścic
 publicznych, walidacji, autoryzacji i stabilnego kontraktu błędów.
 
 Projekt potrzebuje kompletnego CRUD-u, który nie ujawnia wewnętrznych identyfikatorów bazy,
-rozróżnia właściciela i współorganizatorów oraz chroni każdą operację access tokenem JWT.
+rozróżnia właściciela i współorganizatorów, publicznie udostępnia katalog wydarzeń i chroni
+operacje zarządzania access tokenem JWT.
 
 ## Proponowane rozwiązanie
 
@@ -45,33 +46,37 @@ Baza danych oraz schematy Pydantic egzekwują:
 
 ### Uprawnienia
 
-- Wszystkie endpointy hackathonów wymagają poprawnego access tokenu.
+- Lista aktywnych hackathonów i szczegóły pojedynczego wydarzenia są dostępne bez logowania.
+- Jeżeli publiczny odczyt otrzyma token, musi on być poprawny; token nieprawidłowy lub wygasły
+  zwraca `401` zamiast traktowania żądania jak anonimowe.
 - Tylko użytkownik z rolą `ADMIN` może utworzyć hackathon.
-- Każdy zalogowany użytkownik widzi aktywne wydarzenia i ich szczegóły.
+- Każdy użytkownik, również niezalogowany, widzi aktywne wydarzenia i ich szczegóły.
 - Właściciel może edytować wydarzenie, usunąć je oraz otworzyć lub zamknąć zapisy.
 - Współorganizator może znaleźć wydarzenie na liście zarządzanych, ale nie może zmieniać jego
   konfiguracji.
 - Soft-deleted hackathony są pomijane przez wszystkie zwykłe zapytania.
 
-Lista `GET /api/hackathons` zawiera wszystkie aktywne wydarzenia. Osobna lista
+Lista `GET /api/hackathons` zawiera wszystkie aktywne wydarzenia. Anonimowy odbiorca otrzymuje
+`access_level: viewer`; dla zalogowanej osoby poziom jest wyliczany na podstawie jej relacji z
+wydarzeniem. Osobna lista
 `GET /api/hackathons/managed` zawiera wydarzenia, których zalogowany użytkownik jest właścicielem
 lub współorganizatorem. Pole odpowiedzi `access_level` (`owner`, `co_organizer` albo `viewer`)
 pozwala frontendowi dopasować interfejs bez zwracania globalnej roli przez `/api/auth/me`.
 
 ### Endpointy
 
-- `GET /api/hackathons` — lista wszystkich aktywnych wydarzeń dla zalogowanego użytkownika.
+- `GET /api/hackathons` — publiczna lista wszystkich aktywnych wydarzeń.
 - `GET /api/hackathons/managed` — lista wydarzeń zarządzanych jako właściciel lub
   współorganizator.
 - `POST /api/hackathons` — utworzenie wydarzenia, wyłącznie przez administratora.
-- `GET /api/hackathons/{public_id}` — szczegóły aktywnego wydarzenia dla każdego zalogowanego
-  użytkownika.
+- `GET /api/hackathons/{public_id}` — publiczne szczegóły aktywnego wydarzenia.
 - `PATCH /api/hackathons/{public_id}` — częściowa edycja przez właściciela.
 - `DELETE /api/hackathons/{public_id}` — soft-delete przez właściciela.
 - `POST /api/hackathons/{public_id}/open-registration` — otwarcie zapisów.
 - `POST /api/hackathons/{public_id}/close-registration` — zamknięcie zapisów.
 
-Publiczny endpoint pod `/api/public/hackathons` świadomie nie jest częścią tej wersji.
+Nie powstaje osobny prefiks `/api/public`. Publiczny odczyt korzysta z tych samych adresów co
+odczyt uwierzytelniony, dzięki czemu klient ma jeden kontrakt odpowiedzi.
 
 Usuwanie wymaga requestu z dokładną nazwą wydarzenia:
 
@@ -144,8 +149,9 @@ router → service → repository → PostgreSQL
 ## Decyzja dotycząca cache
 
 Cache listy hackathonów z `SPEC-002` został świadomie usunięty z tego endpointu. Zestaw aktywnych
-wydarzeń jest wspólny dla zalogowanych użytkowników, ale pole `access_level` nadal zależy od
-konkretnej osoby, a lista `/managed` jest w całości zależna od jej uprawnień. Cache gotowych
+wydarzeń jest wspólny dla wszystkich użytkowników, ale pole `access_level` nadal zależy od
+konkretnej zalogowanej osoby (anonimowo zawsze ma wartość `viewer`), a lista `/managed` jest w
+całości zależna od jej uprawnień. Cache gotowych
 odpowiedzi pod jednym kluczem mógłby zwrócić nieprawidłowy poziom dostępu.
 
 Bezpieczny cache wymagałby osobnego klucza, np.:
@@ -173,7 +179,7 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
 
 **W zakresie:**
 
-- pełny CRUD hackathonu z katalogiem dostępnym po uwierzytelnieniu;
+- pełny CRUD hackathonu z publicznym katalogiem i publicznymi szczegółami;
 - model właściciela i tabela współorganizatorów;
 - tworzenie wyłącznie przez administratora;
 - odczyt wszystkich aktywnych hackathonów oraz osobna lista zarządzanych wydarzeń;
@@ -187,7 +193,6 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
 
 **Poza zakresem:**
 
-- lista i szczegóły dostępne bez uwierzytelnienia;
 - endpointy dodawania oraz usuwania współorganizatorów;
 - zgłoszenia uczestników i ich przeglądanie przez współorganizatorów;
 - przywracanie soft-deleted wydarzeń;
@@ -232,3 +237,5 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
   usuniętych i należących do innego użytkownika, aby nie ujawniać ich istnienia.
 - 2026-08-11 — katalog i szczegóły udostępniono wszystkim zalogowanym użytkownikom, dodano
   poziom `viewer` oraz osobny endpoint `/api/hackathons/managed`.
+- 2026-08-11 — katalog i szczegóły udostępniono również bez logowania; opcjonalny, ale
+  nieprawidłowy token nadal zwraca `401`.

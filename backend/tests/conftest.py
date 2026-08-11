@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from src.auth.dependencies import get_current_user
+from src.auth.dependencies import get_current_user, get_optional_current_user
 from src.auth.models import User
 from src.database import get_session, normalize_database_url
 from src.main import app
@@ -69,11 +69,14 @@ def force_authenticate() -> Iterator[ForceAuthenticate]:
     def authenticate(user: User | None) -> None:
         if user is None:
             app.dependency_overrides.pop(get_current_user, None)
+            app.dependency_overrides.pop(get_optional_current_user, None)
             return
 
         app.dependency_overrides[get_current_user] = lambda: user
+        app.dependency_overrides[get_optional_current_user] = lambda: user
 
     try:
         yield authenticate
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_optional_current_user, None)
