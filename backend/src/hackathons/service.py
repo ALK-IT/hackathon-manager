@@ -22,8 +22,11 @@ class HackathonService:
     def __init__(self, repository: HackathonRepository):
         self.repository = repository
 
-    async def list_hackathons(self, user: User) -> list[Hackathon]:
-        return await self.repository.list_accessible(user.id)
+    async def list_hackathons(self) -> list[Hackathon]:
+        return await self.repository.list_active()
+
+    async def list_managed_hackathons(self, user: User) -> list[Hackathon]:
+        return await self.repository.list_managed_by_user(user.id)
 
     async def create_hackathon(self, data: HackathonCreate, user: User) -> Hackathon:
         if user.role != UserRole.ADMIN:
@@ -44,8 +47,8 @@ class HackathonService:
             raise
         return hackathon
 
-    async def get_hackathon(self, public_id: uuid.UUID, user: User) -> Hackathon:
-        hackathon = await self.repository.get_visible_by_public_id(public_id, user.id)
+    async def get_hackathon(self, public_id: uuid.UUID) -> Hackathon:
+        hackathon = await self.repository.get_active_by_public_id(public_id)
         if hackathon is None:
             raise HackathonNotFoundError
         return hackathon

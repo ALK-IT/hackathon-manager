@@ -47,20 +47,25 @@ Baza danych oraz schematy Pydantic egzekwują:
 
 - Wszystkie endpointy hackathonów wymagają poprawnego access tokenu.
 - Tylko użytkownik z rolą `ADMIN` może utworzyć hackathon.
-- Właściciel widzi wydarzenie i może je edytować, usunąć oraz otworzyć lub zamknąć zapisy.
-- Współorganizator widzi wydarzenie, ale nie może zmieniać jego konfiguracji.
-- Użytkownik niezwiązany z wydarzeniem otrzymuje `404 HACKATHON_NOT_FOUND` przy próbie odczytu.
+- Każdy zalogowany użytkownik widzi aktywne wydarzenia i ich szczegóły.
+- Właściciel może edytować wydarzenie, usunąć je oraz otworzyć lub zamknąć zapisy.
+- Współorganizator może znaleźć wydarzenie na liście zarządzanych, ale nie może zmieniać jego
+  konfiguracji.
 - Soft-deleted hackathony są pomijane przez wszystkie zwykłe zapytania.
 
-Lista `GET /api/hackathons` zawiera wydarzenia, których zalogowany użytkownik jest właścicielem
-lub współorganizatorem. Pole odpowiedzi `access_level` (`owner` albo `co_organizer`) pozwala
-frontendowi dopasować interfejs bez zwracania globalnej roli przez `/api/auth/me`.
+Lista `GET /api/hackathons` zawiera wszystkie aktywne wydarzenia. Osobna lista
+`GET /api/hackathons/managed` zawiera wydarzenia, których zalogowany użytkownik jest właścicielem
+lub współorganizatorem. Pole odpowiedzi `access_level` (`owner`, `co_organizer` albo `viewer`)
+pozwala frontendowi dopasować interfejs bez zwracania globalnej roli przez `/api/auth/me`.
 
 ### Endpointy
 
-- `GET /api/hackathons` — lista dostępnych wydarzeń.
+- `GET /api/hackathons` — lista wszystkich aktywnych wydarzeń dla zalogowanego użytkownika.
+- `GET /api/hackathons/managed` — lista wydarzeń zarządzanych jako właściciel lub
+  współorganizator.
 - `POST /api/hackathons` — utworzenie wydarzenia, wyłącznie przez administratora.
-- `GET /api/hackathons/{public_id}` — prywatne szczegóły dla właściciela lub współorganizatora.
+- `GET /api/hackathons/{public_id}` — szczegóły aktywnego wydarzenia dla każdego zalogowanego
+  użytkownika.
 - `PATCH /api/hackathons/{public_id}` — częściowa edycja przez właściciela.
 - `DELETE /api/hackathons/{public_id}` — soft-delete przez właściciela.
 - `POST /api/hackathons/{public_id}/open-registration` — otwarcie zapisów.
@@ -138,10 +143,10 @@ router → service → repository → PostgreSQL
 
 ## Decyzja dotycząca cache
 
-Cache listy hackathonów z `SPEC-002` został świadomie usunięty z tego endpointu. Stary klucz
-`hackathons:list` był wspólny dla wszystkich użytkowników, natomiast nowa lista zależy od tego,
-czy użytkownik jest właścicielem lub współorganizatorem. Pozostawienie wspólnego klucza mogłoby
-zwrócić jednej osobie dane przeznaczone dla innej.
+Cache listy hackathonów z `SPEC-002` został świadomie usunięty z tego endpointu. Zestaw aktywnych
+wydarzeń jest wspólny dla zalogowanych użytkowników, ale pole `access_level` nadal zależy od
+konkretnej osoby, a lista `/managed` jest w całości zależna od jej uprawnień. Cache gotowych
+odpowiedzi pod jednym kluczem mógłby zwrócić nieprawidłowy poziom dostępu.
 
 Bezpieczny cache wymagałby osobnego klucza, np.:
 
@@ -168,10 +173,11 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
 
 **W zakresie:**
 
-- pełny prywatny CRUD hackathonu;
+- pełny CRUD hackathonu z katalogiem dostępnym po uwierzytelnieniu;
 - model właściciela i tabela współorganizatorów;
 - tworzenie wyłącznie przez administratora;
-- odczyt właściciela i współorganizatorów;
+- odczyt wszystkich aktywnych hackathonów oraz osobna lista zarządzanych wydarzeń;
+- poziomy dostępu `owner`, `co_organizer` i `viewer`;
 - soft-delete potwierdzany nazwą;
 - otwieranie i zamykanie rejestracji;
 - walidacja Pydantic i constrainty PostgreSQL;
@@ -181,7 +187,7 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
 
 **Poza zakresem:**
 
-- publiczna lista i publiczne szczegóły hackathonów;
+- lista i szczegóły dostępne bez uwierzytelnienia;
 - endpointy dodawania oraz usuwania współorganizatorów;
 - zgłoszenia uczestników i ich przeglądanie przez współorganizatorów;
 - przywracanie soft-deleted wydarzeń;
@@ -224,3 +230,5 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
   repozytorium, widoczności, soft-delete oraz pełnego kontraktu endpointów.
 - 2026-08-10 — operacje właściciela ujednolicono do `404` dla zasobów nieistniejących,
   usuniętych i należących do innego użytkownika, aby nie ujawniać ich istnienia.
+- 2026-08-11 — katalog i szczegóły udostępniono wszystkim zalogowanym użytkownikom, dodano
+  poziom `viewer` oraz osobny endpoint `/api/hackathons/managed`.

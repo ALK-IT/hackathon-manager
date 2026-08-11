@@ -24,7 +24,7 @@ async def list_hackathons(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
 ) -> list[HackathonListItem]:
-    hackathons = await service.list_hackathons(current_user)
+    hackathons = await service.list_hackathons()
     return [
         HackathonListItem.from_hackathon(hackathon, current_user.id) for hackathon in hackathons
     ]
@@ -40,13 +40,24 @@ async def create_hackathon(
     return HackathonRead.from_hackathon(hackathon, current_admin.id)
 
 
+@router.get("/managed", response_model=list[HackathonListItem])
+async def list_managed_hackathons(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> list[HackathonListItem]:
+    hackathons = await service.list_managed_hackathons(current_user)
+    return [
+        HackathonListItem.from_hackathon(hackathon, current_user.id) for hackathon in hackathons
+    ]
+
+
 @router.get("/{public_id}", response_model=HackathonRead)
 async def get_hackathon(
     public_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
 ) -> HackathonRead:
-    hackathon = await service.get_hackathon(public_id, current_user)
+    hackathon = await service.get_hackathon(public_id)
     return HackathonRead.from_hackathon(hackathon, current_user.id)
 
 

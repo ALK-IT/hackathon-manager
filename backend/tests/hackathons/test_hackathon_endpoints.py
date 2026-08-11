@@ -66,7 +66,7 @@ async def test_regular_user_cannot_create_hackathon(
     mock_hackathon_service.create_hackathon.assert_not_awaited()
 
 
-async def test_list_endpoint_returns_access_level_for_owner_and_co_organizer(
+async def test_list_endpoint_returns_all_access_levels(
     hackathon_client: AsyncClient,
     mock_hackathon_service: HackathonService,
     admin_user: User,
@@ -74,15 +74,19 @@ async def test_list_endpoint_returns_access_level_for_owner_and_co_organizer(
     hackathon_factory: HackathonFactory,
 ):
     owner = user_factory(user_id=2, role=UserRole.ADMIN)
+    other_owner = user_factory(user_id=3, role=UserRole.ADMIN)
     owned_hackathon = hackathon_factory(organizer=admin_user)
     co_organized_hackathon = hackathon_factory(
         organizer=owner,
         co_organizers=[admin_user],
     )
     co_organized_hackathon.id = 2
+    viewed_hackathon = hackathon_factory(organizer=other_owner)
+    viewed_hackathon.id = 3
     mock_hackathon_service.list_hackathons.return_value = [
         owned_hackathon,
         co_organized_hackathon,
+        viewed_hackathon,
     ]
 
     response = await hackathon_client.get("/api/hackathons")
@@ -91,27 +95,60 @@ async def test_list_endpoint_returns_access_level_for_owner_and_co_organizer(
     assert [item["access_level"] for item in response.json()] == [
         "owner",
         "co_organizer",
+        "viewer",
     ]
-    mock_hackathon_service.list_hackathons.assert_awaited_once_with(admin_user)
+    mock_hackathon_service.list_hackathons.assert_awaited_once_with()
 
 
-async def test_get_endpoint_returns_private_details(
+async def test_managed_endpoint_returns_only_owned_and_co_organized_hackathons(
     hackathon_client: AsyncClient,
     mock_hackathon_service: HackathonService,
     admin_user: User,
     user_factory: UserFactory,
     hackathon_factory: HackathonFactory,
 ):
+    other_owner = user_factory(user_id=2, role=UserRole.ADMIN)
+    owned_hackathon = hackathon_factory(organizer=admin_user)
+    co_organized_hackathon = hackathon_factory(
+        organizer=other_owner,
+        co_organizers=[admin_user],
+    )
+    mock_hackathon_service.list_managed_hackathons.return_value = [
+        owned_hackathon,
+        co_organized_hackathon,
+    ]
+
+    response = await hackathon_client.get("/api/hackathons/managed")
+
+    assert response.status_code == 200
+    assert [item["access_level"] for item in response.json()] == [
+        "owner",
+        "co_organizer",
+    ]
+    mock_hackathon_service.list_managed_hackathons.assert_awaited_once_with(admin_user)
+
+
+async def test_get_endpoint_returns_details_to_regular_viewer(
+    hackathon_client: AsyncClient,
+    force_authenticate,
+    mock_hackathon_service: HackathonService,
+    admin_user: User,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
     co_organizer = user_factory(user_id=2)
+    viewer = user_factory(user_id=3)
     hackathon = hackathon_factory(
         organizer=admin_user,
         co_organizers=[co_organizer],
     )
     mock_hackathon_service.get_hackathon.return_value = hackathon
+    force_authenticate(viewer)
 
     response = await hackathon_client.get(f"/api/hackathons/{hackathon.public_id}")
 
     assert response.status_code == 200
+    assert response.json()["access_level"] == "viewer"
     assert response.json()["description"] == hackathon.description
     assert response.json()["co_organizers"] == [
         {
@@ -119,10 +156,7 @@ async def test_get_endpoint_returns_private_details(
             "name": co_organizer.name,
         }
     ]
-    mock_hackathon_service.get_hackathon.assert_awaited_once_with(
-        hackathon.public_id,
-        admin_user,
-    )
+    mock_hackathon_service.get_hackathon.assert_awaited_once_with(hackathon.public_id)
 
 
 async def test_patch_endpoint_updates_only_sent_fields(
@@ -212,6 +246,7 @@ async def test_all_endpoints_require_access_token(
 
     responses = [
         await hackathon_client.get("/api/hackathons"),
+        await hackathon_client.get("/api/hackathons/managed"),
         await hackathon_client.post("/api/hackathons", json=create_payload()),
         await hackathon_client.get(f"/api/hackathons/{public_id}"),
         await hackathon_client.patch(
@@ -229,6 +264,7 @@ async def test_all_endpoints_require_access_token(
 
     assert [response.status_code for response in responses] == [401] * len(responses)
     mock_hackathon_service.list_hackathons.assert_not_awaited()
+    mock_hackathon_service.list_managed_hackathons.assert_not_awaited()
     mock_hackathon_service.create_hackathon.assert_not_awaited()
     mock_hackathon_service.get_hackathon.assert_not_awaited()
     mock_hackathon_service.update_hackathon.assert_not_awaited()
