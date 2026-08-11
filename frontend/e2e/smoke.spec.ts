@@ -1,13 +1,28 @@
 import { expect, test } from '@playwright/test'
 
-// Przykladowy E2E: caly stack (frontend + backend + Postgres + Redis, przez
-// docker compose) - sprawdza, ze dane naprawde plyna z bazy przez API do UI,
-// nie tylko ze komponenty renderuja sie w izolacji (to robia testy jednostkowe).
-test('frontend wyswietla hackathony z prawdziwego backendu i bazy', async ({ page }) => {
-  await page.goto('/')
+// Konto powstaje przez API jako przygotowanie danych. W przeglądarce testujemy
+// wyłącznie logowanie i odtworzenie sesji z refresh cookie po przeładowaniu.
+test('uzytkownik moze sie zalogowac', async ({ page, request }) => {
+  const email = `e2e-${Date.now()}@example.com`
+  const password = 'password123'
+  const apiUrl = process.env.E2E_API_URL ?? 'http://localhost:8000'
 
-  await expect(page.getByRole('heading', { name: 'Hackathony' })).toBeVisible()
-  // "HackYeah 2026" pochodzi z seeda w migracji Alembic (0001_create_hackathons.py) -
-  // jego obecnosc potwierdza, ze zadzialal caly przekroj: Postgres -> repository -> service -> API -> UI.
-  await expect(page.getByText(/HackYeah 2026/)).toBeVisible()
+  const registerResponse = await request.post(`${apiUrl}/api/auth/register`, {
+    data: { name: 'E2E User', email, password },
+  })
+  expect(registerResponse.status()).toBe(201)
+
+  await page.goto('/login')
+  await page.getByLabel('E-mail').fill(email)
+  await page.getByLabel('Hasło').fill(password)
+  await page.getByRole('button', { name: 'Zaloguj się' }).click()
+
+  await expect(page).toHaveURL(/\/hackathons$/)
+  await expect(page.getByText(`Zalogowano jako: ${email}`)).toBeVisible()
+
+  await page.reload()
+
+  await expect(page).toHaveURL(/\/hackathons$/)
+  await expect(page.getByText(`Zalogowano jako: ${email}`)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Wyloguj się' })).toBeVisible()
 })
