@@ -19,7 +19,17 @@ class HackathonRepository:
             selectinload(Hackathon.co_organizers),
         )
 
-    async def list_accessible(self, user_id: int) -> list[Hackathon]:
+    async def list_active(self) -> list[Hackathon]:
+        statement = (
+            select(Hackathon)
+            .where(Hackathon.is_deleted.is_(False))
+            .options(*self._with_relationships())
+            .order_by(Hackathon.created_at.desc())
+        )
+        result = await self.session.scalars(statement)
+        return list(result.unique().all())
+
+    async def list_managed_by_user(self, user_id: int) -> list[Hackathon]:
         statement = (
             select(Hackathon)
             .where(
@@ -52,20 +62,15 @@ class HackathonRepository:
         result = await self.session.scalars(statement)
         return result.unique().one_or_none()
 
-    async def get_visible_by_public_id(
+    async def get_active_by_public_id(
         self,
         public_id: uuid.UUID,
-        user_id: int,
     ) -> Hackathon | None:
         statement = (
             select(Hackathon)
             .where(
                 Hackathon.public_id == public_id,
                 Hackathon.is_deleted.is_(False),
-                or_(
-                    Hackathon.organizer_id == user_id,
-                    Hackathon.co_organizers.any(User.id == user_id),
-                ),
             )
             .options(*self._with_relationships())
         )

@@ -39,6 +39,7 @@ def hackathon_factory() -> HackathonFactory:
 def mock_hackathon_service(mocker) -> HackathonService:
     service = mocker.Mock(spec=HackathonService)
     service.list_hackathons = mocker.AsyncMock(return_value=[])
+    service.list_managed_hackathons = mocker.AsyncMock(return_value=[])
     service.create_hackathon = mocker.AsyncMock()
     service.get_hackathon = mocker.AsyncMock()
     service.update_hackathon = mocker.AsyncMock()

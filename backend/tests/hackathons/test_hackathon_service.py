@@ -36,9 +36,10 @@ def create_data() -> HackathonCreate:
 @pytest.fixture
 def repository(mocker) -> HackathonRepository:
     repository = mocker.Mock(spec=HackathonRepository)
-    repository.list_accessible = mocker.AsyncMock(return_value=[])
+    repository.list_active = mocker.AsyncMock(return_value=[])
+    repository.list_managed_by_user = mocker.AsyncMock(return_value=[])
     repository.get_owned_by_public_id = mocker.AsyncMock()
-    repository.get_visible_by_public_id = mocker.AsyncMock()
+    repository.get_active_by_public_id = mocker.AsyncMock()
     repository.add = mocker.AsyncMock()
     repository.commit = mocker.AsyncMock()
     repository.refresh_updated_at = mocker.AsyncMock()
@@ -138,46 +139,56 @@ async def test_create_rolls_back_database_error(
     repository.rollback.assert_awaited_once_with()
 
 
-async def test_list_returns_only_repository_results(
+async def test_list_returns_all_active_repository_results(
     repository: HackathonRepository,
     regular_user: User,
     hackathon_factory: HackathonFactory,
 ):
-    accessible = [hackathon_factory(organizer=regular_user)]
-    repository.list_accessible.return_value = accessible
+    active = [hackathon_factory(organizer=regular_user)]
+    repository.list_active.return_value = active
     service = HackathonService(repository)
 
-    assert await service.list_hackathons(regular_user) == accessible
-    repository.list_accessible.assert_awaited_once_with(regular_user.id)
+    assert await service.list_hackathons() == active
+    repository.list_active.assert_awaited_once_with()
 
 
-async def test_get_returns_visible_hackathon(
+async def test_list_managed_returns_users_owned_and_co_organized_hackathons(
+    repository: HackathonRepository,
+    regular_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    managed = [hackathon_factory(organizer=regular_user)]
+    repository.list_managed_by_user.return_value = managed
+    service = HackathonService(repository)
+
+    assert await service.list_managed_hackathons(regular_user) == managed
+    repository.list_managed_by_user.assert_awaited_once_with(regular_user.id)
+
+
+async def test_get_returns_active_hackathon_to_any_user(
     repository: HackathonRepository,
     regular_user: User,
     hackathon_factory: HackathonFactory,
 ):
     hackathon = hackathon_factory(organizer=regular_user)
-    repository.get_visible_by_public_id.return_value = hackathon
+    repository.get_active_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
-    result = await service.get_hackathon(hackathon.public_id, regular_user)
+    result = await service.get_hackathon(hackathon.public_id)
 
     assert result is hackathon
-    repository.get_visible_by_public_id.assert_awaited_once_with(
-        hackathon.public_id,
-        regular_user.id,
-    )
+    repository.get_active_by_public_id.assert_awaited_once_with(hackathon.public_id)
 
 
-async def test_get_returns_not_found_when_hackathon_is_not_visible(
+async def test_get_returns_not_found_when_hackathon_is_not_active(
     repository: HackathonRepository,
     regular_user: User,
 ):
-    repository.get_visible_by_public_id.return_value = None
+    repository.get_active_by_public_id.return_value = None
     service = HackathonService(repository)
 
     with pytest.raises(HackathonNotFoundError):
-        await service.get_hackathon(uuid.uuid4(), regular_user)
+        await service.get_hackathon(uuid.uuid4())
 
 
 async def test_owner_can_update_hackathon(

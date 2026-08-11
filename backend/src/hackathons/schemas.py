@@ -132,6 +132,15 @@ class UserSummary(BaseModel):
 class HackathonAccessLevel(str, Enum):
     OWNER = "owner"
     CO_ORGANIZER = "co_organizer"
+    VIEWER = "viewer"
+
+
+def _get_access_level(hackathon: Hackathon, user_id: int) -> HackathonAccessLevel:
+    if hackathon.organizer_id == user_id:
+        return HackathonAccessLevel.OWNER
+    if any(co_organizer.id == user_id for co_organizer in hackathon.co_organizers):
+        return HackathonAccessLevel.CO_ORGANIZER
+    return HackathonAccessLevel.VIEWER
 
 
 class HackathonListItem(BaseModel):
@@ -154,11 +163,7 @@ class HackathonListItem(BaseModel):
             registration_open=hackathon.registration_open,
             capacity=hackathon.capacity,
             max_team_size=hackathon.max_team_size,
-            access_level=(
-                HackathonAccessLevel.OWNER
-                if hackathon.organizer_id == user_id
-                else HackathonAccessLevel.CO_ORGANIZER
-            ),
+            access_level=_get_access_level(hackathon, user_id),
         )
 
 
@@ -184,11 +189,7 @@ class HackathonRead(HackathonListItem):
             co_organizers=[
                 UserSummary.model_validate(co_organizer) for co_organizer in hackathon.co_organizers
             ],
-            access_level=(
-                HackathonAccessLevel.OWNER
-                if hackathon.organizer_id == user_id
-                else HackathonAccessLevel.CO_ORGANIZER
-            ),
+            access_level=_get_access_level(hackathon, user_id),
             created_at=hackathon.created_at,
             updated_at=hackathon.updated_at,
         )
