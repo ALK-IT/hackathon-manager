@@ -1,14 +1,40 @@
 import uuid
 from types import SimpleNamespace
 
+import pytest
+from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.auth.dependencies import get_optional_current_user
 from src.auth.exceptions import InvalidAccessTokenError
 from src.auth.models import User
 from src.auth.repository import UserRepository
 from src.auth.service import IssuedTokenPair
 from src.auth.utils import hash_password
+
+
+async def test_optional_current_user_allows_missing_token(mocker):
+    user_service = mocker.Mock()
+    token_service = mocker.Mock()
+    token_service.is_revoked = mocker.AsyncMock()
+
+    user = await get_optional_current_user(None, user_service, token_service)
+
+    assert user is None
+    token_service.is_revoked.assert_not_awaited()
+
+
+async def test_optional_current_user_rejects_invalid_token(mocker):
+    user_service = mocker.Mock()
+    token_service = mocker.Mock()
+    token_service.is_revoked = mocker.AsyncMock(return_value=False)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await get_optional_current_user("invalid-token", user_service, token_service)
+
+    assert exc_info.value.status_code == 401
+    token_service.is_revoked.assert_awaited_once_with("invalid-token")
 
 
 async def test_logout_endpoint_returns_no_content(auth_client, mock_token_service, mocker):
