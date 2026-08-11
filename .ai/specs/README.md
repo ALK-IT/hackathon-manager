@@ -20,7 +20,10 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-001 | Hello World — szkielet frontend/backend | Zaimplementowany | [SPEC-001-hello-world.md](SPEC-001-hello-world.md) |
 | SPEC-002 | Postgres + Redis + ORM — przykładowy szkielet architektury | Zaimplementowany | [implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md](implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md) |
 | SPEC-003 | Rejestracja, logowanie i sesje JWT | Zaimplementowany | [implemented/SPEC-003-2026-08-03-logowanie-jwt.md](implemented/SPEC-003-2026-08-03-logowanie-jwt.md) |
+<<<<<<< HEAD
 | SPEC-004 | Frontend uwierzytelniania i routing | Zaimplementowany | [implemented/SPEC-004-2026-08-11-frontend-auth-routing.md](implemented/SPEC-004-2026-08-11-frontend-auth-routing.md) |
+=======
+>>>>>>> ee763db0804ee53d36ea39f059cec65c91e6cbdb
 | SPEC-004 | CRUD hackathonów i kontekstowe uprawnienia organizatorów | Zaimplementowany | [implemented/SPEC-004-2026-08-03-crud-hackathonow.md](implemented/SPEC-004-2026-08-03-crud-hackathonow.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

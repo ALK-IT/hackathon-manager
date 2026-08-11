@@ -135,7 +135,7 @@ class HackathonAccessLevel(str, Enum):
     VIEWER = "viewer"
 
 
-def _get_access_level(hackathon: Hackathon, user_id: int) -> HackathonAccessLevel:
+def _get_access_level(hackathon: Hackathon, user_id: int | None) -> HackathonAccessLevel:
     if hackathon.organizer_id == user_id:
         return HackathonAccessLevel.OWNER
     if any(co_organizer.id == user_id for co_organizer in hackathon.co_organizers):
@@ -154,7 +154,7 @@ class HackathonListItem(BaseModel):
     access_level: HackathonAccessLevel
 
     @classmethod
-    def from_hackathon(cls, hackathon: Hackathon, user_id: int) -> "HackathonListItem":
+    def from_hackathon(cls, hackathon: Hackathon, user_id: int | None) -> "HackathonListItem":
         return cls(
             public_id=hackathon.public_id,
             name=hackathon.name,
@@ -175,7 +175,7 @@ class HackathonRead(HackathonListItem):
     updated_at: datetime
 
     @classmethod
-    def from_hackathon(cls, hackathon: Hackathon, user_id: int) -> "HackathonRead":
+    def from_hackathon(cls, hackathon: Hackathon, user_id: int | None) -> "HackathonRead":
         return cls(
             public_id=hackathon.public_id,
             name=hackathon.name,
