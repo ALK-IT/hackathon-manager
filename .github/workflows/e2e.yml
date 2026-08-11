@@ -38,6 +38,7 @@ jobs:
         run: npx playwright test
         env:
           E2E_BASE_URL: http://localhost:5173
+          E2E_API_URL: http://localhost:8000
 
       - name: Logi kontenerow (przy bledzie)
         if: failure()
