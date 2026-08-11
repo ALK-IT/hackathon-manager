@@ -11,14 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Uruchom caly stack (docker compose)
-        run: docker compose up -d --build
-
-      - name: Czekaj az backend i frontend odpowiadaja
-        run: |
-          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 2; done
-          for i in $(seq 1 30); do curl -sf http://localhost:5173 > /dev/null && break; sleep 2; done
-
       - uses: actions/setup-node@v7
         with:
           node-version: "20"
@@ -33,6 +25,14 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
+      - name: Uruchom caly stack (docker compose)
+        run: docker compose -f docker-compose.yml up -d --build
+
+      - name: Czekaj az backend i frontend odpowiadaja
+        run: |
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 2; done
+          for i in $(seq 1 30); do curl -sf http://localhost:5173 > /dev/null && break; sleep 2; done
+
       - name: Uruchom test E2E
         working-directory: frontend
         run: npx playwright test
@@ -41,8 +41,8 @@ jobs:
 
       - name: Logi kontenerow (przy bledzie)
         if: failure()
-        run: docker compose logs
+        run: docker compose -f docker-compose.yml logs
 
       - name: Sprzatanie
         if: always()
-        run: docker compose down -v
+        run: docker compose -f docker-compose.yml down -v
