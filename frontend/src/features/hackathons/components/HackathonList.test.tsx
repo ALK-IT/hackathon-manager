@@ -7,8 +7,14 @@ import { HackathonList } from './HackathonList'
 vi.mock('../api/hackathonsApi', () => ({ getHackathons: vi.fn() }))
 
 const hackathon: Hackathon = {
-  id: 1,
+  public_id: '7b8b88c5-21cd-4b70-a4ad-240b32f365db',
   name: 'Test Hackathon',
+  start_date: '2026-09-01T10:00:00Z',
+  end_date: '2026-09-02T18:00:00Z',
+  registration_open: true,
+  capacity: 100,
+  max_team_size: 4,
+  access_level: 'viewer',
 }
 
 describe('HackathonList', () => {
@@ -34,7 +40,7 @@ describe('HackathonList', () => {
 
     render(<HackathonList />)
 
-    expect(await screen.findByText('#1 — Test Hackathon')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Test Hackathon' })).toBeInTheDocument()
   })
 
   it('shows an empty state', async () => {
@@ -55,7 +61,7 @@ describe('HackathonList', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Nie udało się pobrać')
     fireEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }))
 
-    expect(await screen.findByText('#1 — Test Hackathon')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Test Hackathon' })).toBeInTheDocument()
     expect(getHackathons).toHaveBeenCalledTimes(2)
   })
 })
