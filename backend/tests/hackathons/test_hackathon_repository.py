@@ -69,7 +69,7 @@ async def test_repository_adds_and_reads_hackathon(session: AsyncSession):
     assert result.co_organizers == []
 
 
-async def test_list_accessible_returns_owned_and_co_organized_hackathons(
+async def test_list_active_returns_all_non_deleted_hackathons(
     session: AsyncSession,
 ):
     current_user = await persist_user(session, email="current@example.com")
@@ -105,47 +105,61 @@ async def test_list_accessible_returns_owned_and_co_organized_hackathons(
     await session.commit()
     repository = HackathonRepository(session)
 
-    result = await repository.list_accessible(current_user.id)
+    result = await repository.list_active()
 
-    assert result == [co_organized, owned]
-    assert result[0].co_organizers == [current_user]
+    assert result == [unrelated, co_organized, owned]
+    assert result[1].co_organizers == [current_user]
 
 
-async def test_get_visible_allows_owner_and_co_organizer_but_hides_other_users(
+async def test_list_managed_returns_only_owned_and_co_organized_hackathons(
     session: AsyncSession,
 ):
+    current_user = await persist_user(session, email="current@example.com")
     owner = await persist_user(
         session,
         email="owner@example.com",
         role=UserRole.ADMIN,
     )
-    co_organizer = await persist_user(session, email="co-organizer@example.com")
     unrelated = await persist_user(session, email="unrelated@example.com")
-    hackathon = make_hackathon(
+    owned = make_hackathon(current_user, name="Owned", created_offset=1)
+    co_organized = make_hackathon(
         owner,
-        name="Hackathon AI",
-        co_organizers=[co_organizer],
+        name="Co-organized",
+        created_offset=2,
+        co_organizers=[current_user],
     )
+    unrelated_hackathon = make_hackathon(
+        unrelated,
+        name="Unrelated",
+        created_offset=3,
+    )
+    deleted = make_hackathon(
+        current_user,
+        name="Deleted",
+        created_offset=4,
+        is_deleted=True,
+    )
+    session.add_all([owned, co_organized, unrelated_hackathon, deleted])
+    await session.commit()
+    repository = HackathonRepository(session)
+
+    result = await repository.list_managed_by_user(current_user.id)
+
+    assert result == [co_organized, owned]
+
+
+async def test_get_active_returns_non_deleted_hackathon(session: AsyncSession):
+    owner = await persist_user(
+        session,
+        email="owner@example.com",
+        role=UserRole.ADMIN,
+    )
+    hackathon = make_hackathon(owner, name="Hackathon AI")
     session.add(hackathon)
     await session.commit()
     repository = HackathonRepository(session)
 
-    owner_result = await repository.get_visible_by_public_id(
-        hackathon.public_id,
-        owner.id,
-    )
-    co_organizer_result = await repository.get_visible_by_public_id(
-        hackathon.public_id,
-        co_organizer.id,
-    )
-    unrelated_result = await repository.get_visible_by_public_id(
-        hackathon.public_id,
-        unrelated.id,
-    )
-
-    assert owner_result is hackathon
-    assert co_organizer_result is hackathon
-    assert unrelated_result is None
+    assert await repository.get_active_by_public_id(hackathon.public_id) is hackathon
 
 
 async def test_get_owned_hides_hackathon_from_other_users(session: AsyncSession):
@@ -179,7 +193,7 @@ async def test_get_owned_hides_soft_deleted_hackathon(session: AsyncSession):
     repository = HackathonRepository(session)
 
     assert await repository.get_owned_by_public_id(deleted.public_id, owner.id) is None
-    assert await repository.get_visible_by_public_id(deleted.public_id, owner.id) is None
+    assert await repository.get_active_by_public_id(deleted.public_id) is None
 
 
 async def test_repository_rolls_back_uncommitted_hackathon(session: AsyncSession):
