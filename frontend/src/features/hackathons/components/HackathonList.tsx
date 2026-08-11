@@ -52,7 +52,7 @@ export function HackathonList() {
       {!isLoading && !error && hackathons.length > 0 && (
         <ul className="hackathon-list">
           {hackathons.map((hackathon) => (
-            <HackathonListItem key={hackathon.id} hackathon={hackathon} />
+            <HackathonListItem key={hackathon.public_id} hackathon={hackathon} />
           ))}
         </ul>
       )}
