@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/hackathons", tags=["hackathons"])
 @router.get("", response_model=list[HackathonListItem])
 async def list_hackathons(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
-    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)]
 ) -> list[HackathonListItem]:
     hackathons = await service.list_hackathons()
     return [
