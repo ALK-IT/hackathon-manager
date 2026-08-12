@@ -7,7 +7,7 @@ import { colors, spacing, typography } from '../../design-system/tokens'
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 interface Hackathon {
-  id: number
+  public_id: string
   name: string
 }
 
@@ -75,10 +75,8 @@ export function HackathonList() {
           }}
         >
           {hackathons.map((hackathon) => (
-            <li key={hackathon.id}>
-              <Card>
-                #{hackathon.id} — {hackathon.name}
-              </Card>
+            <li key={hackathon.public_id}>
+              <Card>{hackathon.name}</Card>
             </li>
           ))}
         </ul>
