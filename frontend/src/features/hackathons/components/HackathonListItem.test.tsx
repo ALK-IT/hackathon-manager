@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import type { Hackathon } from '../types'
 import { HackathonListItem } from './HackathonListItem'
@@ -16,10 +17,43 @@ const hackathon: Hackathon = {
 
 describe('HackathonListItem', () => {
   it('renders the hackathon details', () => {
-    render(<HackathonListItem hackathon={hackathon} />)
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={hackathon} />
+      </MemoryRouter>,
+    )
 
     expect(screen.getByRole('listitem')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Test Hackathon' })).toBeInTheDocument()
     expect(screen.getByText('Rejestracja: otwarta')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Zarejestruj się' })).toBeInTheDocument()
+  })
+
+  it('navigates to the registration page', () => {
+    function Location() {
+      return <output>{useLocation().pathname}</output>
+    }
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={hackathon} />
+        <Location />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zarejestruj się' }))
+
+    expect(screen.getByText(`/hackathons/${hackathon.public_id}/register`)).toBeInTheDocument()
+  })
+
+  it('does not render the button when registration is closed', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={{ ...hackathon, registration_open: false }} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Rejestracja: zamknięta')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Zarejestruj się' })).not.toBeInTheDocument()
   })
 })

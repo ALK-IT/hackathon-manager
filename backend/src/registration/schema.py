@@ -34,7 +34,7 @@ class RegistrationAnswerCreate(BaseModel):
 class RegistrationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    answers: list[RegistrationAnswerCreate] = Field(min_length=1)
+    answers: list[RegistrationAnswerCreate] = Field(default_factory=list)
     team: TeamSelection | None = None
 
     @model_validator(mode="after")
