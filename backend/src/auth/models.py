@@ -12,6 +12,7 @@ from src.models import Base
 
 if TYPE_CHECKING:
     from src.hackathons.models import Hackathon
+    from src.registration.models import Registration
 
 
 class UserRole(str, Enum):
@@ -43,6 +44,11 @@ class User(Base):
         SqlEnum(UserRole, name="user_role"),
         default=UserRole.USER,
         nullable=False,
+    )
+    registrations: Mapped[list["Registration"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     organized_hackathons: Mapped[list["Hackathon"]] = relationship(
         back_populates="organizer",
