@@ -154,7 +154,7 @@ class RegistrationService:
         if hackathon is None:
             raise HackathonNotFoundError()
 
-        if not hackathon.registration_open:
+        if not hackathon.is_registration_open_at():
             raise RegistrationClosedError()
 
         questions = await self.question_repository.get_by_hackathon_public_id(hackathon_public_id)

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api import api_router
-from src.auth.config import validate_configuration
+from src.auth.config import get_frontend_origins, validate_configuration
 from src.hackathons.exceptions import HackathonError
 from src.registration.exceptions import RegistrationError
 
@@ -65,7 +65,8 @@ async def handle_request_validation_error(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_frontend_origins(),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

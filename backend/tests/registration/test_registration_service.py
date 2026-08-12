@@ -43,13 +43,24 @@ def make_question(
 
 
 def make_hackathon() -> Hackathon:
-    start_date = datetime.now(UTC) + timedelta(days=1)
+    now = datetime.now(UTC)
+    start_date = now + timedelta(days=1)
     return Hackathon(
         name="AI Hackathon",
         organizer_id=1,
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
+        registration_opens_at=now - timedelta(hours=1),
+        registration_deadline=now + timedelta(hours=12),
         max_team_size=4,
+    )
+
+
+def registration_window(*, is_open: bool, hackathon_id: int = 10):
+    return SimpleNamespace(
+        id=hackathon_id,
+        registration_open=is_open,
+        is_registration_open_at=lambda: is_open,
     )
 
 
@@ -382,10 +393,7 @@ async def test_create_registration_rejects_closed_registration(
     hackathon_repository,
 ):
     question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=False,
-    )
+    hackathon_repository.get_active_by_public_id.return_value = registration_window(is_open=False)
 
     with pytest.raises(RegistrationClosedError):
         await registration_service.create_registration(
@@ -503,10 +511,7 @@ async def test_create_registration_rejects_question_from_another_hackathon(
     hackathon_repository,
 ):
     submitted_question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=True,
-    )
+    hackathon_repository.get_active_by_public_id.return_value = registration_window(is_open=True)
     question_repository.get_by_hackathon_public_id.return_value = []
 
     with pytest.raises(InvalidRegistrationQuestionError):
@@ -527,10 +532,7 @@ async def test_create_registration_requires_all_required_answers(
 ):
     required_question = make_question(question_id=1, is_required=True)
     optional_question = make_question(question_id=2, is_required=False)
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=True,
-    )
+    hackathon_repository.get_active_by_public_id.return_value = registration_window(is_open=True)
     question_repository.get_by_hackathon_public_id.return_value = [
         required_question,
         optional_question,
@@ -554,7 +556,7 @@ async def test_create_registration_builds_answers_and_commits(
 ):
     required_question = make_question(question_id=11, is_required=True)
     optional_question = make_question(question_id=12, is_required=False)
-    hackathon = SimpleNamespace(id=20, registration_open=True)
+    hackathon = registration_window(is_open=True, hackathon_id=20)
     user = make_user(user_id=30)
     hackathon_repository.get_active_by_public_id.return_value = hackathon
     question_repository.get_by_hackathon_public_id.return_value = [
@@ -586,10 +588,7 @@ async def test_create_registration_maps_integrity_error_and_rolls_back(
     hackathon_repository,
 ):
     question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=True,
-    )
+    hackathon_repository.get_active_by_public_id.return_value = registration_window(is_open=True)
     question_repository.get_by_hackathon_public_id.return_value = [question]
     registration_repository.create.side_effect = IntegrityError(
         "INSERT INTO registrations",
@@ -615,10 +614,7 @@ async def test_create_registration_rolls_back_unexpected_error(
     hackathon_repository,
 ):
     question = make_question()
-    hackathon_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        id=10,
-        registration_open=True,
-    )
+    hackathon_repository.get_active_by_public_id.return_value = registration_window(is_open=True)
     question_repository.get_by_hackathon_public_id.return_value = [question]
     registration_repository.create.side_effect = RuntimeError("create failed")
 

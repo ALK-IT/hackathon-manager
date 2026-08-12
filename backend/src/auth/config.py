@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 
 from src.auth.constants import (
     DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -41,5 +42,26 @@ def get_jwt_secret_key() -> str:
     return secret_key
 
 
+def get_auth_cookie_secure() -> bool:
+    return os.environ.get("AUTH_COOKIE_SECURE", "false").lower() in {"1", "true", "yes"}
+
+
+def get_auth_cookie_samesite() -> Literal["lax", "strict", "none"]:
+    value = os.environ.get("AUTH_COOKIE_SAMESITE", "lax").lower()
+    if value not in {"lax", "strict", "none"}:
+        raise RuntimeError("AUTH_COOKIE_SAMESITE must be lax, strict, or none")
+    return value
+
+
+def get_frontend_origins() -> list[str]:
+    raw_value = os.environ.get("FRONTEND_ORIGINS", "http://localhost:5173")
+    origins = [origin.strip() for origin in raw_value.split(",") if origin.strip()]
+    if not origins:
+        raise RuntimeError("FRONTEND_ORIGINS must contain at least one origin")
+    return origins
+
+
 def validate_configuration() -> None:
     get_jwt_secret_key()
+    get_auth_cookie_samesite()
+    get_frontend_origins()
