@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,16 +32,23 @@ def make_hackathon(
     name: str,
     created_offset: int = 0,
     is_deleted: bool = False,
+    registration_open: bool = True,
+    registration_opens_at: datetime | None = None,
+    registration_deadline: datetime | None = None,
     co_organizers: list[User] | None = None,
 ) -> Hackathon:
+    current_time = datetime.now(UTC)
+    start_date = current_time + timedelta(days=7)
     return Hackathon(
         organizer=organizer,
         co_organizers=co_organizers or [],
         name=name,
         description="Description",
-        start_date=NOW + timedelta(days=1),
-        end_date=NOW + timedelta(days=2),
-        registration_open=False,
+        start_date=start_date,
+        end_date=current_time + timedelta(days=8),
+        registration_opens_at=registration_opens_at or current_time - timedelta(hours=1),
+        registration_deadline=registration_deadline or start_date - timedelta(hours=48),
+        registration_open=registration_open,
         capacity=100,
         max_team_size=4,
         is_deleted=is_deleted,
@@ -69,7 +76,7 @@ async def test_repository_adds_and_reads_hackathon(session: AsyncSession):
     assert result.co_organizers == []
 
 
-async def test_list_active_returns_all_non_deleted_hackathons(
+async def test_list_active_returns_only_hackathons_with_open_registration_window(
     session: AsyncSession,
 ):
     current_user = await persist_user(session, email="current@example.com")
@@ -101,7 +108,33 @@ async def test_list_active_returns_all_non_deleted_hackathons(
         created_offset=4,
         is_deleted=True,
     )
-    session.add_all([owned, co_organized, unrelated, deleted])
+    scheduled = make_hackathon(
+        current_user,
+        name="Scheduled",
+        registration_opens_at=datetime.now(UTC) + timedelta(days=1),
+    )
+    expired = make_hackathon(
+        current_user,
+        name="Expired",
+        registration_opens_at=datetime.now(UTC) - timedelta(days=2),
+        registration_deadline=datetime.now(UTC) - timedelta(days=1),
+    )
+    manually_closed = make_hackathon(
+        current_user,
+        name="Manually closed",
+        registration_open=False,
+    )
+    session.add_all(
+        [
+            owned,
+            co_organized,
+            unrelated,
+            deleted,
+            scheduled,
+            expired,
+            manually_closed,
+        ]
+    )
     await session.commit()
     repository = HackathonRepository(session)
 

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -44,6 +44,14 @@ class Hackathon(Base):
     __table_args__ = (
         CheckConstraint("end_date > start_date", name="ck_hackathons_date_range"),
         CheckConstraint(
+            "registration_deadline < start_date",
+            name="ck_hackathons_registration_deadline_before_start",
+        ),
+        CheckConstraint(
+            "registration_opens_at < registration_deadline",
+            name="ck_hackathons_registration_window",
+        ),
+        CheckConstraint(
             "capacity IS NULL OR capacity >= 1",
             name="ck_hackathons_capacity_positive",
         ),
@@ -74,6 +82,14 @@ class Hackathon(Base):
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
     start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    registration_deadline: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    registration_opens_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
     registration_open: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_team_size: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -99,3 +115,10 @@ class Hackathon(Base):
         secondary=hackathon_co_organizers,
         back_populates="co_organized_hackathons",
     )
+
+    def is_registration_open_at(self, moment: datetime | None = None) -> bool:
+        checked_at = moment or datetime.now(UTC)
+        return (
+            self.registration_open
+            and self.registration_opens_at <= checked_at < self.registration_deadline
+        )

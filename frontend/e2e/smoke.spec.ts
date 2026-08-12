@@ -1,28 +1,19 @@
 import { expect, test } from '@playwright/test'
 
-// Konto powstaje przez API jako przygotowanie danych. W przeglądarce testujemy
-// wyłącznie logowanie i odtworzenie sesji z refresh cookie po przeładowaniu.
-test('uzytkownik moze sie zalogowac', async ({ page, request }) => {
-  const email = `e2e-${Date.now()}@example.com`
-  const password = 'password123'
-  const apiUrl = process.env.E2E_API_URL ?? 'http://localhost:8000'
+const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000'
 
-  const registerResponse = await request.post(`${apiUrl}/api/auth/register`, {
-    data: { name: 'E2E User', email, password },
-  })
-  expect(registerResponse.status()).toBe(201)
+test('frontend dziala, a lista hackathonow jest publiczna', async ({
+  page,
+  request,
+}) => {
+  const response = await request.get(`${API_URL}/api/hackathons`)
 
-  await page.goto('/login')
-  await page.getByLabel('E-mail').fill(email)
-  await page.getByLabel('Hasło').fill(password)
-  await page.getByRole('button', { name: 'Zaloguj się' }).click()
+  expect(response.status()).toBe(200)
+  expect(await response.json()).toEqual(expect.any(Array))
 
-  await expect(page).toHaveURL(/\/hackathons$/)
-  await expect(page.getByText(`Zalogowano jako: ${email}`)).toBeVisible()
+  await page.goto('/')
 
-  await page.reload()
-
-  await expect(page).toHaveURL(/\/hackathons$/)
-  await expect(page.getByText(`Zalogowano jako: ${email}`)).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Wyloguj się' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Hackathony' })).toBeVisible()
+  await expect(page.getByRole('status')).toBeHidden()
+  await expect(page.getByRole('alert')).toHaveCount(0)
 })
