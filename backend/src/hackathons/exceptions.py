@@ -22,6 +22,18 @@ class InvalidDateRangeError(HackathonError):
     detail = "end_date must be later than start_date."
 
 
+class InvalidRegistrationDeadlineError(HackathonError):
+    status_code = 422
+    error_code = "INVALID_REGISTRATION_DEADLINE"
+    detail = "registration_deadline must be earlier than start_date."
+
+
+class InvalidRegistrationWindowError(HackathonError):
+    status_code = 422
+    error_code = "INVALID_REGISTRATION_WINDOW"
+    detail = "registration_opens_at must be earlier than registration_deadline."
+
+
 class InvalidTeamSizeError(HackathonError):
     status_code = 422
     error_code = "INVALID_TEAM_SIZE"
@@ -44,3 +56,9 @@ class RegistrationAlreadyClosedError(HackathonError):
     status_code = 409
     error_code = "REGISTRATION_ALREADY_CLOSED"
     detail = "Registration is already closed."
+
+
+class RegistrationDeadlinePassedError(HackathonError):
+    status_code = 409
+    error_code = "REGISTRATION_DEADLINE_PASSED"
+    detail = "Registration deadline has passed."

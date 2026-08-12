@@ -100,7 +100,7 @@ async def open_registration(
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
 ) -> HackathonRegistrationStateRead:
     hackathon = await service.open_registration(public_id, current_user)
-    return HackathonRegistrationStateRead.model_validate(hackathon, from_attributes=True)
+    return HackathonRegistrationStateRead.from_hackathon(hackathon)
 
 
 @router.post(
@@ -113,4 +113,4 @@ async def close_registration(
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
 ) -> HackathonRegistrationStateRead:
     hackathon = await service.close_registration(public_id, current_user)
-    return HackathonRegistrationStateRead.model_validate(hackathon, from_attributes=True)
+    return HackathonRegistrationStateRead.from_hackathon(hackathon)
