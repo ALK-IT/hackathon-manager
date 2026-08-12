@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,7 +22,12 @@ class HackathonRepository:
     async def list_active(self) -> list[Hackathon]:
         statement = (
             select(Hackathon)
-            .where(Hackathon.is_deleted.is_(False))
+            .where(
+                Hackathon.is_deleted.is_(False),
+                Hackathon.registration_open.is_(True),
+                Hackathon.registration_opens_at <= func.now(),
+                Hackathon.registration_deadline > func.now(),
+            )
             .options(*self._with_relationships())
             .order_by(Hackathon.created_at.desc())
         )

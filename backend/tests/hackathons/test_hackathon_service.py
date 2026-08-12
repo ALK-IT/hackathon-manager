@@ -1,5 +1,5 @@
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -11,9 +11,12 @@ from src.hackathons.exceptions import (
     HackathonNotFoundError,
     InvalidConfirmNameError,
     InvalidDateRangeError,
+    InvalidRegistrationDeadlineError,
+    InvalidRegistrationWindowError,
     InvalidTeamSizeError,
     RegistrationAlreadyClosedError,
     RegistrationAlreadyOpenError,
+    RegistrationDeadlinePassedError,
 )
 from src.hackathons.repository import HackathonRepository
 from src.hackathons.schemas import HackathonCreate, HackathonUpdate
@@ -28,6 +31,7 @@ def create_data() -> HackathonCreate:
         description="  Build something useful  ",
         start_date=NOW + timedelta(days=1),
         end_date=NOW + timedelta(days=2),
+        registration_opens_at=NOW - timedelta(days=2),
         capacity=100,
         max_team_size=4,
     )
@@ -50,6 +54,7 @@ def repository(mocker) -> HackathonRepository:
 def test_create_schema_normalizes_text(create_data: HackathonCreate):
     assert create_data.name == "Hackathon AI"
     assert create_data.description == "Build something useful"
+    assert create_data.registration_deadline == create_data.start_date - timedelta(hours=48)
 
 
 def test_create_schema_rejects_invalid_date_range():
@@ -58,6 +63,7 @@ def test_create_schema_rejects_invalid_date_range():
             name="Hackathon AI",
             start_date=NOW,
             end_date=NOW,
+            registration_opens_at=NOW - timedelta(days=3),
             max_team_size=4,
         )
 
@@ -68,6 +74,7 @@ def test_create_schema_rejects_team_size_greater_than_capacity():
             name="Hackathon AI",
             start_date=NOW,
             end_date=NOW + timedelta(days=1),
+            registration_opens_at=NOW - timedelta(days=3),
             capacity=3,
             max_team_size=4,
         )
@@ -79,6 +86,31 @@ def test_create_schema_rejects_datetime_without_timezone():
             name="Hackathon AI",
             start_date=NOW.replace(tzinfo=None),
             end_date=(NOW + timedelta(days=1)).replace(tzinfo=None),
+            registration_opens_at=NOW - timedelta(days=3),
+            max_team_size=4,
+        )
+
+
+def test_create_schema_rejects_deadline_not_before_start():
+    with pytest.raises(ValidationError):
+        HackathonCreate(
+            name="Hackathon AI",
+            start_date=NOW + timedelta(days=1),
+            end_date=NOW + timedelta(days=2),
+            registration_opens_at=NOW - timedelta(days=1),
+            registration_deadline=NOW + timedelta(days=1),
+            max_team_size=4,
+        )
+
+
+def test_create_schema_rejects_opening_not_before_deadline():
+    with pytest.raises(ValidationError):
+        HackathonCreate(
+            name="Hackathon AI",
+            start_date=NOW + timedelta(days=7),
+            end_date=NOW + timedelta(days=8),
+            registration_opens_at=NOW + timedelta(days=5),
+            registration_deadline=NOW + timedelta(days=5),
             max_team_size=4,
         )
 
@@ -106,7 +138,8 @@ async def test_admin_can_create_hackathon(
 
     assert hackathon.organizer is admin_user
     assert hackathon.name == "Hackathon AI"
-    assert hackathon.registration_open is False
+    assert hackathon.registration_deadline == create_data.start_date - timedelta(hours=48)
+    assert hackathon.registration_open is True
     repository.add.assert_awaited_once_with(hackathon)
     repository.commit.assert_awaited_once_with()
     repository.rollback.assert_not_awaited()
@@ -223,6 +256,18 @@ async def test_owner_can_update_hackathon(
             lambda _hackathon: HackathonUpdate(capacity=3, max_team_size=4),
             ValidationError,
         ),
+        (
+            lambda hackathon: HackathonUpdate(
+                registration_deadline=hackathon.start_date + timedelta(hours=1)
+            ),
+            InvalidRegistrationDeadlineError,
+        ),
+        (
+            lambda hackathon: HackathonUpdate(
+                registration_opens_at=hackathon.registration_deadline + timedelta(hours=1)
+            ),
+            InvalidRegistrationWindowError,
+        ),
     ],
 )
 async def test_update_rejects_invalid_ranges(
@@ -257,6 +302,37 @@ async def test_update_rejects_team_size_larger_than_existing_capacity(
             HackathonUpdate(max_team_size=101),
             admin_user,
         )
+
+
+async def test_owner_without_admin_role_can_update_registration_window(
+    repository: HackathonRepository,
+    regular_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=regular_user)
+    hackathon.registration_open = False
+    new_opens_at = NOW + timedelta(days=1)
+    new_deadline = hackathon.start_date - timedelta(hours=24)
+    repository.get_owned_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    result = await service.update_hackathon(
+        hackathon.public_id,
+        HackathonUpdate(
+            registration_opens_at=new_opens_at,
+            registration_deadline=new_deadline,
+        ),
+        regular_user,
+    )
+
+    assert result.registration_opens_at == new_opens_at
+    assert result.registration_deadline == new_deadline
+    assert result.registration_open is True
+    repository.get_owned_by_public_id.assert_awaited_once_with(
+        hackathon.public_id,
+        regular_user.id,
+    )
+    repository.commit.assert_awaited_once_with()
 
 
 async def test_co_organizer_cannot_distinguish_unowned_hackathon_from_missing_one(
@@ -338,6 +414,7 @@ async def test_registration_rejects_repeated_state(
 ):
     service = HackathonService(repository)
     open_hackathon = hackathon_factory(organizer=admin_user, registration_open=True)
+    open_hackathon.registration_opens_at = datetime.now(UTC) - timedelta(hours=1)
     repository.get_owned_by_public_id.return_value = open_hackathon
 
     with pytest.raises(RegistrationAlreadyOpenError):
@@ -348,3 +425,40 @@ async def test_registration_rejects_repeated_state(
 
     with pytest.raises(RegistrationAlreadyClosedError):
         await service.close_registration(closed_hackathon.public_id, admin_user)
+
+
+async def test_registration_cannot_be_opened_after_deadline(
+    repository: HackathonRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(
+        organizer=admin_user,
+        registration_deadline=datetime.now(UTC) - timedelta(seconds=1),
+    )
+    repository.get_owned_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    with pytest.raises(RegistrationDeadlinePassedError):
+        await service.open_registration(hackathon.public_id, admin_user)
+
+    assert hackathon.registration_open is False
+    repository.commit.assert_not_awaited()
+
+
+def test_registration_is_open_only_inside_scheduled_window(
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    opens_at = NOW
+    deadline = NOW + timedelta(days=1)
+    hackathon = hackathon_factory(
+        organizer=admin_user,
+        registration_open=True,
+        registration_opens_at=opens_at,
+        registration_deadline=deadline,
+    )
+
+    assert hackathon.is_registration_open_at(opens_at - timedelta(seconds=1)) is False
+    assert hackathon.is_registration_open_at(opens_at) is True
+    assert hackathon.is_registration_open_at(deadline) is False

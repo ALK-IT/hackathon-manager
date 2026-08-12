@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from httpx import AsyncClient
 
@@ -7,6 +8,7 @@ from src.hackathons.exceptions import (
     HackathonNotFoundError,
     InvalidConfirmNameError,
     RegistrationAlreadyOpenError,
+    RegistrationDeadlinePassedError,
 )
 from src.hackathons.service import HackathonService
 from tests.hackathons.factories import HackathonFactory, UserFactory
@@ -18,6 +20,7 @@ def create_payload() -> dict:
         "description": "Build something useful",
         "start_date": "2026-09-02T10:00:00Z",
         "end_date": "2026-09-03T10:00:00Z",
+        "registration_opens_at": "2026-08-01T10:00:00Z",
         "capacity": 100,
         "max_team_size": 4,
     }
@@ -31,12 +34,22 @@ async def test_create_endpoint_returns_hackathon_without_internal_ids(
 ):
     hackathon = hackathon_factory(organizer=admin_user)
     mock_hackathon_service.create_hackathon.return_value = hackathon
+    requested_deadline = "2026-09-01T10:00:00Z"
 
-    response = await hackathon_client.post("/api/hackathons", json=create_payload())
+    response = await hackathon_client.post(
+        "/api/hackathons",
+        json=create_payload() | {"registration_deadline": requested_deadline},
+    )
 
     assert response.status_code == 201
     assert response.json()["public_id"] == str(hackathon.public_id)
     assert response.json()["access_level"] == "owner"
+    assert datetime.fromisoformat(response.json()["registration_opens_at"]) == (
+        hackathon.registration_opens_at
+    )
+    assert datetime.fromisoformat(response.json()["registration_deadline"]) == (
+        hackathon.registration_deadline
+    )
     assert response.json()["organizer"] == {
         "public_id": str(admin_user.public_id),
         "name": admin_user.name,
@@ -45,6 +58,7 @@ async def test_create_endpoint_returns_hackathon_without_internal_ids(
     assert "organizer_id" not in response.json()
     created_data, created_by = mock_hackathon_service.create_hackathon.await_args.args
     assert created_data.name == "Hackathon AI"
+    assert created_data.registration_deadline == datetime.fromisoformat(requested_deadline)
     assert created_by is admin_user
 
 
@@ -107,7 +121,10 @@ async def test_list_endpoint_is_public(
     admin_user: User,
     hackathon_factory: HackathonFactory,
 ):
-    hackathon = hackathon_factory(organizer=admin_user)
+    hackathon = hackathon_factory(
+        organizer=admin_user,
+        registration_opens_at=datetime.now(UTC) - timedelta(hours=1),
+    )
     mock_hackathon_service.list_hackathons.return_value = [hackathon]
     force_authenticate(None)
 
@@ -117,6 +134,25 @@ async def test_list_endpoint_is_public(
     assert response.json()[0]["public_id"] == str(hackathon.public_id)
     assert response.json()[0]["access_level"] == "viewer"
     mock_hackathon_service.list_hackathons.assert_awaited_once_with()
+
+
+async def test_list_endpoint_reports_registration_closed_after_deadline(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(
+        organizer=admin_user,
+        registration_open=True,
+        registration_deadline=datetime.now(UTC) - timedelta(seconds=1),
+    )
+    mock_hackathon_service.list_hackathons.return_value = [hackathon]
+
+    response = await hackathon_client.get("/api/hackathons")
+
+    assert response.status_code == 200
+    assert response.json()[0]["registration_open"] is False
 
 
 async def test_managed_endpoint_returns_only_owned_and_co_organized_hackathons(
@@ -249,7 +285,10 @@ async def test_registration_endpoints_return_current_state(
     admin_user: User,
     hackathon_factory: HackathonFactory,
 ):
-    hackathon = hackathon_factory(organizer=admin_user)
+    hackathon = hackathon_factory(
+        organizer=admin_user,
+        registration_opens_at=datetime.now(UTC) - timedelta(hours=1),
+    )
     hackathon.registration_open = True
     mock_hackathon_service.open_registration.return_value = hackathon
 
@@ -266,11 +305,15 @@ async def test_registration_endpoints_return_current_state(
     assert open_response.status_code == 200
     assert open_response.json() == {
         "public_id": str(hackathon.public_id),
+        "registration_opens_at": hackathon.registration_opens_at.isoformat().replace("+00:00", "Z"),
+        "registration_deadline": hackathon.registration_deadline.isoformat().replace("+00:00", "Z"),
         "registration_open": True,
     }
     assert close_response.status_code == 200
     assert close_response.json() == {
         "public_id": str(hackathon.public_id),
+        "registration_opens_at": hackathon.registration_opens_at.isoformat().replace("+00:00", "Z"),
+        "registration_deadline": hackathon.registration_deadline.isoformat().replace("+00:00", "Z"),
         "registration_open": False,
     }
 
@@ -363,6 +406,15 @@ async def test_domain_errors_have_stable_http_contract(
             None,
             409,
             "REGISTRATION_ALREADY_OPEN",
+        ),
+        (
+            mock_hackathon_service.open_registration,
+            RegistrationDeadlinePassedError,
+            "POST",
+            f"/api/hackathons/{public_id}/open-registration",
+            None,
+            409,
+            "REGISTRATION_DEADLINE_PASSED",
         ),
     ]
 

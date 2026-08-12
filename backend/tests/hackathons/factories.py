@@ -28,13 +28,23 @@ def make_hackathon(
     *,
     organizer: User,
     registration_open: bool = False,
+    registration_opens_at: datetime | None = None,
+    registration_deadline: datetime | None = None,
     co_organizers: list[User] | None = None,
 ) -> Hackathon:
+    start_date = NOW + timedelta(days=7)
+    effective_deadline = (
+        registration_deadline
+        if registration_deadline is not None
+        else start_date - timedelta(hours=48)
+    )
     hackathon = Hackathon(
         name="Hackathon AI",
         description="Build something useful",
-        start_date=NOW + timedelta(days=1),
-        end_date=NOW + timedelta(days=2),
+        start_date=start_date,
+        end_date=NOW + timedelta(days=8),
+        registration_opens_at=(registration_opens_at if registration_opens_at is not None else NOW),
+        registration_deadline=effective_deadline,
         registration_open=registration_open,
         capacity=100,
         max_team_size=4,
