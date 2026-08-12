@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getHackathons } from '../api/hackathonsApi'
 import type { Hackathon } from '../types'
@@ -49,6 +49,27 @@ describe('HackathonList', () => {
     render(<HackathonList />)
 
     expect(await screen.findByText('Brak hackathonów do wyświetlenia.')).toBeInTheDocument()
+  })
+
+  it('reloads the list with selected filters', async () => {
+    vi.mocked(getHackathons).mockResolvedValue([])
+
+    render(<HackathonList />)
+    await screen.findByText('Brak hackathonów do wyświetlenia.')
+
+    fireEvent.change(screen.getByLabelText('Termin'), { target: { value: 'true' } })
+    fireEvent.change(screen.getByLabelText('Rejestracja'), {
+      target: { value: 'false' },
+    })
+
+    await waitFor(() =>
+      expect(getHackathons).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          upcoming: true,
+          registrationOpen: false,
+        }),
+      ),
+    )
   })
 
   it('shows an error and retries the request', async () => {

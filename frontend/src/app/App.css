@@ -78,9 +78,29 @@ button:disabled {
   gap: 8px;
 }
 
+.hackathons-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 24px;
+}
+
+.hackathon-filters {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.hackathon-filters h2 {
+  margin-bottom: 8px;
+}
+
 @media (max-width: 560px) {
   .page-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .hackathons-layout {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,8 +1,22 @@
 import { apiRequest } from '../../../lib/api/client'
-import type { CreateHackathonPayload, Hackathon } from '../types'
+import type { CreateHackathonPayload, Hackathon, HackathonFilters } from '../types'
 
-export function getHackathons(options: { signal?: AbortSignal } = {}) {
-  return apiRequest<Hackathon[]>('/api/hackathons', { signal: options.signal })
+interface GetHackathonsOptions extends HackathonFilters {
+  signal?: AbortSignal
+}
+
+export function getHackathons(options: GetHackathonsOptions = {}) {
+  const params = new URLSearchParams()
+  if (options.upcoming !== undefined) {
+    params.set('upcoming', String(options.upcoming))
+  }
+  if (options.registrationOpen !== undefined) {
+    params.set('open', String(options.registrationOpen))
+  }
+
+  const query = params.toString()
+  const path = query ? `/api/hackathons?${query}` : '/api/hackathons'
+  return apiRequest<Hackathon[]>(path, { signal: options.signal })
 }
 
 export function createHackathon(payload: CreateHackathonPayload) {
