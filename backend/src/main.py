@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 import src.all_models  # noqa: F401
 from src.api import api_router
-from src.auth.config import validate_configuration
+from src.auth.config import get_frontend_origins, validate_configuration
 from src.hackathons.exceptions import HackathonError
 from src.registration.exceptions import RegistrationError
 from src.teams.exceptions import TeamError
@@ -75,7 +75,8 @@ async def handle_request_validation_error(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_frontend_origins(),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

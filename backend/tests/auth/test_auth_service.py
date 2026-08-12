@@ -154,6 +154,18 @@ async def test_refresh_token_is_rotated_only_once(mocker):
     cache.getdel.assert_awaited_with(refresh_session_key(session_id))
 
 
+async def test_refresh_token_can_be_revoked_on_logout(mocker):
+    session_id = uuid.uuid4()
+    token = create_refresh_token(uuid.uuid4(), session_id=session_id)
+    cache = mocker.Mock()
+    cache.delete = mocker.AsyncMock()
+    service = TokenService(cache)
+
+    await service.revoke_refresh_token(token)
+
+    cache.delete.assert_awaited_once_with(refresh_session_key(session_id))
+
+
 async def test_register_hashes_password_and_commits(mocker):
     repository = mocker.Mock()
     repository.get_by_email = mocker.AsyncMock(return_value=None)

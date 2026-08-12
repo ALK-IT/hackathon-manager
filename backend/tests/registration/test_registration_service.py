@@ -52,12 +52,15 @@ def make_question(
 
 
 def make_hackathon() -> Hackathon:
-    start_date = datetime.now(UTC) + timedelta(days=1)
+    now = datetime.now(UTC)
+    start_date = now + timedelta(days=1)
     return Hackathon(
         name="AI Hackathon",
         organizer_id=1,
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
+        registration_opens_at=now - timedelta(hours=1),
+        registration_deadline=start_date - timedelta(hours=1),
         max_team_size=4,
         registration_open=True,
     )
@@ -69,8 +72,16 @@ def make_registration_hackathon(
     registration_open: bool = True,
     max_team_size: int = 4,
 ):
-    return SimpleNamespace(
+    now = datetime.now(UTC)
+    start_date = now + timedelta(days=1)
+    return Hackathon(
         id=hackathon_id,
+        name="Registration Hackathon",
+        organizer_id=1,
+        start_date=start_date,
+        end_date=start_date + timedelta(days=2),
+        registration_opens_at=now - timedelta(hours=1),
+        registration_deadline=start_date - timedelta(hours=1),
         registration_open=registration_open,
         max_team_size=max_team_size,
     )
