@@ -66,6 +66,29 @@ button:disabled {
   margin: 0 auto;
 }
 
+.registration-entry-card {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.registration-questions,
+.team-options {
+  display: grid;
+  gap: 12px;
+}
+
+.team-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+}
+
 .registration-opening-field {
   display: grid;
   grid-template-columns: 1fr auto;

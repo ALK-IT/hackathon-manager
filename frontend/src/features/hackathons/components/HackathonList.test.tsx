@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getHackathons } from '../api/hackathonsApi'
 import type { Hackathon } from '../types'
@@ -17,6 +18,14 @@ const hackathon: Hackathon = {
   access_level: 'viewer',
 }
 
+function renderHackathonList() {
+  return render(
+    <MemoryRouter>
+      <HackathonList />
+    </MemoryRouter>,
+  )
+}
+
 describe('HackathonList', () => {
   beforeEach(() => vi.mocked(getHackathons).mockReset())
 
@@ -28,7 +37,7 @@ describe('HackathonList', () => {
       }),
     )
 
-    render(<HackathonList />)
+    renderHackathonList()
 
     expect(screen.getByRole('status')).toHaveTextContent('Ładowanie hackathonów')
     resolveRequest?.([])
@@ -38,7 +47,7 @@ describe('HackathonList', () => {
   it('renders hackathons returned by the API', async () => {
     vi.mocked(getHackathons).mockResolvedValue([hackathon])
 
-    render(<HackathonList />)
+    renderHackathonList()
 
     expect(await screen.findByRole('heading', { name: 'Test Hackathon' })).toBeInTheDocument()
   })
@@ -46,7 +55,7 @@ describe('HackathonList', () => {
   it('shows an empty state', async () => {
     vi.mocked(getHackathons).mockResolvedValue([])
 
-    render(<HackathonList />)
+    renderHackathonList()
 
     expect(await screen.findByText('Brak hackathonów do wyświetlenia.')).toBeInTheDocument()
   })
@@ -54,7 +63,7 @@ describe('HackathonList', () => {
   it('reloads the list with selected filters', async () => {
     vi.mocked(getHackathons).mockResolvedValue([])
 
-    render(<HackathonList />)
+    renderHackathonList()
     await screen.findByText('Brak hackathonów do wyświetlenia.')
 
     fireEvent.change(screen.getByLabelText('Termin'), { target: { value: 'true' } })
@@ -77,7 +86,7 @@ describe('HackathonList', () => {
       .mockRejectedValueOnce(new Error('Network error'))
       .mockResolvedValueOnce([hackathon])
 
-    render(<HackathonList />)
+    renderHackathonList()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Nie udało się pobrać')
     fireEvent.click(screen.getByRole('button', { name: 'Spróbuj ponownie' }))

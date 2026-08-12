@@ -322,6 +322,32 @@ async def test_user_creates_registration(
     assert answer.content == "My answer"
 
 
+async def test_user_creates_registration_without_questions(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={"answers": [], "team": None},
+    )
+
+    assert response.status_code == 201
+    registration = await session.scalar(
+        select(Registration).where(
+            Registration.user_id == participant.id,
+            Registration.hackathon_id == hackathon.id,
+        )
+    )
+    assert registration is not None
+
+
 async def test_user_cannot_register_when_registration_is_closed(
     api_client: AsyncClient,
     session: AsyncSession,

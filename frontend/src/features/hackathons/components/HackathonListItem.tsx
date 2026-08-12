@@ -1,4 +1,5 @@
-import { Card } from '../../../components/ui'
+import { useNavigate } from 'react-router-dom'
+import { Button, Card } from '../../../components/ui'
 import type { Hackathon } from '../types'
 
 interface HackathonListItemProps {
@@ -6,6 +7,8 @@ interface HackathonListItemProps {
 }
 
 export function HackathonListItem({ hackathon }: HackathonListItemProps) {
+  const navigate = useNavigate()
+
   return (
     <li>
       <Card>
@@ -15,6 +18,15 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
           {new Date(hackathon.end_date).toLocaleDateString('pl-PL')}
         </p>
         <p>Rejestracja: {hackathon.registration_open ? 'otwarta' : 'zamknięta'}</p>
+        {hackathon.registration_open && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => navigate(`/hackathons/${hackathon.public_id}/register`)}
+          >
+            Zarejestruj się
+          </Button>
+        )}
       </Card>
     </li>
   )
