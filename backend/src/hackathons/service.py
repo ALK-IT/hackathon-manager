@@ -25,8 +25,15 @@ class HackathonService:
     def __init__(self, repository: HackathonRepository):
         self.repository = repository
 
-    async def list_hackathons(self) -> list[Hackathon]:
-        return await self.repository.list_active()
+    async def list_hackathons(
+        self,
+        upcoming: bool | None = None,
+        registration_open: bool | None = None,
+    ) -> list[Hackathon]:
+        return await self.repository.list_active(
+            upcoming=upcoming,
+            registration_open=registration_open,
+        )
 
     async def list_managed_hackathons(self, user: User) -> list[Hackathon]:
         return await self.repository.list_managed_by_user(user.id)

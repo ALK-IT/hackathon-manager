@@ -9,6 +9,11 @@ export interface Hackathon {
   access_level: 'owner' | 'co_organizer' | 'viewer'
 }
 
+export interface HackathonFilters {
+  upcoming?: boolean
+  registrationOpen?: boolean
+}
+
 export interface CreateHackathonPayload {
   name: string
   description: string

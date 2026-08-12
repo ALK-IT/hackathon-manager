@@ -111,7 +111,10 @@ async def test_list_endpoint_returns_all_access_levels(
         "co_organizer",
         "viewer",
     ]
-    mock_hackathon_service.list_hackathons.assert_awaited_once_with()
+    mock_hackathon_service.list_hackathons.assert_awaited_once_with(
+        upcoming=None,
+        registration_open=None,
+    )
 
 
 async def test_list_endpoint_is_public(
@@ -133,7 +136,26 @@ async def test_list_endpoint_is_public(
     assert response.status_code == 200
     assert response.json()[0]["public_id"] == str(hackathon.public_id)
     assert response.json()[0]["access_level"] == "viewer"
-    mock_hackathon_service.list_hackathons.assert_awaited_once_with()
+    mock_hackathon_service.list_hackathons.assert_awaited_once_with(
+        upcoming=None,
+        registration_open=None,
+    )
+
+
+async def test_list_endpoint_passes_query_filters_to_service(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    mock_hackathon_service.list_hackathons.return_value = []
+
+    response = await hackathon_client.get("/api/hackathons?upcoming=true&open=false")
+
+    assert response.status_code == 200
+    assert response.json() == []
+    mock_hackathon_service.list_hackathons.assert_awaited_once_with(
+        upcoming=True,
+        registration_open=False,
+    )
 
 
 async def test_list_endpoint_reports_registration_closed_after_deadline(

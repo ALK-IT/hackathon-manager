@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.auth.dependencies import get_current_user, get_optional_current_user
 from src.auth.models import User
@@ -23,8 +23,13 @@ router = APIRouter(prefix="/api/hackathons", tags=["hackathons"])
 async def list_hackathons(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
+    upcoming: Annotated[bool | None, Query()] = None,
+    registration_open: Annotated[bool | None, Query(alias="open")] = None,
 ) -> list[HackathonListItem]:
-    hackathons = await service.list_hackathons()
+    hackathons = await service.list_hackathons(
+        upcoming=upcoming,
+        registration_open=registration_open,
+    )
     return [
         HackathonListItem.from_hackathon(
             hackathon,

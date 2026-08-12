@@ -182,7 +182,21 @@ async def test_list_returns_all_active_repository_results(
     service = HackathonService(repository)
 
     assert await service.list_hackathons() == active
-    repository.list_active.assert_awaited_once_with()
+    repository.list_active.assert_awaited_once_with(
+        upcoming=None,
+        registration_open=None,
+    )
+
+
+async def test_list_passes_filters_to_repository(repository: HackathonRepository):
+    service = HackathonService(repository)
+
+    await service.list_hackathons(upcoming=True, registration_open=False)
+
+    repository.list_active.assert_awaited_once_with(
+        upcoming=True,
+        registration_open=False,
+    )
 
 
 async def test_list_managed_returns_users_owned_and_co_organized_hackathons(
