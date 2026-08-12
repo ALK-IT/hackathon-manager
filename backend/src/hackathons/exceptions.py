@@ -33,6 +33,7 @@ class InvalidRegistrationWindowError(HackathonError):
     error_code = "INVALID_REGISTRATION_WINDOW"
     detail = "registration_opens_at must be earlier than registration_deadline."
 
+
 class InvalidTeamSizeError(HackathonError):
     status_code = 422
     error_code = "INVALID_TEAM_SIZE"
