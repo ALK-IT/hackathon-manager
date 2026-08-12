@@ -14,6 +14,7 @@ from src.cache import get_cache
 from src.database import get_session
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
 
 def get_user_service(session: Annotated[AsyncSession, Depends(get_session)]) -> UserService:
@@ -38,6 +39,24 @@ async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     service: Annotated[UserService, Depends(get_user_service)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
+) -> User:
+    return await _get_authenticated_user(token, service, token_service)
+
+
+async def get_optional_current_user(
+    token: Annotated[str | None, Depends(optional_oauth2_scheme)],
+    service: Annotated[UserService, Depends(get_user_service)],
+    token_service: Annotated[TokenService, Depends(get_token_service)],
+) -> User | None:
+    if token is None:
+        return None
+    return await _get_authenticated_user(token, service, token_service)
+
+
+async def _get_authenticated_user(
+    token: str,
+    service: UserService,
+    token_service: TokenService,
 ) -> User:
     if await token_service.is_revoked(token):
         raise unauthorized_exception()

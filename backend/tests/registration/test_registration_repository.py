@@ -29,12 +29,15 @@ def make_hackathon(
     *,
     name: str = "AI Hackathon",
 ) -> Hackathon:
-    start_date = datetime.now(UTC) + timedelta(days=1)
+    now = datetime.now(UTC)
+    start_date = now + timedelta(days=1)
     return Hackathon(
         name=name,
         organizer=organizer,
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
+        registration_opens_at=now - timedelta(hours=1),
+        registration_deadline=start_date - timedelta(hours=1),
         max_team_size=4,
     )
 

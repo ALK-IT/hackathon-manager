@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
@@ -18,10 +18,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models import Base
-from src.registration.models import Registration, RegistrationQuestion
 
 if TYPE_CHECKING:
     from src.auth.models import User
+    from src.registration.models import Registration, RegistrationQuestion
     from src.teams.models import Team
 
 
@@ -45,6 +45,14 @@ class Hackathon(Base):
     __tablename__ = "hackathons"
     __table_args__ = (
         CheckConstraint("end_date > start_date", name="ck_hackathons_date_range"),
+        CheckConstraint(
+            "registration_deadline < start_date",
+            name="ck_hackathons_registration_deadline_before_start",
+        ),
+        CheckConstraint(
+            "registration_opens_at < registration_deadline",
+            name="ck_hackathons_registration_window",
+        ),
         CheckConstraint(
             "capacity IS NULL OR capacity >= 1",
             name="ck_hackathons_capacity_positive",
@@ -76,6 +84,14 @@ class Hackathon(Base):
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
     start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    registration_deadline: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    registration_opens_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
     registration_open: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_team_size: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -101,19 +117,23 @@ class Hackathon(Base):
         secondary=hackathon_co_organizers,
         back_populates="co_organized_hackathons",
     )
-
     questions: Mapped[list["RegistrationQuestion"]] = relationship(
         back_populates="hackathon",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-
     registrations: Mapped[list["Registration"]] = relationship(
         back_populates="hackathon",
         passive_deletes=True,
     )
-
     teams: Mapped[list["Team"]] = relationship(
         back_populates="hackathon",
         passive_deletes=True,
     )
+
+    def is_registration_open_at(self, moment: datetime | None = None) -> bool:
+        checked_at = moment or datetime.now(UTC)
+        return (
+            self.registration_open
+            and self.registration_opens_at <= checked_at < self.registration_deadline
+        )

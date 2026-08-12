@@ -7,12 +7,14 @@ from src.auth.models import User, UserRole
 from src.hackathons.exceptions import (
     AdminRequiredError,
     HackathonNotFoundError,
-    HackathonPermissionDeniedError,
     InvalidConfirmNameError,
     InvalidDateRangeError,
+    InvalidRegistrationDeadlineError,
+    InvalidRegistrationWindowError,
     InvalidTeamSizeError,
     RegistrationAlreadyClosedError,
     RegistrationAlreadyOpenError,
+    RegistrationDeadlinePassedError,
 )
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
@@ -23,8 +25,11 @@ class HackathonService:
     def __init__(self, repository: HackathonRepository):
         self.repository = repository
 
-    async def list_hackathons(self, user: User) -> list[Hackathon]:
-        return await self.repository.list_accessible(user.id)
+    async def list_hackathons(self) -> list[Hackathon]:
+        return await self.repository.list_active()
+
+    async def list_managed_hackathons(self, user: User) -> list[Hackathon]:
+        return await self.repository.list_managed_by_user(user.id)
 
     async def create_hackathon(self, data: HackathonCreate, user: User) -> Hackathon:
         if user.role != UserRole.ADMIN:
@@ -34,7 +39,7 @@ class HackathonService:
             **data.model_dump(),
             organizer=user,
             co_organizers=[],
-            registration_open=False,
+            registration_open=True,
             is_deleted=False,
         )
         try:
@@ -45,8 +50,8 @@ class HackathonService:
             raise
         return hackathon
 
-    async def get_hackathon(self, public_id: uuid.UUID, user: User) -> Hackathon:
-        hackathon = await self.repository.get_visible_by_public_id(public_id, user.id)
+    async def get_hackathon(self, public_id: uuid.UUID) -> Hackathon:
+        hackathon = await self.repository.get_active_by_public_id(public_id)
         if hackathon is None:
             raise HackathonNotFoundError
         return hackathon
@@ -64,10 +69,27 @@ class HackathonService:
         end_date = changes.get("end_date", hackathon.end_date)
         capacity = changes.get("capacity", hackathon.capacity)
         max_team_size = changes.get("max_team_size", hackathon.max_team_size)
-        self._validate_ranges(start_date, end_date, capacity, max_team_size)
+        registration_deadline = changes.get(
+            "registration_deadline",
+            hackathon.registration_deadline,
+        )
+        registration_opens_at = changes.get(
+            "registration_opens_at",
+            hackathon.registration_opens_at,
+        )
+        self._validate_ranges(
+            start_date,
+            end_date,
+            registration_opens_at,
+            registration_deadline,
+            capacity,
+            max_team_size,
+        )
 
         for field, value in changes.items():
             setattr(hackathon, field, value)
+        if "registration_opens_at" in changes:
+            hackathon.registration_open = True
 
         await self.repository.commit()
         await self.repository.refresh_updated_at(hackathon)
@@ -89,9 +111,13 @@ class HackathonService:
 
     async def open_registration(self, public_id: uuid.UUID, user: User) -> Hackathon:
         hackathon = await self._get_owned_hackathon(public_id, user)
-        if hackathon.registration_open:
+        opened_at = datetime.now(UTC)
+        if opened_at >= hackathon.registration_deadline:
+            raise RegistrationDeadlinePassedError
+        if hackathon.is_registration_open_at(opened_at):
             raise RegistrationAlreadyOpenError
 
+        hackathon.registration_opens_at = opened_at
         hackathon.registration_open = True
         await self.repository.commit()
         return hackathon
@@ -106,21 +132,25 @@ class HackathonService:
         return hackathon
 
     async def _get_owned_hackathon(self, public_id: uuid.UUID, user: User) -> Hackathon:
-        hackathon = await self.repository.get_active_by_public_id(public_id)
+        hackathon = await self.repository.get_owned_by_public_id(public_id, user.id)
         if hackathon is None:
             raise HackathonNotFoundError
-        if hackathon.organizer_id != user.id:
-            raise HackathonPermissionDeniedError
         return hackathon
 
     @staticmethod
     def _validate_ranges(
         start_date: datetime,
         end_date: datetime,
+        registration_opens_at: datetime,
+        registration_deadline: datetime,
         capacity: int | None,
         max_team_size: int,
     ) -> None:
         if end_date <= start_date:
             raise InvalidDateRangeError
+        if registration_deadline >= start_date:
+            raise InvalidRegistrationDeadlineError
+        if registration_opens_at >= registration_deadline:
+            raise InvalidRegistrationWindowError
         if capacity is not None and max_team_size > capacity:
             raise InvalidTeamSizeError

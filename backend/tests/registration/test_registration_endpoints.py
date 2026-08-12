@@ -47,7 +47,8 @@ async def create_hackathon(
     max_team_size: int = 4,
     registration_open: bool = True,
 ) -> Hackathon:
-    start_date = datetime.now(UTC) + timedelta(days=1)
+    now = datetime.now(UTC)
+    start_date = now + timedelta(days=1)
     hackathon = Hackathon(
         organizer=organizer,
         co_organizers=[],
@@ -55,6 +56,8 @@ async def create_hackathon(
         description="Hackathon used by endpoint integration tests",
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
+        registration_opens_at=now - timedelta(hours=1),
+        registration_deadline=start_date - timedelta(hours=1),
         registration_open=registration_open,
         capacity=50,
         max_team_size=max_team_size,
