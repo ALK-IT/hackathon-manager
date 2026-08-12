@@ -3,6 +3,7 @@ export interface User {
   name: string
   email: string
   created_at: string
+  role: 'user' | 'admin'
 }
 
 export interface RegisterPayload {

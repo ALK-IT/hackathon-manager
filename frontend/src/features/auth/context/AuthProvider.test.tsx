@@ -33,6 +33,7 @@ const user: User = {
   name: 'Jan Kowalski',
   email: 'jan@example.com',
   created_at: '2026-08-10T10:00:00Z',
+  role: 'user',
 }
 
 function Consumer() {
