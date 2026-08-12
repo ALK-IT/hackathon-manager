@@ -9,10 +9,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models import Base
-from src.registration.models import Registration
 
 if TYPE_CHECKING:
     from src.hackathons.models import Hackathon
+    from src.registration.models import Registration
 
 
 class UserRole(str, Enum):
@@ -45,7 +45,6 @@ class User(Base):
         default=UserRole.USER,
         nullable=False,
     )
-
     registrations: Mapped[list["Registration"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",

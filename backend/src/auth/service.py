@@ -86,6 +86,10 @@ class TokenService:
     async def is_revoked(self, token: str) -> bool:
         return bool(await self.cache.exists(revoked_access_token_key(token)))
 
+    async def revoke_refresh_token(self, token: str) -> None:
+        payload = decode_refresh_token(token)
+        await self.cache.delete(refresh_session_key(payload.session_id))
+
     async def issue_token_pair(self, subject: uuid.UUID) -> IssuedTokenPair:
         session_id = uuid.uuid4()
         access_expires_in = get_access_token_expire_minutes() * 60

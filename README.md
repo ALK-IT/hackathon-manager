@@ -14,6 +14,8 @@ hackathon-manager/
 ├── backend/                   # FastAPI + Python (SQLAlchemy async + Alembic + Redis)
 │   ├── src/auth/              # Użytkownicy, JWT, router, schema, model, service i repository
 │   ├── src/hackathons/        # Hackathony: router, schema, model, service i repository
+│   ├── src/registration/      # Pytania i zgłoszenia uczestników
+│   ├── src/teams/             # Drużyny tworzone lub wybierane podczas zgłoszenia
 │   ├── src/system/            # Endpointy systemowe, np. healthcheck
 │   ├── src/database.py        # Połączenie i sesje SQLAlchemy
 │   └── src/main.py            # Punkt wejścia aplikacji FastAPI
@@ -126,25 +128,23 @@ uvicorn src.main:app --reload
 # frontend (jednostkowe)
 cd frontend && npm run test -- --run
 
-# backend w odizolowanych, nietrwałych kontenerach testowych
-docker compose -f docker-compose.test.yml up --build \
-  --abort-on-container-exit --exit-code-from backend-test
-docker compose -f docker-compose.test.yml down
+# backend (korzysta z osobnej bazy postgres-test z docker-compose.yml)
+docker compose run --build --rm backend pytest
 ```
-
-Testy backendu wykonują `drop_all()` i `create_all()`, dlatego nie należy wskazywać w
-`TEST_DATABASE_URL` bazy developerskiej ani produkcyjnej. `docker-compose.test.yml` uruchamia
-osobny PostgreSQL w `tmpfs`, dzięki czemu testy nie modyfikują danych zwykłego środowiska.
 
 **E2E (przykładowy smoke test):** sprawdza cały przekrój — frontend + backend + Postgres + Redis razem, przez `docker compose`:
 
 ```bash
-docker compose up -d --build
+docker compose -p hackathon-manager-e2e up -d --build
 cd frontend
 npx playwright install --with-deps chromium   # jednorazowo
 npm run test:e2e
-docker compose down -v
+docker compose -p hackathon-manager-e2e down -v
 ```
+
+Osobna nazwa projektu Compose sprawia, ze E2E korzysta z innego wolumenu niz lokalna baza
+developerska. Testy backendu dodatkowo odmawiaja wykonania `drop_all()`, jezeli nazwa bazy nie
+konczy sie na `_test`.
 
 Odpala się automatycznie w CI (workflow `e2e`, niewymagany do mergu — informacyjny).
 

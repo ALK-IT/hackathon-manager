@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
 
-from src.auth.dependencies import get_current_user
+from src.auth.dependencies import get_current_user, get_optional_current_user
 from src.auth.models import User
 from src.hackathons.dependencies import get_current_admin, get_hackathon_service
 from src.hackathons.schemas import (
@@ -21,12 +21,16 @@ router = APIRouter(prefix="/api/hackathons", tags=["hackathons"])
 
 @router.get("", response_model=list[HackathonListItem])
 async def list_hackathons(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User | None, Depends(get_optional_current_user)],
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
 ) -> list[HackathonListItem]:
-    hackathons = await service.list_hackathons(current_user)
+    hackathons = await service.list_hackathons()
     return [
-        HackathonListItem.from_hackathon(hackathon, current_user.id) for hackathon in hackathons
+        HackathonListItem.from_hackathon(
+            hackathon,
+            current_user.id if current_user is not None else None,
+        )
+        for hackathon in hackathons
     ]
 
 
@@ -40,14 +44,28 @@ async def create_hackathon(
     return HackathonRead.from_hackathon(hackathon, current_admin.id)
 
 
+@router.get("/managed", response_model=list[HackathonListItem])
+async def list_managed_hackathons(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> list[HackathonListItem]:
+    hackathons = await service.list_managed_hackathons(current_user)
+    return [
+        HackathonListItem.from_hackathon(hackathon, current_user.id) for hackathon in hackathons
+    ]
+
+
 @router.get("/{public_id}", response_model=HackathonRead)
 async def get_hackathon(
     public_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User | None, Depends(get_optional_current_user)],
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
 ) -> HackathonRead:
-    hackathon = await service.get_hackathon(public_id, current_user)
-    return HackathonRead.from_hackathon(hackathon, current_user.id)
+    hackathon = await service.get_hackathon(public_id)
+    return HackathonRead.from_hackathon(
+        hackathon,
+        current_user.id if current_user is not None else None,
+    )
 
 
 @router.patch("/{public_id}", response_model=HackathonRead)
@@ -82,7 +100,7 @@ async def open_registration(
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
 ) -> HackathonRegistrationStateRead:
     hackathon = await service.open_registration(public_id, current_user)
-    return HackathonRegistrationStateRead.model_validate(hackathon, from_attributes=True)
+    return HackathonRegistrationStateRead.from_hackathon(hackathon)
 
 
 @router.post(
@@ -95,4 +113,4 @@ async def close_registration(
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
 ) -> HackathonRegistrationStateRead:
     hackathon = await service.close_registration(public_id, current_user)
-    return HackathonRegistrationStateRead.model_validate(hackathon, from_attributes=True)
+    return HackathonRegistrationStateRead.from_hackathon(hackathon)
