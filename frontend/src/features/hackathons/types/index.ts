@@ -8,3 +8,14 @@ export interface Hackathon {
   max_team_size: number
   access_level: 'owner' | 'co_organizer' | 'viewer'
 }
+
+export interface CreateHackathonPayload {
+  name: string
+  description: string
+  start_date: string
+  end_date: string
+  registration_opens_at: string
+  registration_deadline?: string
+  capacity?: number
+  max_team_size: number
+}

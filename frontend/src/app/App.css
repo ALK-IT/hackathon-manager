@@ -55,6 +55,29 @@ button:disabled {
   margin-bottom: 32px;
 }
 
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.create-hackathon-card {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.registration-opening-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
 @media (max-width: 560px) {
   .page-header {
     align-items: flex-start;

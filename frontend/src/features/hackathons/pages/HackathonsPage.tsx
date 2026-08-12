@@ -20,9 +20,21 @@ export function HackathonsPage() {
           {user && <p>Zalogowano jako: {user.email}</p>}
         </div>
         {user ? (
-          <Button type="button" variant="ghost" onClick={() => void handleLogout()}>
-            Wyloguj się
-          </Button>
+          <div className="page-header-actions">
+            <span>Rola: {user.role}</span>
+            {user.role === 'admin' && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => navigate('/hackathons/create')}
+              >
+                Utwórz hackathon
+              </Button>
+            )}
+            <Button type="button" variant="ghost" onClick={() => void handleLogout()}>
+              Wyloguj się
+            </Button>
+          </div>
         ) : (
           !isLoading && <Link to="/login">Zaloguj się</Link>
         )}
