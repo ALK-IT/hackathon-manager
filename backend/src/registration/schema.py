@@ -79,3 +79,10 @@ class RegistrationAnswerResponse(BaseModel):
 class RegistrationDetailResponse(RegistrationResponse):
     user: RegistrationUserResponse
     answers: list[RegistrationAnswerResponse]
+
+class RegistrationQuestionBulkCreate(BaseModel):
+
+    questions: list[RegistrationQuestionCreate] = Field(
+        min_length = 1,
+        max_length = 50
+    )

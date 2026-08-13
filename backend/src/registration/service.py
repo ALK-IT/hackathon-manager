@@ -22,7 +22,7 @@ from src.registration.models import (
     RegistrationStatus,
 )
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
-from src.registration.schema import RegistrationCreate, RegistrationQuestionCreate
+from src.registration.schema import RegistrationCreate, RegistrationQuestionCreate, RegistrationQuestionBulkCreate
 
 
 def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
@@ -101,6 +101,43 @@ class RegistrationQuestionService:
             await self.question_repository.rollback()
             raise
 
+    async def create_questions(
+        self,
+        hackathon_public_id: uuid.UUID,
+        data: RegistrationQuestionBulkCreate,
+        current_user: User
+    ) -> list[RegistrationQuestion]:
+        hackathon = await self.hackathon_repository.get_active_by_public_id(
+            hackathon_public_id
+        )
+
+        if hackathon is None:
+            raise HackathonNotFoundError()
+
+        if not _can_manage_hackathon(hackathon, current_user):
+            raise InvalidPermission()
+
+
+        questions = [
+            RegistrationQuestion(
+                content=question.content,
+                is_required=question.is_required,
+                hackathon=hackathon
+            )
+            for question in data.questions
+        ]
+
+        try:
+            created_questions = await self.question_repository.create_many(
+                questions
+            )
+
+            await self.question_repository.commit()
+            return created_questions
+        except Exception:
+            await self.question_repository.rollback()
+            raise
+    
 
 class RegistrationService:
     def __init__(
