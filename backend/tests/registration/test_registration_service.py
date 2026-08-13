@@ -18,7 +18,11 @@ from src.registration.exceptions import (
     RegistrationNotFoundError,
 )
 from src.registration.models import Registration, RegistrationQuestion, RegistrationStatus
-from src.registration.schema import RegistrationCreate, RegistrationQuestionCreate
+from src.registration.schema import (
+    RegistrationCreate,
+    RegistrationQuestionBulkCreate,
+    RegistrationQuestionCreate,
+)
 from src.registration.service import RegistrationQuestionService, RegistrationService
 
 
@@ -82,6 +86,7 @@ def question_repository(mocker):
     repository.get_by_public_id = mocker.AsyncMock()
     repository.get_by_hackathon_public_id = mocker.AsyncMock(return_value=[])
     repository.create = mocker.AsyncMock()
+    repository.create_many = mocker.AsyncMock()
     repository.delete = mocker.AsyncMock()
     repository.commit = mocker.AsyncMock()
     repository.rollback = mocker.AsyncMock()
@@ -815,3 +820,35 @@ async def test_update_status_rolls_back_repository_error(
 
     registration_repository.rollback.assert_awaited_once_with()
     registration_repository.commit.assert_not_awaited()
+
+async def test_create_many_questions(
+    question_service,
+    question_repository,
+    hackathon_repository,
+):
+    hackathon_public_id = uuid.uuid4()
+    hackathon = make_hackathon()
+    hackathon_repository.get_active_by_public_id.return_value = hackathon
+    question_repository.create_many.side_effect = lambda questions: questions
+    data = RegistrationQuestionBulkCreate(
+        questions=[
+            RegistrationQuestionCreate(content="Why?", is_required=True),
+            RegistrationQuestionCreate(content="Experience?", is_required=False),
+        ]
+    )
+
+    result = await question_service.create_questions(
+        hackathon_public_id,
+        data,
+        make_user(role=UserRole.ADMIN),
+    )
+
+    assert [question.content for question in result] == ["Why?", "Experience?"]
+    assert [question.is_required for question in result] == [True, False]
+    assert all(question.hackathon is hackathon for question in result)
+    hackathon_repository.get_active_by_public_id.assert_awaited_once_with(
+        hackathon_public_id
+    )
+    question_repository.create_many.assert_awaited_once_with(result)
+    question_repository.commit.assert_awaited_once_with()
+    question_repository.rollback.assert_not_awaited()
