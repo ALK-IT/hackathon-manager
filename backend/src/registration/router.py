@@ -12,11 +12,11 @@ from src.registration.dependencies import (
 from src.registration.schema import (
     RegistrationCreate,
     RegistrationDetailResponse,
+    RegistrationQuestionBulkCreate,
     RegistrationQuestionCreate,
     RegistrationQuestionResponse,
     RegistrationResponse,
     RegistrationStatusUpdate,
-    RegistrationQuestionBulkCreate
 )
 from src.registration.service import (
     RegistrationQuestionService,
@@ -180,6 +180,7 @@ async def update_registration_status(
         new_status=data.status,
         current_user=current_user,
     )
+
 
 @router.post(
     "/hackathons/{hackathon_public_id}/questions/bulk",

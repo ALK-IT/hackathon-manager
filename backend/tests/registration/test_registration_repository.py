@@ -2,7 +2,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy.orm import selectinload
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -299,10 +298,10 @@ async def test_create_many_questions(session: AsyncSession, organizer: User):
     )
 
     question2 = RegistrationQuestion(
-            content="What?",
-            is_required=True,
-            hackathon=hackathon,
-        )
+        content="What?",
+        is_required=True,
+        hackathon=hackathon,
+    )
 
     repository = RegistrationQuestionRepository(session)
     questions = [question, question2]
@@ -313,9 +312,7 @@ async def test_create_many_questions(session: AsyncSession, organizer: User):
     result = await session.execute(
         select(RegistrationQuestion).where(RegistrationQuestion.hackathon_id == hackathon.id)
     )
-    
+
     saved_questions = list(result.scalars().all())
-
-
 
     assert saved_questions == questions

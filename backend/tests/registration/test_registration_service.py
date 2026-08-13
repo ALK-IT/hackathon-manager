@@ -821,6 +821,7 @@ async def test_update_status_rolls_back_repository_error(
     registration_repository.rollback.assert_awaited_once_with()
     registration_repository.commit.assert_not_awaited()
 
+
 async def test_create_many_questions(
     question_service,
     question_repository,
@@ -846,9 +847,7 @@ async def test_create_many_questions(
     assert [question.content for question in result] == ["Why?", "Experience?"]
     assert [question.is_required for question in result] == [True, False]
     assert all(question.hackathon is hackathon for question in result)
-    hackathon_repository.get_active_by_public_id.assert_awaited_once_with(
-        hackathon_public_id
-    )
+    hackathon_repository.get_active_by_public_id.assert_awaited_once_with(hackathon_public_id)
     question_repository.create_many.assert_awaited_once_with(result)
     question_repository.commit.assert_awaited_once_with()
     question_repository.rollback.assert_not_awaited()

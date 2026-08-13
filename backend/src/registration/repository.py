@@ -45,8 +45,7 @@ class RegistrationQuestionRepository:
         return result.scalar_one_or_none()
 
     async def create_many(
-        self,
-        questions: list[RegistrationQuestion]
+        self, questions: list[RegistrationQuestion]
     ) -> list[RegistrationQuestion]:
         self.session.add_all(questions)
         await self.session.flush()
