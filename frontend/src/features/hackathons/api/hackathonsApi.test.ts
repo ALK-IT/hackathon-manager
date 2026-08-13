@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiRequest } from '../../../lib/api/client'
-import { getHackathons } from './hackathonsApi'
+import {
+  createHackathon,
+  getHackathon,
+  getHackathons,
+  updateHackathon,
+} from './hackathonsApi'
 
 vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
 
@@ -22,5 +27,55 @@ describe('getHackathons', () => {
       '/api/hackathons?upcoming=true&open=false',
       { signal: undefined },
     )
+  })
+
+  it('sends data for a new hackathon', () => {
+    const payload = {
+      name: 'Hackathon AI',
+      description: '',
+      start_date: '2026-09-10T08:00:00Z',
+      end_date: '2026-09-11T16:00:00Z',
+      registration_opens_at: '2026-08-20T08:00:00Z',
+      max_team_size: 4,
+    }
+
+    createHackathon(payload)
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    })
+  })
+
+  it('gets one hackathon for the settings page', () => {
+    const controller = new AbortController()
+
+    getHackathon('hackathon-id', controller.signal)
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id', {
+      signal: controller.signal,
+    })
+  })
+
+  it('updates hackathon settings', () => {
+    const payload = {
+      name: 'Updated Hackathon',
+      description: 'Updated description',
+      start_date: '2026-09-10T08:00:00Z',
+      end_date: '2026-09-11T16:00:00Z',
+      registration_opens_at: '2026-08-20T08:00:00Z',
+      registration_deadline: '2026-09-08T08:00:00Z',
+      capacity: null,
+      max_team_size: 4,
+    }
+
+    updateHackathon('hackathon-id', payload)
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    })
   })
 })

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHackathon } from '../api/hackathonsApi'
+import type { Hackathon } from '../types'
 import { CreateHackathonPage } from './CreateHackathonPage'
 
 vi.mock('../api/hackathonsApi', () => ({ createHackathon: vi.fn() }))
@@ -22,13 +23,26 @@ describe('CreateHackathonPage', () => {
     expect(createHackathon).not.toHaveBeenCalled()
   })
 
-  it('creates a hackathon and returns to the list', async () => {
-    vi.mocked(createHackathon).mockResolvedValue(undefined)
+  it('creates a hackathon and opens the question editor', async () => {
+    const createdHackathon: Hackathon = {
+      public_id: 'hackathon-id',
+      name: 'Hackathon AI',
+      start_date: '2026-09-10T08:00:00Z',
+      end_date: '2026-09-11T16:00:00Z',
+      registration_open: true,
+      capacity: null,
+      max_team_size: 4,
+      access_level: 'owner',
+    }
+    vi.mocked(createHackathon).mockResolvedValue(createdHackathon)
     render(
       <MemoryRouter initialEntries={['/hackathons/create']}>
         <Routes>
           <Route path="/hackathons/create" element={<CreateHackathonPage />} />
-          <Route path="/hackathons" element={<p>Lista hackathonów</p>} />
+          <Route
+            path="/hackathons/:hackathonPublicId/questions/create"
+            element={<p>Edytor pytań</p>}
+          />
         </Routes>
       </MemoryRouter>,
     )
@@ -45,7 +59,7 @@ describe('CreateHackathonPage', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Utwórz hackathon' }))
 
-    expect(await screen.findByText('Lista hackathonów')).toBeInTheDocument()
+    expect(await screen.findByText('Edytor pytań')).toBeInTheDocument()
     expect(createHackathon).toHaveBeenCalledWith({
       name: 'Hackathon AI',
       description: '',

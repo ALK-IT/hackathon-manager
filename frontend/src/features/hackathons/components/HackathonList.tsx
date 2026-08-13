@@ -5,7 +5,11 @@ import type { Hackathon, HackathonFilters as Filters } from '../types'
 import { HackathonFilters } from './HackathonFilters'
 import { HackathonListItem } from './HackathonListItem'
 
-export function HackathonList() {
+interface HackathonListProps {
+  isAdmin?: boolean
+}
+
+export function HackathonList({ isAdmin = false }: HackathonListProps) {
   const [hackathons, setHackathons] = useState<Hackathon[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,7 +65,11 @@ export function HackathonList() {
         {!isLoading && !error && hackathons.length > 0 && (
           <ul className="hackathon-list">
             {hackathons.map((hackathon) => (
-              <HackathonListItem key={hackathon.public_id} hackathon={hackathon} />
+              <HackathonListItem
+                key={hackathon.public_id}
+                hackathon={hackathon}
+                isAdmin={isAdmin}
+              />
             ))}
           </ul>
         )}

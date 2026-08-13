@@ -69,7 +69,7 @@ class HackathonService:
         data: HackathonUpdate,
         user: User,
     ) -> Hackathon:
-        hackathon = await self._get_owned_hackathon(public_id, user)
+        hackathon = await self._get_editable_hackathon(public_id, user)
         changes = data.model_dump(exclude_unset=True)
 
         start_date = changes.get("start_date", hackathon.start_date)
@@ -142,6 +142,21 @@ class HackathonService:
         hackathon = await self.repository.get_owned_by_public_id(public_id, user.id)
         if hackathon is None:
             raise HackathonNotFoundError
+        return hackathon
+
+    async def _get_editable_hackathon(self, public_id: uuid.UUID, user: User) -> Hackathon:
+        hackathon = await self.repository.get_active_by_public_id(public_id)
+        if hackathon is None:
+            raise HackathonNotFoundError
+
+        can_edit = (
+            user.role == UserRole.ADMIN
+            or hackathon.organizer_id == user.id
+            or any(co_organizer.id == user.id for co_organizer in hackathon.co_organizers)
+        )
+        if not can_edit:
+            raise HackathonNotFoundError
+
         return hackathon
 
     @staticmethod

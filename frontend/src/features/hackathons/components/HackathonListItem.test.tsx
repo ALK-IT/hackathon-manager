@@ -56,4 +56,51 @@ describe('HackathonListItem', () => {
     expect(screen.getByText('Rejestracja: zamknięta')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Zarejestruj się' })).not.toBeInTheDocument()
   })
+
+  it('allows the owner to open hackathon settings', () => {
+    function Location() {
+      return <output>{useLocation().pathname}</output>
+    }
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={{ ...hackathon, access_level: 'owner' }} />
+        <Location />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ustawienia' }))
+
+    expect(screen.getByText(`/hackathons/${hackathon.public_id}/settings`)).toBeInTheDocument()
+  })
+
+  it('does not show settings to a viewer', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={hackathon} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Ustawienia' })).not.toBeInTheDocument()
+  })
+
+  it('allows a co-organizer to open settings', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={{ ...hackathon, access_level: 'co_organizer' }} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Ustawienia' })).toBeInTheDocument()
+  })
+
+  it('allows an admin to open settings of another hackathon', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={hackathon} isAdmin />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Ustawienia' })).toBeInTheDocument()
+  })
 })

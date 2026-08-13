@@ -9,6 +9,21 @@ export interface Hackathon {
   access_level: 'owner' | 'co_organizer' | 'viewer'
 }
 
+export interface HackathonUserSummary {
+  public_id: string
+  name: string
+}
+
+export interface HackathonDetails extends Hackathon {
+  description: string
+  registration_opens_at: string
+  registration_deadline: string
+  organizer: HackathonUserSummary
+  co_organizers: HackathonUserSummary[]
+  created_at: string
+  updated_at: string
+}
+
 export interface HackathonFilters {
   upcoming?: boolean
   registrationOpen?: boolean
@@ -22,5 +37,16 @@ export interface CreateHackathonPayload {
   registration_opens_at: string
   registration_deadline?: string
   capacity?: number
+  max_team_size: number
+}
+
+export interface UpdateHackathonPayload {
+  name: string
+  description: string
+  start_date: string
+  end_date: string
+  registration_opens_at: string
+  registration_deadline: string
+  capacity: number | null
   max_team_size: number
 }

@@ -244,7 +244,7 @@ async def test_owner_can_update_hackathon(
     hackathon_factory: HackathonFactory,
 ):
     hackathon = hackathon_factory(organizer=admin_user)
-    repository.get_owned_by_public_id.return_value = hackathon
+    repository.get_active_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     result = await service.update_hackathon(
@@ -292,7 +292,7 @@ async def test_update_rejects_invalid_ranges(
     expected_exception,
 ):
     hackathon = hackathon_factory(organizer=admin_user)
-    repository.get_owned_by_public_id.return_value = hackathon
+    repository.get_active_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     with pytest.raises(expected_exception):
@@ -307,7 +307,7 @@ async def test_update_rejects_team_size_larger_than_existing_capacity(
     hackathon_factory: HackathonFactory,
 ):
     hackathon = hackathon_factory(organizer=admin_user)
-    repository.get_owned_by_public_id.return_value = hackathon
+    repository.get_active_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     with pytest.raises(InvalidTeamSizeError):
@@ -327,7 +327,7 @@ async def test_owner_without_admin_role_can_update_registration_window(
     hackathon.registration_open = False
     new_opens_at = NOW + timedelta(days=1)
     new_deadline = hackathon.start_date - timedelta(hours=24)
-    repository.get_owned_by_public_id.return_value = hackathon
+    repository.get_active_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     result = await service.update_hackathon(
@@ -342,14 +342,11 @@ async def test_owner_without_admin_role_can_update_registration_window(
     assert result.registration_opens_at == new_opens_at
     assert result.registration_deadline == new_deadline
     assert result.registration_open is True
-    repository.get_owned_by_public_id.assert_awaited_once_with(
-        hackathon.public_id,
-        regular_user.id,
-    )
+    repository.get_active_by_public_id.assert_awaited_once_with(hackathon.public_id)
     repository.commit.assert_awaited_once_with()
 
 
-async def test_co_organizer_cannot_distinguish_unowned_hackathon_from_missing_one(
+async def test_co_organizer_can_update_hackathon(
     repository: HackathonRepository,
     user_factory: UserFactory,
     hackathon_factory: HackathonFactory,
@@ -357,20 +354,59 @@ async def test_co_organizer_cannot_distinguish_unowned_hackathon_from_missing_on
     owner = user_factory(user_id=1, role=UserRole.ADMIN)
     co_organizer = user_factory(user_id=2)
     hackathon = hackathon_factory(organizer=owner, co_organizers=[co_organizer])
-    repository.get_owned_by_public_id.return_value = None
+    repository.get_active_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    result = await service.update_hackathon(
+        hackathon.public_id,
+        HackathonUpdate(name="Updated by co-organizer"),
+        co_organizer,
+    )
+
+    assert result.name == "Updated by co-organizer"
+    repository.get_active_by_public_id.assert_awaited_once_with(hackathon.public_id)
+    repository.commit.assert_awaited_once_with()
+
+
+async def test_admin_can_update_another_organizers_hackathon(
+    repository: HackathonRepository,
+    admin_user: User,
+    regular_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=regular_user)
+    repository.get_active_by_public_id.return_value = hackathon
+    service = HackathonService(repository)
+
+    result = await service.update_hackathon(
+        hackathon.public_id,
+        HackathonUpdate(name="Updated by admin"),
+        admin_user,
+    )
+
+    assert result.name == "Updated by admin"
+    repository.commit.assert_awaited_once_with()
+
+
+async def test_unrelated_user_cannot_update_hackathon(
+    repository: HackathonRepository,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
+    owner = user_factory(user_id=1, role=UserRole.ADMIN)
+    unrelated_user = user_factory(user_id=2)
+    hackathon = hackathon_factory(organizer=owner)
+    repository.get_active_by_public_id.return_value = hackathon
     service = HackathonService(repository)
 
     with pytest.raises(HackathonNotFoundError):
         await service.update_hackathon(
             hackathon.public_id,
             HackathonUpdate(name="Forbidden update"),
-            co_organizer,
+            unrelated_user,
         )
 
-    repository.get_owned_by_public_id.assert_awaited_once_with(
-        hackathon.public_id,
-        co_organizer.id,
-    )
+    repository.commit.assert_not_awaited()
 
 
 async def test_delete_requires_exact_confirmed_name(

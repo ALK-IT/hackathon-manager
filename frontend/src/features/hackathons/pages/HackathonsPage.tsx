@@ -39,7 +39,7 @@ export function HackathonsPage() {
           !isLoading && <Link to="/login">Zaloguj się</Link>
         )}
       </header>
-      <HackathonList />
+      <HackathonList isAdmin={user?.role === 'admin'} />
     </main>
   )
 }

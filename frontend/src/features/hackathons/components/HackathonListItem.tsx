@@ -4,9 +4,10 @@ import type { Hackathon } from '../types'
 
 interface HackathonListItemProps {
   hackathon: Hackathon
+  isAdmin?: boolean
 }
 
-export function HackathonListItem({ hackathon }: HackathonListItemProps) {
+export function HackathonListItem({ hackathon, isAdmin = false }: HackathonListItemProps) {
   const navigate = useNavigate()
 
   return (
@@ -25,6 +26,15 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
             onClick={() => navigate(`/hackathons/${hackathon.public_id}/register`)}
           >
             Zarejestruj się
+          </Button>
+        )}
+        {(isAdmin || hackathon.access_level !== 'viewer') && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => navigate(`/hackathons/${hackathon.public_id}/settings`)}
+          >
+            Ustawienia
           </Button>
         )}
       </Card>

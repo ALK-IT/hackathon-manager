@@ -8,6 +8,20 @@ export function getQuestionsErrorMessage(error: unknown): string {
   return 'Nie udało się pobrać formularza zgłoszeniowego. Spróbuj ponownie.'
 }
 
+export function getCreateQuestionsErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    return 'Nie udało się utworzyć pytań. Spróbuj ponownie.'
+  }
+
+  const messages: Record<string, string> = {
+    HACKATHON_NOT_FOUND: 'Ten hackathon nie istnieje lub został usunięty.',
+    REGISTRATION_PERMISSION_DENIED: 'Nie masz uprawnień do zarządzania pytaniami.',
+    VALIDATION_ERROR: 'Sprawdź poprawność pytań.',
+  }
+
+  return error.errorCode ? (messages[error.errorCode] ?? error.message) : error.message
+}
+
 export function getRegistrationErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) {
     return 'Nie udało się wysłać zgłoszenia. Spróbuj ponownie.'

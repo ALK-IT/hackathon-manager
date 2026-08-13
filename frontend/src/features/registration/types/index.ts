@@ -4,6 +4,15 @@ export interface RegistrationQuestion {
   is_required: boolean
 }
 
+export interface RegistrationQuestionCreate {
+  content: string
+  is_required: boolean
+}
+
+export interface RegistrationQuestionBulkPayload {
+  questions: RegistrationQuestionCreate[]
+}
+
 export type TeamSelection =
   | { action: 'create'; name: string }
   | { action: 'join'; join_code: string }

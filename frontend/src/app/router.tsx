@@ -1,7 +1,14 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage, RegisterPage } from '../features/auth'
-import { CreateHackathonPage, HackathonsPage } from '../features/hackathons'
-import { RegistrationEntryPage } from '../features/registration'
+import {
+  CreateHackathonPage,
+  EditHackathonPage,
+  HackathonsPage,
+} from '../features/hackathons'
+import {
+  RegistrationEntryPage,
+  RegistrationQuestionsCreatePage,
+} from '../features/registration'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { PublicOnlyRoute } from './routes/PublicOnlyRoute'
@@ -38,10 +45,28 @@ export function AppRouter() {
         }
       />
       <Route
+        path="/hackathons/:hackathonPublicId/settings"
+        element={
+          <ProtectedRoute>
+            <EditHackathonPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/hackathons/:hackathonPublicId/register"
         element={
           <ProtectedRoute>
             <RegistrationEntryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hackathons/:hackathonPublicId/questions/create"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <RegistrationQuestionsCreatePage />
+            </AdminRoute>
           </ProtectedRoute>
         }
       />
