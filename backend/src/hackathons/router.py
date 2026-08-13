@@ -7,6 +7,7 @@ from src.auth.dependencies import get_current_user, get_optional_current_user
 from src.auth.models import User
 from src.hackathons.dependencies import get_current_admin, get_hackathon_service
 from src.hackathons.schemas import (
+    CoOrganizerAddRequest,
     HackathonCreate,
     HackathonDeleteRequest,
     HackathonListItem,
@@ -88,6 +89,19 @@ async def delete_hackathon(
 ) -> Response:
     await service.delete_hackathon(public_id, data.confirm_name, current_user)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{public_id}/co-organizers", response_model=HackathonRead, status_code=status.HTTP_201_CREATED
+)
+async def add_co_organizer(
+    public_id: uuid.UUID,
+    data: CoOrganizerAddRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> HackathonRead:
+    hackathon = await service.add_co_organizer(public_id, data, current_user)
+    return HackathonRead.from_hackathon(hackathon, current_user.id)
 
 
 @router.post(
