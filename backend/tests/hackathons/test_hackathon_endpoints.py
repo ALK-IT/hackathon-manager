@@ -5,8 +5,11 @@ from httpx import AsyncClient
 
 from src.auth.models import User, UserRole
 from src.hackathons.exceptions import (
+    CoOrganizerAlreadyAssignedError,
+    CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
     InvalidConfirmNameError,
+    OrganizerCannotBeCoOrganizerError,
     RegistrationAlreadyOpenError,
     RegistrationDeadlinePassedError,
 )
@@ -301,6 +304,52 @@ async def test_delete_endpoint_passes_confirmed_name_and_returns_no_content(
     )
 
 
+async def test_add_co_organizer_endpoint_returns_updated_hackathon(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+    admin_user: User,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
+    co_organizer = user_factory(user_id=2)
+    hackathon = hackathon_factory(
+        organizer=admin_user,
+        co_organizers=[co_organizer],
+    )
+    mock_hackathon_service.add_co_organizer.return_value = hackathon
+
+    response = await hackathon_client.post(
+        f"/api/hackathons/{hackathon.public_id}/co-organizers",
+        json={"user_public_id": str(co_organizer.public_id)},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["co_organizers"] == [
+        {
+            "public_id": str(co_organizer.public_id),
+            "name": co_organizer.name,
+        }
+    ]
+    public_id, data, current_user = mock_hackathon_service.add_co_organizer.await_args.args
+    assert public_id == hackathon.public_id
+    assert data.user_public_id == co_organizer.public_id
+    assert current_user is admin_user
+
+
+async def test_add_co_organizer_endpoint_rejects_invalid_payload(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    response = await hackathon_client.post(
+        f"/api/hackathons/{uuid.uuid4()}/co-organizers",
+        json={"user_public_id": "not-a-uuid", "unexpected": True},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+    mock_hackathon_service.add_co_organizer.assert_not_awaited()
+
+
 async def test_registration_endpoints_return_current_state(
     hackathon_client: AsyncClient,
     mock_hackathon_service: HackathonService,
@@ -360,6 +409,10 @@ async def test_management_endpoints_require_access_token(
             f"/api/hackathons/{public_id}",
             json={"confirm_name": "Hackathon AI"},
         ),
+        await hackathon_client.post(
+            f"/api/hackathons/{public_id}/co-organizers",
+            json={"user_public_id": str(uuid.uuid4())},
+        ),
         await hackathon_client.post(f"/api/hackathons/{public_id}/open-registration"),
         await hackathon_client.post(f"/api/hackathons/{public_id}/close-registration"),
     ]
@@ -369,6 +422,7 @@ async def test_management_endpoints_require_access_token(
     mock_hackathon_service.create_hackathon.assert_not_awaited()
     mock_hackathon_service.update_hackathon.assert_not_awaited()
     mock_hackathon_service.delete_hackathon.assert_not_awaited()
+    mock_hackathon_service.add_co_organizer.assert_not_awaited()
     mock_hackathon_service.open_registration.assert_not_awaited()
     mock_hackathon_service.close_registration.assert_not_awaited()
 
@@ -419,6 +473,33 @@ async def test_domain_errors_have_stable_http_contract(
             {"confirm_name": "Wrong name"},
             400,
             "INVALID_CONFIRM_NAME",
+        ),
+        (
+            mock_hackathon_service.add_co_organizer,
+            CoOrganizerUserNotFoundError,
+            "POST",
+            f"/api/hackathons/{public_id}/co-organizers",
+            {"user_public_id": str(uuid.uuid4())},
+            404,
+            "CO_ORGANIZER_USER_NOT_FOUND",
+        ),
+        (
+            mock_hackathon_service.add_co_organizer,
+            CoOrganizerAlreadyAssignedError,
+            "POST",
+            f"/api/hackathons/{public_id}/co-organizers",
+            {"user_public_id": str(uuid.uuid4())},
+            409,
+            "CO_ORGANIZER_ALREADY_ASSIGNED",
+        ),
+        (
+            mock_hackathon_service.add_co_organizer,
+            OrganizerCannotBeCoOrganizerError,
+            "POST",
+            f"/api/hackathons/{public_id}/co-organizers",
+            {"user_public_id": str(uuid.uuid4())},
+            409,
+            "ORGANIZER_CANNOT_BE_CO_ORGANIZER",
         ),
         (
             mock_hackathon_service.open_registration,

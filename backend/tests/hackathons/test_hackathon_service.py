@@ -1,25 +1,30 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from unittest.mock import Mock
 
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.auth.models import User, UserRole
+from src.auth.repository import UserRepository
 from src.hackathons.exceptions import (
     AdminRequiredError,
+    CoOrganizerAlreadyAssignedError,
+    CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
     InvalidConfirmNameError,
     InvalidDateRangeError,
     InvalidRegistrationDeadlineError,
     InvalidRegistrationWindowError,
     InvalidTeamSizeError,
+    OrganizerCannotBeCoOrganizerError,
     RegistrationAlreadyClosedError,
     RegistrationAlreadyOpenError,
     RegistrationDeadlinePassedError,
 )
 from src.hackathons.repository import HackathonRepository
-from src.hackathons.schemas import HackathonCreate, HackathonUpdate
+from src.hackathons.schemas import CoOrganizerAddRequest, HackathonCreate, HackathonUpdate
 from src.hackathons.service import HackathonService
 from tests.hackathons.factories import NOW, HackathonFactory, UserFactory
 
@@ -49,6 +54,23 @@ def repository(mocker) -> HackathonRepository:
     repository.refresh_updated_at = mocker.AsyncMock()
     repository.rollback = mocker.AsyncMock()
     return repository
+
+
+@pytest.fixture
+def user_repository(mocker) -> UserRepository:
+    repository = mocker.Mock(spec=UserRepository)
+    repository.get_by_public_id = mocker.AsyncMock()
+    return repository
+
+
+def make_service(
+    repository: HackathonRepository,
+    user_repository: UserRepository | None = None,
+) -> HackathonService:
+    return HackathonService(
+        repository,
+        user_repository or Mock(spec=UserRepository),
+    )
 
 
 def test_create_schema_normalizes_text(create_data: HackathonCreate):
@@ -132,7 +154,7 @@ async def test_admin_can_create_hackathon(
     admin_user: User,
     create_data: HackathonCreate,
 ):
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     hackathon = await service.create_hackathon(create_data, admin_user)
 
@@ -150,7 +172,7 @@ async def test_regular_user_cannot_create_hackathon(
     regular_user: User,
     create_data: HackathonCreate,
 ):
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     with pytest.raises(AdminRequiredError):
         await service.create_hackathon(create_data, regular_user)
@@ -164,7 +186,7 @@ async def test_create_rolls_back_database_error(
     create_data: HackathonCreate,
 ):
     repository.commit.side_effect = SQLAlchemyError("database unavailable")
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     with pytest.raises(SQLAlchemyError):
         await service.create_hackathon(create_data, admin_user)
@@ -179,7 +201,7 @@ async def test_list_returns_all_active_repository_results(
 ):
     active = [hackathon_factory(organizer=regular_user)]
     repository.list_active.return_value = active
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     assert await service.list_hackathons() == active
     repository.list_active.assert_awaited_once_with(
@@ -189,7 +211,7 @@ async def test_list_returns_all_active_repository_results(
 
 
 async def test_list_passes_filters_to_repository(repository: HackathonRepository):
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     await service.list_hackathons(upcoming=True, registration_open=False)
 
@@ -206,7 +228,7 @@ async def test_list_managed_returns_users_owned_and_co_organized_hackathons(
 ):
     managed = [hackathon_factory(organizer=regular_user)]
     repository.list_managed_by_user.return_value = managed
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     assert await service.list_managed_hackathons(regular_user) == managed
     repository.list_managed_by_user.assert_awaited_once_with(regular_user.id)
@@ -219,7 +241,7 @@ async def test_get_returns_active_hackathon_to_any_user(
 ):
     hackathon = hackathon_factory(organizer=regular_user)
     repository.get_active_by_public_id.return_value = hackathon
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     result = await service.get_hackathon(hackathon.public_id)
 
@@ -232,7 +254,7 @@ async def test_get_returns_not_found_when_hackathon_is_not_active(
     regular_user: User,
 ):
     repository.get_active_by_public_id.return_value = None
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     with pytest.raises(HackathonNotFoundError):
         await service.get_hackathon(uuid.uuid4())
@@ -245,7 +267,7 @@ async def test_owner_can_update_hackathon(
 ):
     hackathon = hackathon_factory(organizer=admin_user)
     repository.get_owned_by_public_id.return_value = hackathon
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     result = await service.update_hackathon(
         hackathon.public_id,
@@ -293,7 +315,7 @@ async def test_update_rejects_invalid_ranges(
 ):
     hackathon = hackathon_factory(organizer=admin_user)
     repository.get_owned_by_public_id.return_value = hackathon
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     with pytest.raises(expected_exception):
         await service.update_hackathon(hackathon.public_id, update(hackathon), admin_user)
@@ -308,7 +330,7 @@ async def test_update_rejects_team_size_larger_than_existing_capacity(
 ):
     hackathon = hackathon_factory(organizer=admin_user)
     repository.get_owned_by_public_id.return_value = hackathon
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     with pytest.raises(InvalidTeamSizeError):
         await service.update_hackathon(
@@ -328,7 +350,7 @@ async def test_owner_without_admin_role_can_update_registration_window(
     new_opens_at = NOW + timedelta(days=1)
     new_deadline = hackathon.start_date - timedelta(hours=24)
     repository.get_owned_by_public_id.return_value = hackathon
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     result = await service.update_hackathon(
         hackathon.public_id,
@@ -358,7 +380,7 @@ async def test_co_organizer_cannot_distinguish_unowned_hackathon_from_missing_on
     co_organizer = user_factory(user_id=2)
     hackathon = hackathon_factory(organizer=owner, co_organizers=[co_organizer])
     repository.get_owned_by_public_id.return_value = None
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     with pytest.raises(HackathonNotFoundError):
         await service.update_hackathon(
@@ -380,7 +402,7 @@ async def test_delete_requires_exact_confirmed_name(
 ):
     hackathon = hackathon_factory(organizer=admin_user)
     repository.get_owned_by_public_id.return_value = hackathon
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     with pytest.raises(InvalidConfirmNameError):
         await service.delete_hackathon(hackathon.public_id, "hackathon ai", admin_user)
@@ -395,13 +417,153 @@ async def test_delete_marks_hackathon_as_deleted(
 ):
     hackathon = hackathon_factory(organizer=admin_user)
     repository.get_owned_by_public_id.return_value = hackathon
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     await service.delete_hackathon(hackathon.public_id, hackathon.name, admin_user)
 
     assert hackathon.is_deleted is True
     assert hackathon.deleted_at is not None
     repository.commit.assert_awaited_once_with()
+
+
+async def test_owner_can_add_co_organizer(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    admin_user: User,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
+    co_organizer = user_factory(user_id=2)
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_owned_by_public_id.return_value = hackathon
+    user_repository.get_by_public_id.return_value = co_organizer
+    service = make_service(repository, user_repository)
+    data = CoOrganizerAddRequest(user_public_id=co_organizer.public_id)
+
+    result = await service.add_co_organizer(hackathon.public_id, data, admin_user)
+
+    assert result is hackathon
+    assert hackathon.co_organizers == [co_organizer]
+    repository.get_owned_by_public_id.assert_awaited_once_with(
+        hackathon.public_id,
+        admin_user.id,
+    )
+    user_repository.get_by_public_id.assert_awaited_once_with(co_organizer.public_id)
+    repository.commit.assert_awaited_once_with()
+    repository.rollback.assert_not_awaited()
+
+
+async def test_add_co_organizer_hides_unowned_hackathon_before_user_lookup(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    regular_user: User,
+):
+    repository.get_owned_by_public_id.return_value = None
+    service = make_service(repository, user_repository)
+
+    with pytest.raises(HackathonNotFoundError):
+        await service.add_co_organizer(
+            uuid.uuid4(),
+            CoOrganizerAddRequest(user_public_id=uuid.uuid4()),
+            regular_user,
+        )
+
+    user_repository.get_by_public_id.assert_not_awaited()
+    repository.commit.assert_not_awaited()
+
+
+async def test_add_co_organizer_rejects_missing_user(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_owned_by_public_id.return_value = hackathon
+    user_repository.get_by_public_id.return_value = None
+    service = make_service(repository, user_repository)
+
+    with pytest.raises(CoOrganizerUserNotFoundError):
+        await service.add_co_organizer(
+            hackathon.public_id,
+            CoOrganizerAddRequest(user_public_id=uuid.uuid4()),
+            admin_user,
+        )
+
+    repository.commit.assert_not_awaited()
+
+
+async def test_add_co_organizer_rejects_owner(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+):
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_owned_by_public_id.return_value = hackathon
+    user_repository.get_by_public_id.return_value = admin_user
+    service = make_service(repository, user_repository)
+
+    with pytest.raises(OrganizerCannotBeCoOrganizerError):
+        await service.add_co_organizer(
+            hackathon.public_id,
+            CoOrganizerAddRequest(user_public_id=admin_user.public_id),
+            admin_user,
+        )
+
+    assert hackathon.co_organizers == []
+    repository.commit.assert_not_awaited()
+
+
+async def test_add_co_organizer_rejects_duplicate(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    admin_user: User,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
+    co_organizer = user_factory(user_id=2)
+    hackathon = hackathon_factory(
+        organizer=admin_user,
+        co_organizers=[co_organizer],
+    )
+    repository.get_owned_by_public_id.return_value = hackathon
+    user_repository.get_by_public_id.return_value = co_organizer
+    service = make_service(repository, user_repository)
+
+    with pytest.raises(CoOrganizerAlreadyAssignedError):
+        await service.add_co_organizer(
+            hackathon.public_id,
+            CoOrganizerAddRequest(user_public_id=co_organizer.public_id),
+            admin_user,
+        )
+
+    assert hackathon.co_organizers == [co_organizer]
+    repository.commit.assert_not_awaited()
+
+
+async def test_add_co_organizer_rolls_back_database_error(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    admin_user: User,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
+    co_organizer = user_factory(user_id=2)
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_owned_by_public_id.return_value = hackathon
+    user_repository.get_by_public_id.return_value = co_organizer
+    repository.commit.side_effect = SQLAlchemyError("database unavailable")
+    service = make_service(repository, user_repository)
+
+    with pytest.raises(SQLAlchemyError):
+        await service.add_co_organizer(
+            hackathon.public_id,
+            CoOrganizerAddRequest(user_public_id=co_organizer.public_id),
+            admin_user,
+        )
+
+    repository.rollback.assert_awaited_once_with()
 
 
 async def test_owner_can_open_and_close_registration(
@@ -411,7 +573,7 @@ async def test_owner_can_open_and_close_registration(
 ):
     hackathon = hackathon_factory(organizer=admin_user)
     repository.get_owned_by_public_id.return_value = hackathon
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     await service.open_registration(hackathon.public_id, admin_user)
     assert hackathon.registration_open is True
@@ -426,7 +588,7 @@ async def test_registration_rejects_repeated_state(
     admin_user: User,
     hackathon_factory: HackathonFactory,
 ):
-    service = HackathonService(repository)
+    service = make_service(repository)
     open_hackathon = hackathon_factory(organizer=admin_user, registration_open=True)
     open_hackathon.registration_opens_at = datetime.now(UTC) - timedelta(hours=1)
     repository.get_owned_by_public_id.return_value = open_hackathon
@@ -451,7 +613,7 @@ async def test_registration_cannot_be_opened_after_deadline(
         registration_deadline=datetime.now(UTC) - timedelta(seconds=1),
     )
     repository.get_owned_by_public_id.return_value = hackathon
-    service = HackathonService(repository)
+    service = make_service(repository)
 
     with pytest.raises(RegistrationDeadlinePassedError):
         await service.open_registration(hackathon.public_id, admin_user)
