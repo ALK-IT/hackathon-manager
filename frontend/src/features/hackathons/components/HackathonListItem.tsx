@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button, Card } from '../../../components/ui'
 import type { Hackathon } from '../types'
 
@@ -12,7 +12,9 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
   return (
     <li>
       <Card>
-        <h3>{hackathon.name}</h3>
+        <h3>
+          <Link to={`/hackathons/${hackathon.public_id}`}>{hackathon.name}</Link>
+        </h3>
         <p>
           {new Date(hackathon.start_date).toLocaleDateString('pl-PL')} –{' '}
           {new Date(hackathon.end_date).toLocaleDateString('pl-PL')}

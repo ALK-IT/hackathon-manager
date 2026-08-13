@@ -117,6 +117,30 @@ button:disabled {
   margin-bottom: 8px;
 }
 
+.details-back-link {
+  margin-bottom: 16px;
+}
+
+.hackathon-details-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.co-organizer-list {
+  padding-left: 20px;
+}
+
+.co-organizer-form {
+  display: grid;
+  max-width: 520px;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.co-organizer-form button {
+  justify-self: start;
+}
+
 @media (max-width: 560px) {
   .page-header {
     align-items: flex-start;

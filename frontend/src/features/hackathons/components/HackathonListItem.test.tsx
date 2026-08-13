@@ -25,6 +25,10 @@ describe('HackathonListItem', () => {
 
     expect(screen.getByRole('listitem')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Test Hackathon' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Test Hackathon' })).toHaveAttribute(
+      'href',
+      `/hackathons/${hackathon.public_id}`,
+    )
     expect(screen.getByText('Rejestracja: otwarta')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Zarejestruj się' })).toBeInTheDocument()
   })

@@ -1,3 +1,11 @@
 export { CreateHackathonPage } from './pages/CreateHackathonPage'
+export { HackathonDetailsPage } from './pages/HackathonDetailsPage'
 export { HackathonsPage } from './pages/HackathonsPage'
-export type { CreateHackathonPayload, Hackathon, HackathonFilters } from './types'
+export type {
+  AddCoOrganizerPayload,
+  CreateHackathonPayload,
+  Hackathon,
+  HackathonDetails,
+  HackathonFilters,
+  UserSummary,
+} from './types'

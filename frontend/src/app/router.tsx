@@ -1,6 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage, RegisterPage } from '../features/auth'
-import { CreateHackathonPage, HackathonsPage } from '../features/hackathons'
+import {
+  CreateHackathonPage,
+  HackathonDetailsPage,
+  HackathonsPage,
+} from '../features/hackathons'
 import { RegistrationEntryPage } from '../features/registration'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
@@ -37,6 +41,7 @@ export function AppRouter() {
           </ProtectedRoute>
         }
       />
+      <Route path="/hackathons/:hackathonPublicId" element={<HackathonDetailsPage />} />
       <Route
         path="/hackathons/:hackathonPublicId/register"
         element={
