@@ -2,7 +2,7 @@
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-03
-**Autor:** Codex
+**Autor:** Mateusz Guzowski
 
 ## Kontekst / Problem
 

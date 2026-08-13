@@ -287,3 +287,32 @@ async def test_update_status_registration_rejected(session: AsyncSession, organi
     registration = await repository.update_status(registration, new_status)
 
     assert registration.status == RegistrationStatus.REJECTED
+
+
+async def test_create_many_questions(session: AsyncSession, organizer: User):
+    hackathon = make_hackathon(organizer)
+    questions = [
+        RegistrationQuestion(
+            content="Why?",
+            is_required=True,
+            hackathon=hackathon,
+        ),
+        RegistrationQuestion(
+            content="What?",
+            is_required=True,
+            hackathon=hackathon,
+        ),
+    ]
+    repository = RegistrationQuestionRepository(session)
+
+    result = await repository.create_many(questions)
+
+    assert result == questions
+    saved_questions = list(
+        await session.scalars(
+            select(RegistrationQuestion)
+            .where(RegistrationQuestion.hackathon_id == hackathon.id)
+            .order_by(RegistrationQuestion.id)
+        )
+    )
+    assert saved_questions == questions

@@ -89,6 +89,7 @@ def test_registration_routes_are_registered():
 
     assert {
         "/api/hackathons/{hackathon_public_id}/questions",
+        "/api/hackathons/{hackathon_public_id}/questions/bulk",
         "/api/hackathons/{hackathon_public_id}/questions/{question_public_id}",
         "/api/hackathons/{hackathon_public_id}/registrations",
         "/api/hackathons/{hackathon_public_id}/registrations/me",
@@ -131,6 +132,50 @@ async def test_admin_creates_question(
     )
     assert question is not None
     assert question.hackathon_id == hackathon.id
+
+
+async def test_admin_creates_many_questions(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(
+        session,
+        "admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    hackathon = await create_hackathon(session, admin)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/questions/bulk",
+        json={
+            "questions": [
+                {"content": "Why do you want to participate?", "is_required": True},
+                {"content": "What is your experience?", "is_required": False},
+            ]
+        },
+    )
+
+    assert response.status_code == 201
+    assert [question["content"] for question in response.json()] == [
+        "Why do you want to participate?",
+        "What is your experience?",
+    ]
+    assert [question["is_required"] for question in response.json()] == [True, False]
+
+    saved_questions = list(
+        await session.scalars(
+            select(RegistrationQuestion)
+            .where(RegistrationQuestion.hackathon_id == hackathon.id)
+            .order_by(RegistrationQuestion.id)
+        )
+    )
+    assert [question.content for question in saved_questions] == [
+        "Why do you want to participate?",
+        "What is your experience?",
+    ]
 
 
 @pytest.mark.parametrize("access_kind", ["organizer", "co_organizer"])
