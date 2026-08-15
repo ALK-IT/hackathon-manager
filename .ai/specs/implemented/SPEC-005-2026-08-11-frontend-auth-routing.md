@@ -1,4 +1,4 @@
-# SPEC-004: Frontend uwierzytelniania i routing
+# SPEC-005: Frontend uwierzytelniania i routing
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-11
@@ -6,7 +6,7 @@
 
 ## Kontekst / Problem
 
-Frontend nie miał klienta API obsługującego sesję użytkownika, formularzy logowania i rejestracji ani routingu rozróżniającego strony publiczne i chronione. Lista hackathonów była połączona bezpośrednio z głównym komponentem aplikacji i nie zapewniała spójnej obsługi sesji.
+Frontend nie miał klienta API obsługującego sesję użytkownika, formularzy logowania i rejestracji ani routingu rozróżniającego publiczny katalog od stron dostępnych wyłącznie dla niezalogowanych użytkowników. Lista hackathonów była połączona bezpośrednio z głównym komponentem aplikacji i nie zapewniała spójnej obsługi sesji.
 
 Potrzebna jest funkcjonalna, testowalna warstwa frontendu korzystająca z backendowego auth opisanego w `SPEC-003`. Zakres obejmuje prosty układ stron; docelowy design zostanie przygotowany osobno.
 
@@ -29,7 +29,7 @@ Potrzebna jest funkcjonalna, testowalna warstwa frontendu korzystająca z backen
   - współdzieli jedno trwające żądanie refresh między równoległymi żądaniami.
 - Access token jest przechowywany wyłącznie w pamięci aplikacji. Refresh token pozostaje w cookie `HttpOnly` zarządzanym przez backend i nie jest dostępny dla JavaScript.
 - `AuthProvider` odtwarza sesję przy starcie aplikacji przez `/api/auth/refresh` oraz `/api/auth/me`, a hook `useAuth` udostępnia użytkownika, stan ładowania i operacje `login`, `register`, `logout`.
-- Routing przez `react-router-dom` obejmuje publiczne `/login` i `/register`, chronione `/hackathons` oraz przekierowania z `/` i nieznanych ścieżek.
+- Routing przez `react-router-dom` udostępnia publiczną listę hackathonów pod `/` i `/hackathons`, strony `/login` i `/register` dostępne wyłącznie dla niezalogowanych oraz przekierowanie nieznanych ścieżek do `/`.
 - Formularze logowania i rejestracji mają walidację klienta, stan wysyłania oraz mapowanie błędów API na komunikaty.
 - Lista hackathonów używa osobnego `HackathonListItem` i zachowuje kontrakt API z `main`: `id` oraz `name`.
 - Interfejs wykorzystuje proste komponenty `Alert`, `Button`, `Card` i `Spinner`, bez tworzenia docelowego designu.
@@ -54,7 +54,7 @@ Frontend nie odczytuje refresh tokena i nie zapisuje tokenów w `localStorage` a
 - Kontekst uwierzytelniania, `AuthProvider` i hook `useAuth`.
 - Odtwarzanie sesji z refresh cookie po przeładowaniu strony.
 - Formularze logowania i rejestracji z walidacją klienta.
-- Routing i zabezpieczenia tras.
+- Routing publicznego katalogu oraz zabezpieczenie stron logowania i rejestracji przed otwarciem przez zalogowanego użytkownika.
 - Podział listy hackathonów na stronę, listę i pojedynczy element.
 - Stany ładowania, pustej listy i błędu z możliwością ponowienia.
 - Testy klienta API, auth, routingu i listy hackathonów.
@@ -84,7 +84,7 @@ Frontend nie odczytuje refresh tokena i nie zapisuje tokenów w `localStorage` a
 - Użytkownik może się zalogować i przejść do `/hackathons`.
 - Niepoprawne dane formularzy są odrzucane przed wysłaniem żądania.
 - Błędy backendu z `error_code` są mapowane na komunikaty.
-- Niezalogowany użytkownik nie może otworzyć `/hackathons`.
+- Niezalogowany użytkownik może otworzyć publiczną listę hackathonów pod `/` oraz `/hackathons` i widzi link do logowania.
 - Zalogowany użytkownik nie może otworzyć `/login` ani `/register`.
 - Po przeładowaniu strony sesja jest odtwarzana z refresh cookie bez użycia Web Storage.
 - Po `401` klient wykonuje najwyżej jeden refresh i jeden retry pierwotnego żądania.
@@ -101,8 +101,10 @@ Frontend nie odczytuje refresh tokena i nie zapisuje tokenów w `localStorage` a
 - **Zewnętrzna biblioteka stanu** — odrzucona; React Context wystarcza dla tego zakresu.
 - **Bind mount frontendu w bazowym Compose używanym przez CI** — odrzucony, ponieważ Docker może utworzyć hostowy `node_modules` z właścicielem `root`.
 - **Docelowy design w tej zmianie** — odłożony; obecne komponenty zapewniają tylko podstawowy układ i stany.
+- **Chronienie listy hackathonów logowaniem** — odrzucone, ponieważ katalog i endpoint `GET /api/hackathons` są publiczne.
 
 ## Changelog
 
 - 2026-08-11 — utworzono spec po implementacji klienta API, auth providera, formularzy, routingu, listy hackathonów i testów.
 - 2026-08-11 — zachowano Node 20, przypięto kompatybilne zależności oraz rozdzielono Compose lokalny od CI.
+- 2026-08-15 — doprecyzowano publiczny dostęp do listy hackathonów pod `/` i `/hackathons`.

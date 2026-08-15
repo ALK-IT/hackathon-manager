@@ -16,19 +16,22 @@ const anonymousAuth: AuthContextValue = {
 }
 
 describe('App', () => {
-  it('shows the public hackathon list and login link to an anonymous user', async () => {
-    vi.mocked(getHackathons).mockResolvedValue([])
+  it.each(['/', '/hackathons'])(
+    'shows the public hackathon list and login link at %s',
+    async (path) => {
+      vi.mocked(getHackathons).mockResolvedValue([])
 
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <AuthContext.Provider value={anonymousAuth}>
-          <App />
-        </AuthContext.Provider>
-      </MemoryRouter>,
-    )
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <AuthContext.Provider value={anonymousAuth}>
+            <App />
+          </AuthContext.Provider>
+        </MemoryRouter>,
+      )
 
-    expect(screen.getByRole('heading', { name: 'Hackathony' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Zaloguj się' })).toHaveAttribute('href', '/login')
-    expect(await screen.findByText('Brak hackathonów do wyświetlenia.')).toBeInTheDocument()
-  })
+      expect(screen.getByRole('heading', { name: 'Hackathony' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Zaloguj się' })).toHaveAttribute('href', '/login')
+      expect(await screen.findByText('Brak hackathonów do wyświetlenia.')).toBeInTheDocument()
+    },
+  )
 })
