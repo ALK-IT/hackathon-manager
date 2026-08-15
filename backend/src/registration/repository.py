@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -90,6 +91,7 @@ class RegistrationRepository:
             .options(
                 selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
                 selectinload(Registration.user),
+                selectinload(Registration.status_changed_by),
                 selectinload(Registration.answers).selectinload(RegistrationAnswer.question),
             )
             .order_by(Registration.id)
@@ -115,6 +117,7 @@ class RegistrationRepository:
             .options(
                 selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
                 selectinload(Registration.user),
+                selectinload(Registration.status_changed_by),
                 selectinload(Registration.answers).selectinload(RegistrationAnswer.question),
             )
         )
@@ -132,7 +135,10 @@ class RegistrationRepository:
                 Registration.public_id == registration_public_id,
                 Hackathon.is_deleted.is_(False),
             )
-            .options(selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers))
+            .options(
+                selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
+                selectinload(Registration.status_changed_by),
+            )
         )
 
         return result.scalar_one_or_none()
@@ -141,8 +147,11 @@ class RegistrationRepository:
         self,
         registration: Registration,
         new_status: RegistrationStatus,
+        changed_by: User,
     ) -> Registration:
         registration.status = new_status
+        registration.status_changed_at = datetime.now(UTC)
+        registration.status_changed_by = changed_by
         await self.session.flush()
         return registration
 

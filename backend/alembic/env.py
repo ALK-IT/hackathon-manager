@@ -14,6 +14,11 @@ from src.auth.models import User  # noqa: F401
 from src.database import normalize_database_url
 from src.hackathons.models import Hackathon  # noqa: F401
 from src.models import Base
+from src.registration.models import (  # noqa: F401
+    Registration,
+    RegistrationAnswer,
+    RegistrationQuestion,
+)
 
 config = context.config
 

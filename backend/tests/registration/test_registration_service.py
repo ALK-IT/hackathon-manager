@@ -790,7 +790,7 @@ async def test_authorized_user_can_update_status(
     )
     registration_repository.get_active_by_public_id.return_value = registration
     registration_repository.update_status.side_effect = (
-        lambda item, status: setattr(item, "status", status) or item
+        lambda item, status, _changed_by: setattr(item, "status", status) or item
     )
 
     result = await registration_service.update_status(
@@ -803,6 +803,7 @@ async def test_authorized_user_can_update_status(
     registration_repository.update_status.assert_awaited_once_with(
         registration,
         RegistrationStatus.ACCEPTED,
+        current_user,
     )
     registration_repository.commit.assert_awaited_once_with()
     registration_repository.rollback.assert_not_awaited()

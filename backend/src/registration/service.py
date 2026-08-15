@@ -289,6 +289,7 @@ class RegistrationService:
             registration = await self.registration_repository.update_status(
                 registration,
                 new_status,
+                current_user,
             )
             await self.registration_repository.commit()
             return registration

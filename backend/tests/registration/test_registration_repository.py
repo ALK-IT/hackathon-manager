@@ -309,9 +309,11 @@ async def test_update_status_registration_accepted(session: AsyncSession, organi
 
     new_status = RegistrationStatus.ACCEPTED
 
-    registration = await repository.update_status(registration, new_status)
+    registration = await repository.update_status(registration, new_status, organizer)
 
     assert registration.status == RegistrationStatus.ACCEPTED
+    assert registration.status_changed_at is not None
+    assert registration.status_changed_by is organizer
 
 
 async def test_update_status_registration_rejected(session: AsyncSession, organizer: User):
@@ -326,9 +328,11 @@ async def test_update_status_registration_rejected(session: AsyncSession, organi
 
     new_status = RegistrationStatus.REJECTED
 
-    registration = await repository.update_status(registration, new_status)
+    registration = await repository.update_status(registration, new_status, organizer)
 
     assert registration.status == RegistrationStatus.REJECTED
+    assert registration.status_changed_at is not None
+    assert registration.status_changed_by is organizer
 
 
 async def test_create_many_questions(session: AsyncSession, organizer: User):

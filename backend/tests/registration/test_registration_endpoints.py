@@ -612,6 +612,8 @@ async def test_authorized_user_lists_registrations_with_answers(
         {
             "public_id": str(registration.public_id),
             "status": "pending",
+            "status_changed_at": None,
+            "status_changed_by": None,
             "user": {
                 "public_id": str(participant.public_id),
                 "name": participant.name,
@@ -658,9 +660,7 @@ async def test_list_registrations_applies_limit_and_offset(
     )
 
     assert response.status_code == 200
-    assert [item["public_id"] for item in response.json()] == [
-        str(registrations[1].public_id)
-    ]
+    assert [item["public_id"] for item in response.json()] == [str(registrations[1].public_id)]
 
 
 @pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}])
@@ -725,6 +725,8 @@ async def test_participant_gets_own_registration_with_answers(
     assert response.json() == {
         "public_id": str(registration.public_id),
         "status": "pending",
+        "status_changed_at": None,
+        "status_changed_by": None,
         "user": {
             "public_id": str(participant.public_id),
             "name": participant.name,
@@ -797,12 +799,57 @@ async def test_authorized_user_updates_registration_status(
     )
 
     assert response.status_code == 200
-    assert response.json() == {
-        "public_id": str(registration.public_id),
-        "status": new_status.value,
+    body = response.json()
+    assert body["public_id"] == str(registration.public_id)
+    assert body["status"] == new_status.value
+    assert datetime.fromisoformat(body["status_changed_at"]).tzinfo is not None
+    assert body["status_changed_by"] == {
+        "public_id": str(current_user.public_id),
+        "name": current_user.name,
     }
     await session.refresh(registration)
     assert registration.status is new_status
+    assert registration.status_changed_at is not None
+    assert registration.status_changed_by_id == current_user.id
+
+
+async def test_status_audit_tracks_the_most_recent_change(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    co_organizer = await create_user(session, "co-organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    hackathon.co_organizers.append(co_organizer)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.commit()
+
+    force_authenticate(organizer)
+    first_response = await api_client.patch(
+        f"/api/registrations/{registration.public_id}/status",
+        json={"status": "accepted"},
+    )
+    first_changed_at = datetime.fromisoformat(first_response.json()["status_changed_at"])
+
+    force_authenticate(co_organizer)
+    second_response = await api_client.patch(
+        f"/api/registrations/{registration.public_id}/status",
+        json={"status": "rejected"},
+    )
+
+    assert second_response.status_code == 200
+    body = second_response.json()
+    assert body["status"] == "rejected"
+    assert datetime.fromisoformat(body["status_changed_at"]) >= first_changed_at
+    assert body["status_changed_by"] == {
+        "public_id": str(co_organizer.public_id),
+        "name": co_organizer.name,
+    }
+    await session.refresh(registration)
+    assert registration.status_changed_by_id == co_organizer.id
 
 
 async def test_regular_user_cannot_update_registration_status(
