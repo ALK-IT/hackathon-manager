@@ -79,6 +79,7 @@ class Registration(Base):
     answers: Mapped[list["RegistrationAnswer"]] = relationship(
         back_populates="registration",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
