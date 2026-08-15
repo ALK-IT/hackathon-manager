@@ -1,6 +1,7 @@
 import type { InputHTMLAttributes } from 'react'
 
 interface FormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+  id: string
   label: string
   error?: string
 }
