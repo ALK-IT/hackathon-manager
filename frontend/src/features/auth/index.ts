@@ -1,5 +1,6 @@
 export { LoginPage } from './pages/LoginPage'
 export { RegisterPage } from './pages/RegisterPage'
+export { AuthControls } from './components/AuthControls'
 export { AuthContext, type AuthContextValue } from './context/AuthContext'
 export { AuthProvider } from './context/AuthProvider'
 export { useAuth } from './hooks/useAuth'
