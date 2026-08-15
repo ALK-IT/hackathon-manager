@@ -18,7 +18,7 @@ def get_registration_question_service(
 
 def get_registration_service(
     session: AsyncSession = Depends(get_session),
-) -> RegistrationRepository:
+) -> RegistrationService:
     return RegistrationService(
         RegistrationRepository(session),
         RegistrationQuestionRepository(session),
