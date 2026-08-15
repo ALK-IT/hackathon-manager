@@ -47,6 +47,7 @@ async def list_questions(
 @router.post(
     "/hackathons/{hackathon_public_id}/questions",
     status_code=status.HTTP_201_CREATED,
+    response_model=RegistrationQuestionResponse,
 )
 async def create_question(
     hackathon_public_id: uuid.UUID,
@@ -56,7 +57,7 @@ async def create_question(
         RegistrationQuestionService,
         Depends(get_registration_question_service),
     ],
-):
+) -> RegistrationQuestionResponse:
     return await service.create_question(
         hackathon_public_id=hackathon_public_id,
         data=data,

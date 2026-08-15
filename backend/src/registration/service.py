@@ -240,7 +240,9 @@ class RegistrationService:
         registration_public_id: uuid.UUID,
         current_user: User,
     ) -> None:
-        registration = await self.registration_repository.get_by_public_id(registration_public_id)
+        registration = await self.registration_repository.get_active_by_public_id(
+            registration_public_id
+        )
 
         if registration is None:
             raise RegistrationNotFoundError()
@@ -265,7 +267,9 @@ class RegistrationService:
         new_status: RegistrationStatus,
         current_user: User,
     ) -> Registration:
-        registration = await self.registration_repository.get_by_public_id(registration_public_id)
+        registration = await self.registration_repository.get_active_by_public_id(
+            registration_public_id
+        )
 
         if registration is None:
             raise RegistrationNotFoundError()

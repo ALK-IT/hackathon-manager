@@ -120,6 +120,7 @@ async def test_admin_creates_question(
 
     assert response.status_code == 201
     body = response.json()
+    assert set(body) == {"public_id", "content", "is_required"}
     assert body["content"] == "Why do you want to participate?"
     assert body["is_required"] is True
 
@@ -530,6 +531,41 @@ async def test_delete_missing_registration_returns_not_found(
 
     assert response.status_code == 404
     assert response.json()["error_code"] == "REGISTRATION_NOT_FOUND"
+
+
+@pytest.mark.parametrize("operation", ["delete", "update-status"])
+async def test_deleted_hackathon_blocks_registration_changes(
+    operation: str,
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.flush()
+    registration_public_id = registration.public_id
+    hackathon.is_deleted = True
+    await session.commit()
+    force_authenticate(organizer)
+
+    if operation == "delete":
+        response = await api_client.delete(f"/api/registrations/{registration_public_id}")
+    else:
+        response = await api_client.patch(
+            f"/api/registrations/{registration_public_id}/status",
+            json={"status": "accepted"},
+        )
+
+    assert response.status_code == 404
+    assert response.json()["error_code"] == "REGISTRATION_NOT_FOUND"
+    saved_registration = await session.scalar(
+        select(Registration).where(Registration.public_id == registration_public_id)
+    )
+    assert saved_registration is not None
+    assert saved_registration.status is RegistrationStatus.PENDING
 
 
 async def test_registration_endpoint_requires_authentication(

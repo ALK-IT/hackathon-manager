@@ -202,23 +202,30 @@ async def test_get_registration_by_hackathon_and_user(
     assert missing_result is None
 
 
-async def test_get_registration_by_public_id(
+async def test_get_active_registration_by_public_id_excludes_deleted_hackathon(
     session: AsyncSession,
     organizer: User,
 ):
-    participant = make_user("participant@example.com")
+    hackathon = make_hackathon(organizer)
     registration = Registration(
-        user=participant,
-        hackathon=make_hackathon(organizer),
+        user=make_user("participant@example.com"),
+        hackathon=hackathon,
     )
     repository = RegistrationRepository(session)
     await repository.create(registration)
 
-    result = await repository.get_by_public_id(registration.public_id)
-    missing_result = await repository.get_by_public_id(uuid.uuid4())
+    assert await repository.get_active_by_public_id(registration.public_id) is registration
 
-    assert result is registration
-    assert missing_result is None
+    hackathon.is_deleted = True
+    await session.flush()
+
+    assert await repository.get_active_by_public_id(registration.public_id) is None
+    assert (
+        await session.scalar(
+            select(Registration).where(Registration.public_id == registration.public_id)
+        )
+        is registration
+    )
 
 
 async def test_delete_registration(
@@ -235,7 +242,10 @@ async def test_delete_registration(
 
     await repository.delete(registration)
 
-    assert await repository.get_by_public_id(public_id) is None
+    assert (
+        await session.scalar(select(Registration).where(Registration.public_id == public_id))
+        is None
+    )
 
 
 async def test_rollback_discards_registration(
@@ -252,7 +262,10 @@ async def test_rollback_discards_registration(
 
     await repository.rollback()
 
-    assert await repository.get_by_public_id(public_id) is None
+    assert (
+        await session.scalar(select(Registration).where(Registration.public_id == public_id))
+        is None
+    )
 
 
 async def test_update_status_registration_accepted(session: AsyncSession, organizer: User):
