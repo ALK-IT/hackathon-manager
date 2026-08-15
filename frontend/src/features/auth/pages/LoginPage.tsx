@@ -27,8 +27,7 @@ export function LoginPage() {
     setIsSubmitting(true)
     try {
       await login(email.trim().toLowerCase(), password)
-      const destination = (location.state as { from?: string } | null)?.from ?? '/hackathons'
-      navigate(destination, { replace: true })
+      navigate('/hackathons', { replace: true })
     } catch (error) {
       setSubmitError(getLoginErrorMessage(error))
     } finally {
