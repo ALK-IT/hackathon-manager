@@ -24,6 +24,18 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("name", sa.String(length=200), nullable=False),
     )
+    hackathons = sa.table(
+        "hackathons",
+        sa.column("name", sa.String),
+    )
+    op.bulk_insert(
+        hackathons,
+        [
+            {"name": "HackYeah 2026"},
+            {"name": "Poznan Hackathon"},
+            {"name": "ALK Student Hack"},
+        ],
+    )
 
 
 def downgrade() -> None:
