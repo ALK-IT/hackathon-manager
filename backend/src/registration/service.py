@@ -151,6 +151,8 @@ class RegistrationService:
         self,
         hackathon_public_id: uuid.UUID,
         current_user: User,
+        limit: int = 50,
+        offset: int = 0,
     ) -> list[Registration]:
         hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
 
@@ -160,7 +162,11 @@ class RegistrationService:
         if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
-        return await self.registration_repository.get_by_hackathon(hackathon_public_id)
+        return await self.registration_repository.get_by_hackathon(
+            hackathon_public_id,
+            limit=limit,
+            offset=offset,
+        )
 
     async def get_my_registration(
         self,

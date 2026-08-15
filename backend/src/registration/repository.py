@@ -80,6 +80,8 @@ class RegistrationRepository:
     async def get_by_hackathon(
         self,
         hackathon_public_id: uuid.UUID,
+        limit: int,
+        offset: int,
     ) -> list[Registration]:
         result = await self.session.execute(
             select(Registration)
@@ -91,6 +93,8 @@ class RegistrationRepository:
                 selectinload(Registration.answers).selectinload(RegistrationAnswer.question),
             )
             .order_by(Registration.id)
+            .limit(limit)
+            .offset(offset)
         )
 
         return list(result.scalars().all())

@@ -169,11 +169,40 @@ async def test_get_registrations_by_hackathon(
     session.add(other_hackathon)
     await session.flush()
 
-    result = await repository.get_by_hackathon(hackathon.public_id)
-    empty_result = await repository.get_by_hackathon(other_hackathon.public_id)
+    result = await repository.get_by_hackathon(hackathon.public_id, limit=50, offset=0)
+    empty_result = await repository.get_by_hackathon(
+        other_hackathon.public_id,
+        limit=50,
+        offset=0,
+    )
 
     assert result == [registration]
     assert empty_result == []
+
+
+async def test_get_registrations_by_hackathon_applies_limit_and_offset(
+    session: AsyncSession,
+    organizer: User,
+):
+    hackathon = make_hackathon(organizer)
+    registrations = [
+        Registration(
+            user=make_user(f"participant-{index}@example.com"),
+            hackathon=hackathon,
+        )
+        for index in range(3)
+    ]
+    repository = RegistrationRepository(session)
+    for registration in registrations:
+        await repository.create(registration)
+
+    result = await repository.get_by_hackathon(
+        hackathon.public_id,
+        limit=1,
+        offset=1,
+    )
+
+    assert result == [registrations[1]]
 
 
 async def test_get_registration_by_hackathon_and_user(

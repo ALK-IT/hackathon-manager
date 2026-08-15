@@ -471,10 +471,16 @@ async def test_authorized_user_can_list_registrations(
     result = await registration_service.list_registrations(
         hackathon_public_id,
         current_user,
+        limit=25,
+        offset=10,
     )
 
     assert result == registrations
-    registration_repository.get_by_hackathon.assert_awaited_once_with(hackathon_public_id)
+    registration_repository.get_by_hackathon.assert_awaited_once_with(
+        hackathon_public_id,
+        limit=25,
+        offset=10,
+    )
 
 
 async def test_get_my_registration_returns_current_users_registration(

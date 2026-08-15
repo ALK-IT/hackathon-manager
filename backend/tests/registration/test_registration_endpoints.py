@@ -631,6 +631,59 @@ async def test_authorized_user_lists_registrations_with_answers(
     ]
 
 
+async def test_list_registrations_applies_limit_and_offset(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    participants = [
+        await create_user(session, f"participant-{index}@example.com") for index in range(3)
+    ]
+    registrations = [
+        Registration(
+            user=participant,
+            hackathon=hackathon,
+        )
+        for participant in participants
+    ]
+    session.add_all(registrations)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.get(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        params={"limit": 1, "offset": 1},
+    )
+
+    assert response.status_code == 200
+    assert [item["public_id"] for item in response.json()] == [
+        str(registrations[1].public_id)
+    ]
+
+
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}])
+async def test_list_registrations_rejects_invalid_pagination(
+    params: dict[str, int],
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.get(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        params=params,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
 async def test_regular_user_cannot_list_hackathon_registrations(
     api_client: AsyncClient,
     session: AsyncSession,
