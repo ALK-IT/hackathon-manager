@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
@@ -47,6 +47,7 @@ async def list_questions(
 @router.post(
     "/hackathons/{hackathon_public_id}/questions",
     status_code=status.HTTP_201_CREATED,
+    response_model=RegistrationQuestionResponse,
 )
 async def create_question(
     hackathon_public_id: uuid.UUID,
@@ -56,7 +57,7 @@ async def create_question(
         RegistrationQuestionService,
         Depends(get_registration_question_service),
     ],
-):
+) -> RegistrationQuestionResponse:
     return await service.create_question(
         hackathon_public_id=hackathon_public_id,
         data=data,
@@ -117,10 +118,14 @@ async def list_registrations(
         RegistrationService,
         Depends(get_registration_service),
     ],
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[RegistrationDetailResponse]:
     return await service.list_registrations(
         hackathon_public_id=hackathon_public_id,
         current_user=current_user,
+        limit=limit,
+        offset=offset,
     )
 
 

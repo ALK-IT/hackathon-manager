@@ -169,11 +169,40 @@ async def test_get_registrations_by_hackathon(
     session.add(other_hackathon)
     await session.flush()
 
-    result = await repository.get_by_hackathon(hackathon.public_id)
-    empty_result = await repository.get_by_hackathon(other_hackathon.public_id)
+    result = await repository.get_by_hackathon(hackathon.public_id, limit=50, offset=0)
+    empty_result = await repository.get_by_hackathon(
+        other_hackathon.public_id,
+        limit=50,
+        offset=0,
+    )
 
     assert result == [registration]
     assert empty_result == []
+
+
+async def test_get_registrations_by_hackathon_applies_limit_and_offset(
+    session: AsyncSession,
+    organizer: User,
+):
+    hackathon = make_hackathon(organizer)
+    registrations = [
+        Registration(
+            user=make_user(f"participant-{index}@example.com"),
+            hackathon=hackathon,
+        )
+        for index in range(3)
+    ]
+    repository = RegistrationRepository(session)
+    for registration in registrations:
+        await repository.create(registration)
+
+    result = await repository.get_by_hackathon(
+        hackathon.public_id,
+        limit=1,
+        offset=1,
+    )
+
+    assert result == [registrations[1]]
 
 
 async def test_get_registration_by_hackathon_and_user(
@@ -202,23 +231,30 @@ async def test_get_registration_by_hackathon_and_user(
     assert missing_result is None
 
 
-async def test_get_registration_by_public_id(
+async def test_get_active_registration_by_public_id_excludes_deleted_hackathon(
     session: AsyncSession,
     organizer: User,
 ):
-    participant = make_user("participant@example.com")
+    hackathon = make_hackathon(organizer)
     registration = Registration(
-        user=participant,
-        hackathon=make_hackathon(organizer),
+        user=make_user("participant@example.com"),
+        hackathon=hackathon,
     )
     repository = RegistrationRepository(session)
     await repository.create(registration)
 
-    result = await repository.get_by_public_id(registration.public_id)
-    missing_result = await repository.get_by_public_id(uuid.uuid4())
+    assert await repository.get_active_by_public_id(registration.public_id) is registration
 
-    assert result is registration
-    assert missing_result is None
+    hackathon.is_deleted = True
+    await session.flush()
+
+    assert await repository.get_active_by_public_id(registration.public_id) is None
+    assert (
+        await session.scalar(
+            select(Registration).where(Registration.public_id == registration.public_id)
+        )
+        is registration
+    )
 
 
 async def test_delete_registration(
@@ -235,7 +271,10 @@ async def test_delete_registration(
 
     await repository.delete(registration)
 
-    assert await repository.get_by_public_id(public_id) is None
+    assert (
+        await session.scalar(select(Registration).where(Registration.public_id == public_id))
+        is None
+    )
 
 
 async def test_rollback_discards_registration(
@@ -252,7 +291,10 @@ async def test_rollback_discards_registration(
 
     await repository.rollback()
 
-    assert await repository.get_by_public_id(public_id) is None
+    assert (
+        await session.scalar(select(Registration).where(Registration.public_id == public_id))
+        is None
+    )
 
 
 async def test_update_status_registration_accepted(session: AsyncSession, organizer: User):
@@ -267,9 +309,11 @@ async def test_update_status_registration_accepted(session: AsyncSession, organi
 
     new_status = RegistrationStatus.ACCEPTED
 
-    registration = await repository.update_status(registration, new_status)
+    registration = await repository.update_status(registration, new_status, organizer)
 
     assert registration.status == RegistrationStatus.ACCEPTED
+    assert registration.status_changed_at is not None
+    assert registration.status_changed_by is organizer
 
 
 async def test_update_status_registration_rejected(session: AsyncSession, organizer: User):
@@ -284,9 +328,11 @@ async def test_update_status_registration_rejected(session: AsyncSession, organi
 
     new_status = RegistrationStatus.REJECTED
 
-    registration = await repository.update_status(registration, new_status)
+    registration = await repository.update_status(registration, new_status, organizer)
 
     assert registration.status == RegistrationStatus.REJECTED
+    assert registration.status_changed_at is not None
+    assert registration.status_changed_by is organizer
 
 
 async def test_create_many_questions(session: AsyncSession, organizer: User):
