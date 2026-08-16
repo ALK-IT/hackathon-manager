@@ -1,7 +1,7 @@
 """create registration
 
-Revision ID: ba71ee509cd7
-Revises: 0004
+Revision ID: 0007
+Revises: 0006
 Create Date: 2026-08-05 05:23:49.271603
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "ba71ee509cd7"
-down_revision: str | None = "0004"
+revision: str = "0007"
+down_revision: str | None = "0006"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
