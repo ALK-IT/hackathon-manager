@@ -140,9 +140,7 @@ async def test_get_question_by_public_id_returns_none_for_deleted_hackathon(
     assert result is None
     assert (
         await session.scalar(
-            select(RegistrationQuestion).where(
-                RegistrationQuestion.public_id == question_public_id
-            )
+            select(RegistrationQuestion).where(RegistrationQuestion.public_id == question_public_id)
         )
         is question
     )
