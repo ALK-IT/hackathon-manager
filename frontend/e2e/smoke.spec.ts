@@ -17,12 +17,12 @@ test('uzytkownik moze sie zalogowac', async ({ page, request }) => {
   await page.getByLabel('Hasło').fill(password)
   await page.getByRole('button', { name: 'Zaloguj się' }).click()
 
-  await expect(page).toHaveURL(/\/hackathons$/)
+  await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText(`Zalogowano jako: ${email}`)).toBeVisible()
 
   await page.reload()
 
-  await expect(page).toHaveURL(/\/hackathons$/)
+  await expect(page).toHaveURL(/\/$/)
   await expect(page.getByText(`Zalogowano jako: ${email}`)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Wyloguj się' })).toBeVisible()
 })
