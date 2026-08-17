@@ -285,6 +285,23 @@ async def test_get_active_registration_by_public_id_excludes_deleted_hackathon(
     )
 
 
+async def test_get_registration_by_public_id_hides_soft_deleted_hackathon(
+    session: AsyncSession,
+    organizer: User,
+):
+    participant = make_user("participant@example.com")
+    hackathon = make_hackathon(organizer)
+    registration = Registration(user=participant, hackathon=hackathon)
+    repository = RegistrationRepository(session)
+    await repository.create(registration)
+    hackathon.is_deleted = True
+    await session.flush()
+
+    result = await repository.get_active_by_public_id(registration.public_id)
+
+    assert result is None
+
+
 async def test_delete_registration(
     session: AsyncSession,
     organizer: User,

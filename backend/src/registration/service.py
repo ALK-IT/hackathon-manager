@@ -273,8 +273,11 @@ class RegistrationService:
         if not (_can_manage_hackathon(hackathon, current_user) or is_owner):
             raise InvalidPermission()
 
+        team_id = registration.team_id
         try:
             await self.registration_repository.delete(registration)
+            if team_id is not None:
+                await self.team_service.delete_if_empty(team_id)
             await self.registration_repository.commit()
         except Exception:
             await self.registration_repository.rollback()
@@ -299,6 +302,15 @@ class RegistrationService:
             raise InvalidPermission()
 
         try:
+            if (
+                registration.team_id is not None
+                and registration.status is RegistrationStatus.REJECTED
+                and new_status is RegistrationStatus.ACCEPTED
+            ):
+                await self.team_service.ensure_member_can_be_activated(
+                    registration.team_id,
+                    hackathon.max_team_size,
+                )
             registration = await self.registration_repository.update_status(
                 registration,
                 new_status,

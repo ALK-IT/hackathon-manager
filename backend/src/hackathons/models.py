@@ -95,6 +95,7 @@ class Hackathon(Base):
     registration_open: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_team_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    teams_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
@@ -57,7 +57,7 @@ class HackathonService:
         try:
             await self.hackathon_repository.add(hackathon)
             await self.hackathon_repository.commit()
-        except IntegrityError:
+        except SQLAlchemyError:
             await self.hackathon_repository.rollback()
             raise
         return hackathon
@@ -140,6 +140,9 @@ class HackathonService:
             hackathon.co_organizers.append(co_organizer)
             await self.hackathon_repository.commit()
         except IntegrityError:
+            await self.hackathon_repository.rollback()
+            raise
+        except SQLAlchemyError:
             await self.hackathon_repository.rollback()
             raise
         return hackathon

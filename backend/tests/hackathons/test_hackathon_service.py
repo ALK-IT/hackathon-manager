@@ -148,6 +148,9 @@ def test_update_schema_allows_only_capacity_to_be_null():
     with pytest.raises(ValidationError):
         HackathonUpdate(name=None)
 
+    with pytest.raises(ValidationError):
+        HackathonUpdate(teams_enabled=None)
+
 
 async def test_admin_can_create_hackathon(
     repository: HackathonRepository,
@@ -162,6 +165,7 @@ async def test_admin_can_create_hackathon(
     assert hackathon.name == "Hackathon AI"
     assert hackathon.registration_deadline == create_data.start_date - timedelta(hours=48)
     assert hackathon.registration_open is True
+    assert hackathon.teams_enabled is True
     repository.add.assert_awaited_once_with(hackathon)
     repository.commit.assert_awaited_once_with()
     repository.rollback.assert_not_awaited()
@@ -271,12 +275,13 @@ async def test_owner_can_update_hackathon(
 
     result = await service.update_hackathon(
         hackathon.public_id,
-        HackathonUpdate(name="  Updated Hackathon  ", capacity=None),
+        HackathonUpdate(name="  Updated Hackathon  ", capacity=None, teams_enabled=False),
         admin_user,
     )
 
     assert result.name == "Updated Hackathon"
     assert result.capacity is None
+    assert result.teams_enabled is False
     repository.commit.assert_awaited_once_with()
     repository.refresh_updated_at.assert_awaited_once_with(hackathon)
 
