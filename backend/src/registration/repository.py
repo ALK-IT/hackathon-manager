@@ -37,7 +37,11 @@ class RegistrationQuestionRepository:
     ) -> RegistrationQuestion | None:
         result = await self.session.execute(
             select(RegistrationQuestion)
-            .where(RegistrationQuestion.public_id == question_public_id)
+            .join(RegistrationQuestion.hackathon)
+            .where(
+                RegistrationQuestion.public_id == question_public_id,
+                Hackathon.is_deleted.is_(False),
+            )
             .options(
                 selectinload(RegistrationQuestion.hackathon).selectinload(Hackathon.co_organizers)
             )

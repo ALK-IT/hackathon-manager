@@ -118,6 +118,36 @@ async def test_get_question_by_public_id_returns_none_when_missing(
     assert result is None
 
 
+async def test_get_question_by_public_id_returns_none_for_deleted_hackathon(
+    session: AsyncSession,
+    organizer: User,
+):
+    hackathon = make_hackathon(organizer)
+    question = RegistrationQuestion(
+        content="Question",
+        is_required=True,
+        hackathon=hackathon,
+    )
+    session.add(question)
+    await session.flush()
+    question_public_id = question.public_id
+    hackathon.is_deleted = True
+    await session.flush()
+    repository = RegistrationQuestionRepository(session)
+
+    result = await repository.get_by_public_id(question_public_id)
+
+    assert result is None
+    assert (
+        await session.scalar(
+            select(RegistrationQuestion).where(
+                RegistrationQuestion.public_id == question_public_id
+            )
+        )
+        is question
+    )
+
+
 async def test_get_questions_by_hackathon_public_id(
     session: AsyncSession,
     organizer: User,
