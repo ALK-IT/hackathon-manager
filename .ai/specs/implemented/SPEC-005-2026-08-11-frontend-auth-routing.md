@@ -29,7 +29,7 @@ Potrzebna jest funkcjonalna, testowalna warstwa frontendu korzystająca z backen
   - współdzieli jedno trwające żądanie refresh między równoległymi żądaniami.
 - Access token jest przechowywany wyłącznie w pamięci aplikacji. Refresh token pozostaje w cookie `HttpOnly` zarządzanym przez backend i nie jest dostępny dla JavaScript.
 - `AuthProvider` odtwarza sesję przy starcie aplikacji przez `/api/auth/refresh` oraz `/api/auth/me`, a hook `useAuth` udostępnia użytkownika, stan ładowania i operacje `login`, `register`, `logout`.
-- Routing przez `react-router-dom` udostępnia publiczną listę hackathonów pod `/` i `/hackathons`, strony `/login` i `/register` dostępne wyłącznie dla niezalogowanych oraz przekierowanie nieznanych ścieżek do `/`.
+- Routing przez `react-router-dom` udostępnia publiczną listę hackathonów pod `/`, strony `/login` i `/register` dostępne wyłącznie dla niezalogowanych oraz przekierowanie nieznanych ścieżek do `/`.
 - Formularze logowania i rejestracji mają walidację klienta, stan wysyłania oraz mapowanie błędów API na komunikaty.
 - Lista hackathonów używa osobnego `HackathonListItem` i zachowuje kontrakt API z `main`: `id` oraz `name`.
 - Interfejs wykorzystuje proste komponenty `Alert`, `Button`, `Card` i `Spinner`, bez tworzenia docelowego designu.
@@ -81,10 +81,10 @@ Frontend nie odczytuje refresh tokena i nie zapisuje tokenów w `localStorage` a
 ## Kryteria akceptacji
 
 - Użytkownik może utworzyć konto i przejść do logowania.
-- Użytkownik może się zalogować i przejść do `/hackathons`.
+- Użytkownik może się zalogować i przejść do `/`.
 - Niepoprawne dane formularzy są odrzucane przed wysłaniem żądania.
 - Błędy backendu z `error_code` są mapowane na komunikaty.
-- Niezalogowany użytkownik może otworzyć publiczną listę hackathonów pod `/` oraz `/hackathons` i widzi link do logowania.
+- Niezalogowany użytkownik może otworzyć publiczną listę hackathonów pod `/` i widzi link do logowania.
 - Zalogowany użytkownik nie może otworzyć `/login` ani `/register`.
 - Po przeładowaniu strony sesja jest odtwarzana z refresh cookie bez użycia Web Storage.
 - Po `401` klient wykonuje najwyżej jeden refresh i jeden retry pierwotnego żądania.
@@ -107,4 +107,4 @@ Frontend nie odczytuje refresh tokena i nie zapisuje tokenów w `localStorage` a
 
 - 2026-08-11 — utworzono spec po implementacji klienta API, auth providera, formularzy, routingu, listy hackathonów i testów.
 - 2026-08-11 — zachowano Node 20, przypięto kompatybilne zależności oraz rozdzielono Compose lokalny od CI.
-- 2026-08-15 — doprecyzowano publiczny dostęp do listy hackathonów pod `/` i `/hackathons`.
+- 2026-08-15 — doprecyzowano publiczny dostęp do listy hackathonów pod `/`.
