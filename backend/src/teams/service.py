@@ -54,6 +54,13 @@ class TeamService:
             raise TeamFullError()
         return team
 
+    async def delete_if_empty(self, team_id: int) -> None:
+        team = await self.repository.get_by_id_for_update(team_id)
+        if team is None:
+            return
+        if await self.repository.count_members(team_id) == 0:
+            await self.repository.delete(team)
+
     async def resolve_team(
         self, selection: TeamSelection | None, hackathon: Hackathon
     ) -> Team | None:

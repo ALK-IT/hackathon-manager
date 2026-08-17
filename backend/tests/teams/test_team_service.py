@@ -38,7 +38,9 @@ def team_repository(mocker):
     repository = mocker.Mock()
     repository.create = mocker.AsyncMock()
     repository.get_by_join_code_for_update = mocker.AsyncMock()
+    repository.get_by_id_for_update = mocker.AsyncMock()
     repository.count_members = mocker.AsyncMock()
+    repository.delete = mocker.AsyncMock()
     return repository
 
 
@@ -205,6 +207,34 @@ async def test_join_team_rejects_team_at_member_limit(
             TeamJoinRequest(action="join", join_code="ABCD1234"),
             hackathon,
         )
+
+
+async def test_delete_if_empty_removes_locked_team(
+    team_service,
+    team_repository,
+):
+    team = Team(id=20, hackathon_id=10, name="Crew", join_code="ABCD1234")
+    team_repository.get_by_id_for_update.return_value = team
+    team_repository.count_members.return_value = 0
+
+    await team_service.delete_if_empty(team.id)
+
+    team_repository.get_by_id_for_update.assert_awaited_once_with(team.id)
+    team_repository.count_members.assert_awaited_once_with(team.id)
+    team_repository.delete.assert_awaited_once_with(team)
+
+
+async def test_delete_if_empty_keeps_team_with_members(
+    team_service,
+    team_repository,
+):
+    team = Team(id=20, hackathon_id=10, name="Crew", join_code="ABCD1234")
+    team_repository.get_by_id_for_update.return_value = team
+    team_repository.count_members.return_value = 1
+
+    await team_service.delete_if_empty(team.id)
+
+    team_repository.delete.assert_not_awaited()
 
 
 async def test_resolve_team_returns_none_without_selection(team_service):

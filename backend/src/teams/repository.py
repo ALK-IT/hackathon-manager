@@ -25,6 +25,12 @@ class TeamRepository:
         result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
+    async def get_by_id_for_update(self, team_id: int) -> Team | None:
+        result = await self.session.execute(
+            select(Team).where(Team.id == team_id).with_for_update()
+        )
+        return result.scalar_one_or_none()
+
     async def count_members(self, team_id: int) -> int:
         statement = select(func.count(Registration.id)).where(Registration.team_id == team_id)
         result = await self.session.execute(statement)
@@ -35,3 +41,7 @@ class TeamRepository:
             self.session.add(team)
             await self.session.flush()
         return team
+
+    async def delete(self, team: Team) -> None:
+        await self.session.delete(team)
+        await self.session.flush()

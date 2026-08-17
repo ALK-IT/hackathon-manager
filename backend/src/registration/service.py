@@ -265,8 +265,11 @@ class RegistrationService:
         if not (_can_manage_hackathon(hackathon, current_user) or is_owner):
             raise InvalidPermission()
 
+        team_id = registration.team_id
         try:
             await self.registration_repository.delete(registration)
+            if team_id is not None:
+                await self.team_service.delete_if_empty(team_id)
             await self.registration_repository.commit()
         except Exception:
             await self.registration_repository.rollback()

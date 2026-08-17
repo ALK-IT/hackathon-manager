@@ -150,6 +150,7 @@ def question_service(question_repository, hackathon_repository):
 def team_service(mocker):
     service = mocker.Mock()
     service.resolve_team = mocker.AsyncMock(return_value=None)
+    service.delete_if_empty = mocker.AsyncMock()
     return service
 
 
@@ -806,6 +807,7 @@ async def test_authorized_user_can_delete_registration(
 
     registration = SimpleNamespace(
         user_id=owner_id,
+        team_id=None,
         hackathon=SimpleNamespace(
             organizer_id=organizer_id,
             co_organizers=co_organizers,
@@ -820,6 +822,26 @@ async def test_authorized_user_can_delete_registration(
     registration_repository.rollback.assert_not_awaited()
 
 
+async def test_delete_registration_removes_team_when_it_becomes_empty(
+    registration_service,
+    registration_repository,
+    team_service,
+):
+    current_user = make_user(user_id=10)
+    registration = SimpleNamespace(
+        user_id=current_user.id,
+        team_id=40,
+        hackathon=SimpleNamespace(organizer_id=20, co_organizers=[]),
+    )
+    registration_repository.get_by_public_id.return_value = registration
+
+    await registration_service.delete_registration(uuid.uuid4(), current_user)
+
+    registration_repository.delete.assert_awaited_once_with(registration)
+    team_service.delete_if_empty.assert_awaited_once_with(registration.team_id)
+    registration_repository.commit.assert_awaited_once_with()
+
+
 async def test_delete_registration_rolls_back_repository_error(
     registration_service,
     registration_repository,
@@ -827,6 +849,7 @@ async def test_delete_registration_rolls_back_repository_error(
     current_user = make_user(user_id=10)
     registration = SimpleNamespace(
         user_id=current_user.id,
+        team_id=None,
         hackathon=SimpleNamespace(organizer_id=20, co_organizers=[]),
     )
     registration_repository.get_by_public_id.return_value = registration

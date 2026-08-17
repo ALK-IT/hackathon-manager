@@ -825,10 +825,16 @@ async def test_owner_deletes_registration(
     organizer = await create_user(session, "organizer@example.com")
     participant = await create_user(session, "participant@example.com")
     hackathon = await create_hackathon(session, organizer)
-    registration = Registration(user=participant, hackathon=hackathon)
+    team = Team(
+        hackathon=hackathon,
+        name="Byte Buccaneers",
+        join_code="ABCD1234",
+    )
+    registration = Registration(user=participant, hackathon=hackathon, team=team)
     session.add(registration)
     await session.commit()
     registration_public_id = registration.public_id
+    team_public_id = team.public_id
     force_authenticate(participant)
 
     response = await api_client.delete(f"/api/registrations/{registration_public_id}")
@@ -841,6 +847,7 @@ async def test_owner_deletes_registration(
         )
         is None
     )
+    assert await session.scalar(select(Team).where(Team.public_id == team_public_id)) is None
 
 
 async def test_delete_missing_registration_returns_not_found(
