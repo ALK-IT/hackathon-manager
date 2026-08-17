@@ -1,4 +1,4 @@
-"""add registration status audit fields
+"""add registration status change metadata
 
 Revision ID: 0008
 Revises: 0007
