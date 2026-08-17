@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiRequest } from '../../../lib/api/client'
-import { createRegistration, getRegistrationQuestions } from './registrationApi'
+import {
+  createRegistration,
+  getMyRegistration,
+  getRegistrationQuestions,
+} from './registrationApi'
 
 vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
 
@@ -13,6 +17,15 @@ describe('registrationApi', () => {
     expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id/questions', {
       signal: undefined,
     })
+  })
+
+  it('gets the current user registration for the selected hackathon', () => {
+    getMyRegistration('hackathon-id')
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon-id/registrations/me',
+      { signal: undefined },
+    )
   })
 
   it('sends the registration payload', () => {

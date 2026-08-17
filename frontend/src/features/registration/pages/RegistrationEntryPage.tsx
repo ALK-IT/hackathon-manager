@@ -4,6 +4,7 @@ import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { FormField } from '../../auth/components/FormField'
 import {
   createRegistration,
+  getMyRegistration,
   getRegistrationQuestions,
 } from '../api/registrationApi'
 import type {
@@ -15,6 +16,7 @@ import type {
 import {
   getQuestionsErrorMessage,
   getRegistrationErrorMessage,
+  isRegistrationNotFoundError,
 } from '../utils/registrationMessages'
 import {
   hasRegistrationFormErrors,
@@ -23,6 +25,11 @@ import {
 } from '../utils/validation'
 
 const emptyErrors: RegistrationFormErrors = { answers: {} }
+const registrationStatusLabels: Record<RegistrationResponse['status'], string> = {
+  pending: 'oczekujące',
+  accepted: 'zaakceptowane',
+  rejected: 'odrzucone',
+}
 
 export function RegistrationEntryPage() {
   const navigate = useNavigate()
@@ -38,28 +45,49 @@ export function RegistrationEntryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [registration, setRegistration] = useState<RegistrationResponse | null>(null)
+  const [isExistingRegistration, setIsExistingRegistration] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
 
-    async function loadQuestions() {
+    async function loadRegistrationEntry() {
       if (!hackathonPublicId) {
         setLoadError('Nieprawidłowy adres hackathonu.')
         setIsLoading(false)
         return
       }
 
+      let shouldLoadQuestions = false
+
       try {
-        setQuestions(await getRegistrationQuestions(hackathonPublicId, controller.signal))
+        const existingRegistration = await getMyRegistration(
+          hackathonPublicId,
+          controller.signal,
+        )
+        setRegistration(existingRegistration)
+        setIsExistingRegistration(true)
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') return
-        setLoadError(getQuestionsErrorMessage(error))
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false)
+        if (isRegistrationNotFoundError(error)) {
+          shouldLoadQuestions = true
+        } else {
+          setLoadError('Nie udało się sprawdzić Twojego zgłoszenia. Spróbuj ponownie.')
+        }
       }
+
+      if (shouldLoadQuestions) {
+        try {
+          setQuestions(await getRegistrationQuestions(hackathonPublicId, controller.signal))
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') return
+          setLoadError(getQuestionsErrorMessage(error))
+        }
+      }
+
+      if (!controller.signal.aborted) setIsLoading(false)
     }
 
-    void loadQuestions()
+    void loadRegistrationEntry()
     return () => controller.abort()
   }, [hackathonPublicId])
 
@@ -97,6 +125,7 @@ export function RegistrationEntryPage() {
         team,
       })
       setRegistration(result)
+      setIsExistingRegistration(false)
     } catch (error) {
       setSubmitError(getRegistrationErrorMessage(error))
     } finally {
@@ -114,7 +143,12 @@ export function RegistrationEntryPage() {
 
         {registration && (
           <div className="state-stack">
-            <Alert>Zgłoszenie zostało wysłane. Status: oczekujące.</Alert>
+            <Alert>
+              {isExistingRegistration
+                ? 'Masz już zgłoszenie do tego hackathonu.'
+                : 'Zgłoszenie zostało wysłane.'}{' '}
+              Status: {registrationStatusLabels[registration.status]}.
+            </Alert>
             {registration.team && (
               <div>
                 <p>Drużyna: {registration.team.name}</p>

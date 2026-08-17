@@ -1,5 +1,9 @@
 import { ApiError } from '../../../lib/api/client'
 
+export function isRegistrationNotFoundError(error: unknown): boolean {
+  return error instanceof ApiError && error.errorCode === 'REGISTRATION_NOT_FOUND'
+}
+
 export function getQuestionsErrorMessage(error: unknown): string {
   if (error instanceof ApiError && error.errorCode === 'HACKATHON_NOT_FOUND') {
     return 'Ten hackathon nie istnieje lub został usunięty.'

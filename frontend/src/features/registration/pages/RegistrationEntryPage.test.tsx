@@ -1,14 +1,17 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../../../lib/api/client'
 import {
   createRegistration,
+  getMyRegistration,
   getRegistrationQuestions,
 } from '../api/registrationApi'
 import { RegistrationEntryPage } from './RegistrationEntryPage'
 
 vi.mock('../api/registrationApi', () => ({
   createRegistration: vi.fn(),
+  getMyRegistration: vi.fn(),
   getRegistrationQuestions: vi.fn(),
 }))
 
@@ -34,8 +37,31 @@ function renderPage() {
 describe('RegistrationEntryPage', () => {
   beforeEach(() => {
     vi.mocked(getRegistrationQuestions).mockReset()
+    vi.mocked(getMyRegistration).mockReset()
     vi.mocked(createRegistration).mockReset()
+    vi.mocked(getMyRegistration).mockRejectedValue(
+      new ApiError(404, { error_code: 'REGISTRATION_NOT_FOUND' }),
+    )
     vi.mocked(getRegistrationQuestions).mockResolvedValue([question])
+  })
+
+  it('shows the existing registration instead of the form', async () => {
+    vi.mocked(getMyRegistration).mockResolvedValue({
+      public_id: 'registration-id',
+      status: 'accepted',
+      team: null,
+    })
+
+    renderPage()
+
+    expect(
+      await screen.findByText(
+        'Masz już zgłoszenie do tego hackathonu. Status: zaakceptowane.',
+      ),
+    ).toBeInTheDocument()
+    expect(getRegistrationQuestions).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Wyślij zgłoszenie' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Ładowanie formularza…')).not.toBeInTheDocument()
   })
 
   it('loads questions and validates required answers', async () => {
@@ -61,7 +87,9 @@ describe('RegistrationEntryPage', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Wyślij zgłoszenie' }))
 
-    expect(await screen.findByText('Zgłoszenie zostało wysłane. Status: oczekujące.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Zgłoszenie zostało wysłane. Status: oczekujące.'),
+    ).toBeInTheDocument()
     expect(createRegistration).toHaveBeenCalledWith('hackathon-id', {
       answers: [
         {

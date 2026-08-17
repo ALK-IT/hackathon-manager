@@ -15,6 +15,16 @@ export function getRegistrationQuestions(
   )
 }
 
+export function getMyRegistration(
+  hackathonPublicId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<RegistrationResponse>(
+    `/api/hackathons/${hackathonPublicId}/registrations/me`,
+    { signal },
+  )
+}
+
 export function createRegistration(
   hackathonPublicId: string,
   payload: RegistrationPayload,
