@@ -2,11 +2,19 @@ from sqlalchemy.exc import IntegrityError
 
 from src.database import get_integrity_error_constraint
 from src.hackathons.models import Hackathon
-from src.teams.exceptions import TeamFullError, TeamNameAlreadyExistsError, TeamNotFoundError
+from src.teams.exceptions import (
+    TeamFullError,
+    TeamJoinCodeGenerationError,
+    TeamNameAlreadyExistsError,
+    TeamNotFoundError,
+)
 from src.teams.models import Team
 from src.teams.repository import TeamRepository
 from src.teams.schemas import TeamCreateRequest, TeamJoinRequest, TeamSelection
 from src.teams.utils import generate_join_code
+
+JOIN_CODE_GENERATION_ATTEMPTS = 5
+JOIN_CODE_CONSTRAINTS = {"teams_join_code_key", "uq_team_join_code"}
 
 
 class TeamService:
@@ -14,14 +22,25 @@ class TeamService:
         self.repository = repository
 
     async def create_team(self, request: TeamCreateRequest, hackathon: Hackathon) -> Team:
-        team = Team(name=request.name, hackathon=hackathon, join_code=generate_join_code())
-        try:
-            await self.repository.create(team)
-        except IntegrityError as error:
-            if get_integrity_error_constraint(error) == "uq_team_hackathon_name":
-                raise TeamNameAlreadyExistsError() from error
-            raise
-        return team
+        for attempt in range(JOIN_CODE_GENERATION_ATTEMPTS):
+            team = Team(
+                name=request.name,
+                hackathon_id=hackathon.id,
+                join_code=generate_join_code(),
+            )
+            try:
+                await self.repository.create(team)
+                return team
+            except IntegrityError as error:
+                constraint = get_integrity_error_constraint(error)
+                if constraint == "uq_team_hackathon_name":
+                    raise TeamNameAlreadyExistsError() from error
+                if constraint not in JOIN_CODE_CONSTRAINTS:
+                    raise
+                if attempt == JOIN_CODE_GENERATION_ATTEMPTS - 1:
+                    raise TeamJoinCodeGenerationError() from error
+
+        raise TeamJoinCodeGenerationError
 
     async def join_team(self, request: TeamJoinRequest, hackathon: Hackathon) -> Team:
         team = await self.repository.get_by_join_code_for_update(

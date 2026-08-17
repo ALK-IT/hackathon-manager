@@ -4,10 +4,15 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.hackathons.models import Hackathon
-from src.teams.exceptions import TeamFullError, TeamNameAlreadyExistsError, TeamNotFoundError
+from src.teams.exceptions import (
+    TeamFullError,
+    TeamJoinCodeGenerationError,
+    TeamNameAlreadyExistsError,
+    TeamNotFoundError,
+)
 from src.teams.models import Team
 from src.teams.schemas import TeamCreateRequest, TeamJoinRequest
-from src.teams.service import TeamService
+from src.teams.service import JOIN_CODE_GENERATION_ATTEMPTS, TeamService
 
 
 class ConstraintViolation(Exception):
@@ -58,7 +63,7 @@ async def test_create_team_builds_and_persists_team(
     assert isinstance(result, Team)
     assert result.name == "Byte Buccaneers"
     assert result.join_code == "ABCD1234"
-    assert result.hackathon is hackathon
+    assert result.hackathon_id == hackathon.id
     team_repository.create.assert_awaited_once_with(result)
 
 
@@ -86,7 +91,7 @@ async def test_create_team_does_not_hide_unrelated_integrity_error(
     error = IntegrityError(
         "INSERT INTO teams",
         {},
-        ConstraintViolation("teams_join_code_key"),
+        ConstraintViolation("some_other_constraint"),
     )
     team_repository.create.side_effect = error
 
@@ -97,6 +102,51 @@ async def test_create_team_does_not_hide_unrelated_integrity_error(
         )
 
     assert raised.value is error
+
+
+async def test_create_team_retries_join_code_collision(
+    team_service,
+    team_repository,
+    mocker,
+):
+    collision = IntegrityError(
+        "INSERT INTO teams",
+        {},
+        ConstraintViolation("teams_join_code_key"),
+    )
+    team_repository.create.side_effect = [collision, None]
+    generate = mocker.patch(
+        "src.teams.service.generate_join_code",
+        side_effect=["COLLIDE1", "UNIQUE12"],
+    )
+
+    result = await team_service.create_team(
+        TeamCreateRequest(action="create", name="Byte Buccaneers"),
+        make_hackathon(),
+    )
+
+    assert result.join_code == "UNIQUE12"
+    assert team_repository.create.await_count == 2
+    assert generate.call_count == 2
+
+
+async def test_create_team_returns_domain_error_after_join_code_retries(
+    team_service,
+    team_repository,
+):
+    team_repository.create.side_effect = IntegrityError(
+        "INSERT INTO teams",
+        {},
+        ConstraintViolation("teams_join_code_key"),
+    )
+
+    with pytest.raises(TeamJoinCodeGenerationError):
+        await team_service.create_team(
+            TeamCreateRequest(action="create", name="Byte Buccaneers"),
+            make_hackathon(),
+        )
+
+    assert team_repository.create.await_count == JOIN_CODE_GENERATION_ATTEMPTS
 
 
 async def test_join_team_returns_team_when_it_has_available_places(

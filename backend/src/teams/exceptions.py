@@ -20,3 +20,9 @@ class TeamNameAlreadyExistsError(TeamError):
     status_code = 409
     error_code = "TEAM_NAME_ALREADY_EXISTS"
     detail = "A team with this name already exists for this hackathon."
+
+
+class TeamJoinCodeGenerationError(TeamError):
+    status_code = 503
+    error_code = "TEAM_JOIN_CODE_GENERATION_FAILED"
+    detail = "A unique team join code could not be generated. Please try again."

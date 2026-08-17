@@ -31,6 +31,7 @@ class TeamRepository:
         return result.scalar_one()
 
     async def create(self, team: Team) -> Team:
-        self.session.add(team)
-        await self.session.flush()
+        async with self.session.begin_nested():
+            self.session.add(team)
+            await self.session.flush()
         return team

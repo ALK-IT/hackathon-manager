@@ -478,6 +478,90 @@ async def test_user_creates_registration_with_new_team(
     assert team.hackathon_id == hackathon.id
 
 
+async def test_creating_team_retries_join_code_collision(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+    mocker,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    question = await create_question(session, hackathon)
+    session.add(
+        Team(
+            hackathon=hackathon,
+            name="Existing Team",
+            join_code="COLLIDE1",
+        )
+    )
+    await session.commit()
+    mocker.patch(
+        "src.teams.service.generate_join_code",
+        side_effect=["COLLIDE1", "UNIQUE12"],
+    )
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={
+            "answers": [
+                {
+                    "question_public_id": str(question.public_id),
+                    "content": "My answer",
+                }
+            ],
+            "team": {"action": "create", "name": "Byte Buccaneers"},
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["team"]["join_code"] == "UNIQUE12"
+    assert await session.scalar(select(Team).where(Team.join_code == "UNIQUE12")) is not None
+
+
+async def test_creating_team_returns_domain_error_after_join_code_retries(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+    mocker,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    question = await create_question(session, hackathon)
+    session.add(
+        Team(
+            hackathon=hackathon,
+            name="Existing Team",
+            join_code="COLLIDE1",
+        )
+    )
+    await session.commit()
+    mocker.patch("src.teams.service.generate_join_code", return_value="COLLIDE1")
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={
+            "answers": [
+                {
+                    "question_public_id": str(question.public_id),
+                    "content": "My answer",
+                }
+            ],
+            "team": {"action": "create", "name": "Byte Buccaneers"},
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error_code": "TEAM_JOIN_CODE_GENERATION_FAILED",
+        "detail": "A unique team join code could not be generated. Please try again.",
+    }
+    assert await session.scalar(select(Registration.id)) is None
+
+
 async def test_joining_missing_team_returns_not_found(
     api_client: AsyncClient,
     session: AsyncSession,
