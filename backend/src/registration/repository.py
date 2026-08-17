@@ -120,7 +120,11 @@ class RegistrationRepository:
     async def get_by_public_id(self, registration_public_id: uuid.UUID) -> Registration | None:
         result = await self.session.execute(
             select(Registration)
-            .where(Registration.public_id == registration_public_id)
+            .join(Registration.hackathon)
+            .where(
+                Registration.public_id == registration_public_id,
+                Hackathon.is_deleted.is_(False),
+            )
             .options(selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers))
         )
 
