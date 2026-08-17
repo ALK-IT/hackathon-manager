@@ -16,6 +16,12 @@ class TeamFullError(TeamError):
     detail = "Team has reached its maximum number of members."
 
 
+class TeamsDisabledError(TeamError):
+    status_code = 409
+    error_code = "TEAMS_DISABLED"
+    detail = "Teams are disabled for this hackathon."
+
+
 class TeamNameAlreadyExistsError(TeamError):
     status_code = 409
     error_code = "TEAM_NAME_ALREADY_EXISTS"

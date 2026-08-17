@@ -46,6 +46,7 @@ async def create_hackathon(
     *,
     max_team_size: int = 4,
     registration_open: bool = True,
+    teams_enabled: bool = True,
 ) -> Hackathon:
     now = datetime.now(UTC)
     start_date = now + timedelta(days=1)
@@ -61,6 +62,7 @@ async def create_hackathon(
         registration_open=registration_open,
         capacity=50,
         max_team_size=max_team_size,
+        teams_enabled=teams_enabled,
     )
     session.add(hackathon)
     await session.flush()
@@ -728,6 +730,69 @@ async def test_duplicate_team_name_returns_conflict(
         "error_code": "TEAM_NAME_ALREADY_EXISTS",
         "detail": "A team with this name already exists for this hackathon.",
     }
+
+
+async def test_creating_team_is_rejected_when_teams_are_disabled(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer, teams_enabled=False)
+    question = await create_question(session, hackathon)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={
+            "answers": [
+                {
+                    "question_public_id": str(question.public_id),
+                    "content": "My answer",
+                }
+            ],
+            "team": {"action": "create", "name": "Byte Buccaneers"},
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "error_code": "TEAMS_DISABLED",
+        "detail": "Teams are disabled for this hackathon.",
+    }
+    assert await session.scalar(select(Registration.id)) is None
+    assert await session.scalar(select(Team.id)) is None
+
+
+async def test_individual_registration_is_allowed_when_teams_are_disabled(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer, teams_enabled=False)
+    question = await create_question(session, hackathon)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={
+            "answers": [
+                {
+                    "question_public_id": str(question.public_id),
+                    "content": "My answer",
+                }
+            ],
+            "team": None,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["team"] is None
 
 
 async def test_user_creates_registration_with_multiple_answers(

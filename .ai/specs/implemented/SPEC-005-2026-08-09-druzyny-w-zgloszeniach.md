@@ -43,8 +43,15 @@ Relacja ma postać:
 Hackathon 1 ─── * Team 1 ─── * Registration * ─── 1 User
 ```
 
-Usunięcie zgłoszenia usuwa osobę z drużyny. Drużyna nie ma lidera, a w tej wersji nie można jej
-osobno edytować, usunąć ani zmienić przypisania po utworzeniu zgłoszenia.
+Usunięcie zgłoszenia usuwa osobę z drużyny. Jeżeli było to ostatnie zgłoszenie przypisane do
+drużyny, backend automatycznie usuwa pustą drużynę w tej samej transakcji. Drużyna nie ma lidera,
+a w tej wersji nie można jej osobno edytować, usunąć ani zmienić przypisania po utworzeniu
+zgłoszenia.
+
+Hackathon posiada flagę `teams_enabled`, domyślnie ustawioną na `true`. Administrator ustawia ją
+podczas tworzenia hackathonu, a właściciel może ją później zmienić przez `PATCH`. Wyłączenie
+drużyn blokuje nowe operacje tworzenia i dołączania, ale nadal pozwala wysłać zgłoszenie
+indywidualne z `team: null`.
 
 ### Kontrakt zgłoszenia
 
@@ -114,12 +121,17 @@ Odpowiedź `201 Created` zawiera zgłoszenie oraz, jeśli wybrano drużynę:
 - `user_id`, `hackathon_id`, `team_id`, status oraz kody nie są przyjmowane od klienta.
 - Hackathon musi istnieć, nie może być soft-deleted i musi mieć otwarte zapisy.
 - Użytkownik może mieć tylko jedno zgłoszenie w danym hackathonie.
+- Utworzenie drużyny lub dołączenie kodem wymaga `teams_enabled: true` dla hackathonu.
 - Kod musi wskazywać drużynę należącą do hackathonu z URL-a.
 - Liczba zgłoszeń przypisanych do drużyny musi być mniejsza od `max_team_size` hackathonu.
 - Wyszukanie drużyny używa blokady `SELECT ... FOR UPDATE`. Równoczesne próby dołączenia do tej
   samej drużyny są serializowane, dzięki czemu nie przekroczą limitu członków.
 - Utworzenie drużyny, odpowiedzi i zgłoszenia korzysta z jednej sesji oraz jednego commitu. Błąd
   dowolnej części powoduje rollback całości i nie pozostawia pustej drużyny.
+- Kolizja losowo wygenerowanego `join_code` powoduje ponowienie generowania w savepoincie.
+  Po wyczerpaniu limitu prób API zwraca kontrolowany błąd domenowy zamiast surowego błędu bazy.
+- Usunięcie ostatniego zgłoszenia blokuje rekord drużyny i usuwa go atomowo, dzięki czemu pusta
+  drużyna nie blokuje swojej nazwy na zawsze.
 
 Limit `capacity` hackathonu nie ogranicza liczby wysłanych ankiet. Dotyczy docelowej liczby
 przyjętych uczestników i zostanie wyegzekwowany w przyszłym mechanizmie akceptowania zgłoszeń.
@@ -142,6 +154,8 @@ Obsługiwane przypadki obejmują:
 - `TEAM_NOT_FOUND` — `404`, również dla kodu należącego do innego hackathonu;
 - `TEAM_FULL` — `409`;
 - `TEAM_NAME_ALREADY_EXISTS` — `409`;
+- `TEAMS_DISABLED` — `409`;
+- `TEAM_JOIN_CODE_GENERATION_FAILED` — `503` po wyczerpaniu prób wygenerowania unikalnego kodu;
 - `VALIDATION_ERROR` — `422` dla niepoprawnego lub nadmiarowego requestu.
 
 Nieoczekiwane błędy integralności nie są błędnie przedstawiane jako duplikat zgłoszenia.
@@ -193,6 +207,9 @@ transakcją zgłoszenia, czego obecny model biznesowy nie przewiduje.
 - blokada współbieżnych prób dołączenia;
 - unikalność nazwy w ramach hackathonu;
 - atomowy zapis drużyny, zgłoszenia i odpowiedzi;
+- automatyczne usuwanie drużyny po usunięciu jej ostatniego zgłoszenia;
+- możliwość wyłączenia drużyn dla konkretnego hackathonu;
+- ponawianie generowania kodu po kolizji;
 - sprawdzenie otwartych zapisów;
 - stabilne błędy domenowe;
 - migracja Alembic oraz testy jednostkowe i integracyjne;
@@ -202,7 +219,7 @@ transakcją zgłoszenia, czego obecny model biznesowy nie przewiduje.
 
 - lider drużyny i osobna tabela członkostw;
 - zaproszenia przypisane do konkretnego użytkownika;
-- opuszczanie, zmiana i usuwanie drużyny;
+- ręczne opuszczanie, zmiana i usuwanie drużyny;
 - osobny router lub CRUD drużyn;
 - lista drużyn i widok ich członków dla organizatora;
 - akceptowanie i odrzucanie zgłoszeń;
@@ -218,7 +235,8 @@ transakcją zgłoszenia, czego obecny model biznesowy nie przewiduje.
 - **Backend:** dodany moduł `src/teams/`; `RegistrationService` deleguje obsługę drużyny do
   `TeamService`; błędy drużyn są mapowane na JSON przez handler FastAPI.
 - **Baza danych:** migracja `3cae343ea484` tworzy tabelę `teams`, indeksy i opcjonalny klucz
-  `registrations.team_id`. Migracje przechodzą pełny cykl upgrade/downgrade/upgrade.
+  `registrations.team_id`, a migracja `0008` dodaje flagę `hackathons.teams_enabled`. Migracje
+  przechodzą pełny cykl upgrade/downgrade/upgrade.
 - **Testy:** osobne testy serwisu drużyn oraz testy jednostkowe i integracyjne całego przepływu
   zgłoszenia. Lokalne testy Docker korzystają z osobnego PostgreSQL w `tmpfs`.
 
@@ -240,3 +258,5 @@ transakcją zgłoszenia, czego obecny model biznesowy nie przewiduje.
 - 2026-08-09 — zintegrowano wybór drużyny z atomowym tworzeniem zgłoszenia.
 - 2026-08-09 — dodano blokadę limitu członków, obsługę błędów i testy bezpieczeństwa.
 - 2026-08-09 — zweryfikowano pełny cykl migracji i odizolowano lokalną bazę testową.
+- 2026-08-17 — dodano retry kolizji kodu, automatyczne sprzątanie pustych drużyn, filtrowanie
+  zgłoszeń soft-deleted hackathonów i przełącznik `teams_enabled`.

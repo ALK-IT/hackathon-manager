@@ -9,6 +9,7 @@ from src.teams.exceptions import (
     TeamJoinCodeGenerationError,
     TeamNameAlreadyExistsError,
     TeamNotFoundError,
+    TeamsDisabledError,
 )
 from src.teams.models import Team
 from src.teams.schemas import TeamCreateRequest, TeamJoinRequest
@@ -21,7 +22,12 @@ class ConstraintViolation(Exception):
         super().__init__(constraint_name)
 
 
-def make_hackathon(*, hackathon_id: int = 1, max_team_size: int = 4) -> Hackathon:
+def make_hackathon(
+    *,
+    hackathon_id: int = 1,
+    max_team_size: int = 4,
+    teams_enabled: bool = True,
+) -> Hackathon:
     start_date = datetime.now(UTC) + timedelta(days=1)
     return Hackathon(
         id=hackathon_id,
@@ -30,6 +36,7 @@ def make_hackathon(*, hackathon_id: int = 1, max_team_size: int = 4) -> Hackatho
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
         max_team_size=max_team_size,
+        teams_enabled=teams_enabled,
     )
 
 
@@ -151,6 +158,19 @@ async def test_create_team_returns_domain_error_after_join_code_retries(
     assert team_repository.create.await_count == JOIN_CODE_GENERATION_ATTEMPTS
 
 
+async def test_create_team_rejects_when_teams_are_disabled(
+    team_service,
+    team_repository,
+):
+    with pytest.raises(TeamsDisabledError):
+        await team_service.create_team(
+            TeamCreateRequest(action="create", name="Byte Buccaneers"),
+            make_hackathon(teams_enabled=False),
+        )
+
+    team_repository.create.assert_not_awaited()
+
+
 async def test_join_team_returns_team_when_it_has_available_places(
     team_service,
     team_repository,
@@ -207,6 +227,19 @@ async def test_join_team_rejects_team_at_member_limit(
             TeamJoinRequest(action="join", join_code="ABCD1234"),
             hackathon,
         )
+
+
+async def test_join_team_rejects_when_teams_are_disabled(
+    team_service,
+    team_repository,
+):
+    with pytest.raises(TeamsDisabledError):
+        await team_service.join_team(
+            TeamJoinRequest(action="join", join_code="ABCD1234"),
+            make_hackathon(teams_enabled=False),
+        )
+
+    team_repository.get_by_join_code_for_update.assert_not_awaited()
 
 
 async def test_delete_if_empty_removes_locked_team(

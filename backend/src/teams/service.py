@@ -7,6 +7,7 @@ from src.teams.exceptions import (
     TeamJoinCodeGenerationError,
     TeamNameAlreadyExistsError,
     TeamNotFoundError,
+    TeamsDisabledError,
 )
 from src.teams.models import Team
 from src.teams.repository import TeamRepository
@@ -22,6 +23,7 @@ class TeamService:
         self.repository = repository
 
     async def create_team(self, request: TeamCreateRequest, hackathon: Hackathon) -> Team:
+        self._ensure_teams_enabled(hackathon)
         for attempt in range(JOIN_CODE_GENERATION_ATTEMPTS):
             team = Team(
                 name=request.name,
@@ -43,6 +45,7 @@ class TeamService:
         raise TeamJoinCodeGenerationError
 
     async def join_team(self, request: TeamJoinRequest, hackathon: Hackathon) -> Team:
+        self._ensure_teams_enabled(hackathon)
         team = await self.repository.get_by_join_code_for_update(
             request.join_code,
             hackathon.id,
@@ -71,3 +74,8 @@ class TeamService:
         elif isinstance(selection, TeamJoinRequest):
             return await self.join_team(selection, hackathon)
         return None
+
+    @staticmethod
+    def _ensure_teams_enabled(hackathon: Hackathon) -> None:
+        if not hackathon.teams_enabled:
+            raise TeamsDisabledError()
