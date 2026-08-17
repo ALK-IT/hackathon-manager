@@ -52,16 +52,27 @@ class TeamService:
         )
         if team is None:
             raise TeamNotFoundError()
-        member_count = await self.repository.count_members(team.id)
+        member_count = await self.repository.count_active_members(team.id)
         if member_count >= hackathon.max_team_size:
             raise TeamFullError()
         return team
+
+    async def ensure_member_can_be_activated(
+        self,
+        team_id: int,
+        max_team_size: int,
+    ) -> None:
+        team = await self.repository.get_by_id_for_update(team_id)
+        if team is None:
+            raise TeamNotFoundError()
+        if await self.repository.count_active_members(team_id) >= max_team_size:
+            raise TeamFullError()
 
     async def delete_if_empty(self, team_id: int) -> None:
         team = await self.repository.get_by_id_for_update(team_id)
         if team is None:
             return
-        if await self.repository.count_members(team_id) == 0:
+        if await self.repository.count_registrations(team_id) == 0:
             await self.repository.delete(team)
 
     async def resolve_team(

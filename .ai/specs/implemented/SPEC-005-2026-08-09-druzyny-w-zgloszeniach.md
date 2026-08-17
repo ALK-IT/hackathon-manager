@@ -123,7 +123,11 @@ Odpowiedź `201 Created` zawiera zgłoszenie oraz, jeśli wybrano drużynę:
 - Użytkownik może mieć tylko jedno zgłoszenie w danym hackathonie.
 - Utworzenie drużyny lub dołączenie kodem wymaga `teams_enabled: true` dla hackathonu.
 - Kod musi wskazywać drużynę należącą do hackathonu z URL-a.
-- Liczba zgłoszeń przypisanych do drużyny musi być mniejsza od `max_team_size` hackathonu.
+- Liczba aktywnych zgłoszeń (`pending` i `accepted`) przypisanych do drużyny musi być mniejsza od
+  `max_team_size` hackathonu. Zgłoszenie ze statusem `rejected` zachowuje przypisanie do drużyny
+  dla celów historii, ale zwalnia zajmowane miejsce.
+- Ponowna zmiana statusu z `rejected` na `accepted` wymaga wolnego miejsca. Backend blokuje rekord
+  drużyny, ponownie sprawdza limit i zwraca `TEAM_FULL`, jeżeli miejsce zostało już zajęte.
 - Wyszukanie drużyny używa blokady `SELECT ... FOR UPDATE`. Równoczesne próby dołączenia do tej
   samej drużyny są serializowane, dzięki czemu nie przekroczą limitu członków.
 - Utworzenie drużyny, odpowiedzi i zgłoszenia korzysta z jednej sesji oraz jednego commitu. Błąd

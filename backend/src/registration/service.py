@@ -292,6 +292,15 @@ class RegistrationService:
             raise InvalidPermission()
 
         try:
+            if (
+                registration.team_id is not None
+                and registration.status is RegistrationStatus.REJECTED
+                and new_status is RegistrationStatus.ACCEPTED
+            ):
+                await self.team_service.ensure_member_can_be_activated(
+                    registration.team_id,
+                    hackathon.max_team_size,
+                )
             registration = await self.registration_repository.update_status(
                 registration,
                 new_status,

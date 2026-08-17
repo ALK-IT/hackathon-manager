@@ -151,6 +151,7 @@ def team_service(mocker):
     service = mocker.Mock()
     service.resolve_team = mocker.AsyncMock(return_value=None)
     service.delete_if_empty = mocker.AsyncMock()
+    service.ensure_member_can_be_activated = mocker.AsyncMock()
     return service
 
 
@@ -904,6 +905,7 @@ async def test_authorized_user_can_update_status(
     access_kind,
     registration_service,
     registration_repository,
+    team_service,
 ):
     organizer_id = 10
     co_organizer_id = 20
@@ -917,6 +919,7 @@ async def test_authorized_user_can_update_status(
 
     registration = SimpleNamespace(
         status=RegistrationStatus.PENDING,
+        team_id=None,
         hackathon=SimpleNamespace(
             organizer_id=organizer_id,
             co_organizers=[SimpleNamespace(id=co_organizer_id)],
@@ -940,6 +943,66 @@ async def test_authorized_user_can_update_status(
     )
     registration_repository.commit.assert_awaited_once_with()
     registration_repository.rollback.assert_not_awaited()
+    team_service.ensure_member_can_be_activated.assert_not_awaited()
+
+
+async def test_reactivating_rejected_team_member_checks_available_place(
+    registration_service,
+    registration_repository,
+    team_service,
+):
+    registration = SimpleNamespace(
+        status=RegistrationStatus.REJECTED,
+        team_id=40,
+        hackathon=SimpleNamespace(
+            organizer_id=10,
+            co_organizers=[],
+            max_team_size=4,
+        ),
+    )
+    registration_repository.get_by_public_id.return_value = registration
+    registration_repository.update_status.side_effect = (
+        lambda item, status: setattr(item, "status", status) or item
+    )
+
+    result = await registration_service.update_status(
+        uuid.uuid4(),
+        RegistrationStatus.ACCEPTED,
+        make_user(user_id=10),
+    )
+
+    team_service.ensure_member_can_be_activated.assert_awaited_once_with(40, 4)
+    assert result.status is RegistrationStatus.ACCEPTED
+    registration_repository.commit.assert_awaited_once_with()
+
+
+async def test_reactivating_rejected_team_member_rolls_back_when_team_is_full(
+    registration_service,
+    registration_repository,
+    team_service,
+):
+    registration = SimpleNamespace(
+        status=RegistrationStatus.REJECTED,
+        team_id=40,
+        hackathon=SimpleNamespace(
+            organizer_id=10,
+            co_organizers=[],
+            max_team_size=4,
+        ),
+    )
+    registration_repository.get_by_public_id.return_value = registration
+    team_service.ensure_member_can_be_activated.side_effect = TeamFullError()
+
+    with pytest.raises(TeamFullError):
+        await registration_service.update_status(
+            uuid.uuid4(),
+            RegistrationStatus.ACCEPTED,
+            make_user(user_id=10),
+        )
+
+    registration_repository.update_status.assert_not_awaited()
+    registration_repository.rollback.assert_awaited_once_with()
+    registration_repository.commit.assert_not_awaited()
 
 
 async def test_update_status_rolls_back_repository_error(
@@ -947,6 +1010,8 @@ async def test_update_status_rolls_back_repository_error(
     registration_repository,
 ):
     registration_repository.get_by_public_id.return_value = SimpleNamespace(
+        status=RegistrationStatus.PENDING,
+        team_id=None,
         hackathon=SimpleNamespace(organizer_id=10, co_organizers=[]),
     )
     registration_repository.update_status.side_effect = RuntimeError("update failed")

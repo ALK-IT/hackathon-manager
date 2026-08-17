@@ -1,7 +1,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.registration.models import Registration
+from src.registration.models import Registration, RegistrationStatus
 from src.teams.models import Team
 
 
@@ -31,7 +31,15 @@ class TeamRepository:
         )
         return result.scalar_one_or_none()
 
-    async def count_members(self, team_id: int) -> int:
+    async def count_active_members(self, team_id: int) -> int:
+        statement = select(func.count(Registration.id)).where(
+            Registration.team_id == team_id,
+            Registration.status.in_([RegistrationStatus.PENDING, RegistrationStatus.ACCEPTED]),
+        )
+        result = await self.session.execute(statement)
+        return result.scalar_one()
+
+    async def count_registrations(self, team_id: int) -> int:
         statement = select(func.count(Registration.id)).where(Registration.team_id == team_id)
         result = await self.session.execute(statement)
         return result.scalar_one()

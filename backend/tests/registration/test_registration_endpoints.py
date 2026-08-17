@@ -691,6 +691,80 @@ async def test_joining_full_team_returns_conflict(
     }
 
 
+async def test_rejected_member_frees_place_but_cannot_be_reaccepted_into_full_team(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    first_participant = await create_user(session, "first@example.com")
+    rejected_participant = await create_user(session, "rejected@example.com")
+    new_participant = await create_user(session, "new@example.com")
+    hackathon = await create_hackathon(session, organizer, max_team_size=2)
+    question = await create_question(session, hackathon)
+    team = Team(
+        hackathon=hackathon,
+        name="Byte Buccaneers",
+        join_code="ABCD1234",
+    )
+    session.add_all(
+        [
+            Registration(
+                user=first_participant,
+                hackathon=hackathon,
+                team=team,
+                status=RegistrationStatus.ACCEPTED,
+            ),
+            Registration(
+                user=rejected_participant,
+                hackathon=hackathon,
+                team=team,
+            ),
+        ]
+    )
+    await session.commit()
+    rejected_registration = await session.scalar(
+        select(Registration).where(Registration.user_id == rejected_participant.id)
+    )
+    assert rejected_registration is not None
+
+    force_authenticate(organizer)
+    reject_response = await api_client.patch(
+        f"/api/registrations/{rejected_registration.public_id}/status",
+        json={"status": "rejected"},
+    )
+    assert reject_response.status_code == 200
+
+    force_authenticate(new_participant)
+    join_response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={
+            "answers": [
+                {
+                    "question_public_id": str(question.public_id),
+                    "content": "My answer",
+                }
+            ],
+            "team": {"action": "join", "join_code": team.join_code},
+        },
+    )
+    assert join_response.status_code == 201
+
+    force_authenticate(organizer)
+    reactivate_response = await api_client.patch(
+        f"/api/registrations/{rejected_registration.public_id}/status",
+        json={"status": "accepted"},
+    )
+
+    assert reactivate_response.status_code == 409
+    assert reactivate_response.json() == {
+        "error_code": "TEAM_FULL",
+        "detail": "Team has reached its maximum number of members.",
+    }
+    await session.refresh(rejected_registration)
+    assert rejected_registration.status is RegistrationStatus.REJECTED
+
+
 async def test_duplicate_team_name_returns_conflict(
     api_client: AsyncClient,
     session: AsyncSession,

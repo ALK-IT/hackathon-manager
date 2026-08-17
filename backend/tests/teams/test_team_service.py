@@ -46,7 +46,8 @@ def team_repository(mocker):
     repository.create = mocker.AsyncMock()
     repository.get_by_join_code_for_update = mocker.AsyncMock()
     repository.get_by_id_for_update = mocker.AsyncMock()
-    repository.count_members = mocker.AsyncMock()
+    repository.count_active_members = mocker.AsyncMock()
+    repository.count_registrations = mocker.AsyncMock()
     repository.delete = mocker.AsyncMock()
     return repository
 
@@ -178,7 +179,7 @@ async def test_join_team_returns_team_when_it_has_available_places(
     hackathon = make_hackathon(hackathon_id=10, max_team_size=4)
     team = Team(id=20, hackathon_id=hackathon.id, name="Crew", join_code="ABCD1234")
     team_repository.get_by_join_code_for_update.return_value = team
-    team_repository.count_members.return_value = 3
+    team_repository.count_active_members.return_value = 3
 
     result = await team_service.join_team(
         TeamJoinRequest(action="join", join_code="ABCD1234"),
@@ -190,7 +191,7 @@ async def test_join_team_returns_team_when_it_has_available_places(
         "ABCD1234",
         hackathon.id,
     )
-    team_repository.count_members.assert_awaited_once_with(team.id)
+    team_repository.count_active_members.assert_awaited_once_with(team.id)
 
 
 async def test_join_team_rejects_missing_team(
@@ -210,7 +211,7 @@ async def test_join_team_rejects_missing_team(
         "ABCD1234",
         hackathon.id,
     )
-    team_repository.count_members.assert_not_awaited()
+    team_repository.count_active_members.assert_not_awaited()
 
 
 async def test_join_team_rejects_team_at_member_limit(
@@ -220,7 +221,7 @@ async def test_join_team_rejects_team_at_member_limit(
     hackathon = make_hackathon(hackathon_id=10, max_team_size=4)
     team = Team(id=20, hackathon_id=hackathon.id, name="Crew", join_code="ABCD1234")
     team_repository.get_by_join_code_for_update.return_value = team
-    team_repository.count_members.return_value = 4
+    team_repository.count_active_members.return_value = 4
 
     with pytest.raises(TeamFullError):
         await team_service.join_team(
@@ -242,18 +243,56 @@ async def test_join_team_rejects_when_teams_are_disabled(
     team_repository.get_by_join_code_for_update.assert_not_awaited()
 
 
+async def test_member_can_be_reactivated_when_team_has_available_place(
+    team_service,
+    team_repository,
+):
+    team = Team(id=20, hackathon_id=10, name="Crew", join_code="ABCD1234")
+    team_repository.get_by_id_for_update.return_value = team
+    team_repository.count_active_members.return_value = 3
+
+    await team_service.ensure_member_can_be_activated(team.id, max_team_size=4)
+
+    team_repository.get_by_id_for_update.assert_awaited_once_with(team.id)
+    team_repository.count_active_members.assert_awaited_once_with(team.id)
+
+
+async def test_member_cannot_be_reactivated_when_team_is_full(
+    team_service,
+    team_repository,
+):
+    team = Team(id=20, hackathon_id=10, name="Crew", join_code="ABCD1234")
+    team_repository.get_by_id_for_update.return_value = team
+    team_repository.count_active_members.return_value = 4
+
+    with pytest.raises(TeamFullError):
+        await team_service.ensure_member_can_be_activated(team.id, max_team_size=4)
+
+
+async def test_member_cannot_be_reactivated_for_missing_team(
+    team_service,
+    team_repository,
+):
+    team_repository.get_by_id_for_update.return_value = None
+
+    with pytest.raises(TeamNotFoundError):
+        await team_service.ensure_member_can_be_activated(20, max_team_size=4)
+
+    team_repository.count_active_members.assert_not_awaited()
+
+
 async def test_delete_if_empty_removes_locked_team(
     team_service,
     team_repository,
 ):
     team = Team(id=20, hackathon_id=10, name="Crew", join_code="ABCD1234")
     team_repository.get_by_id_for_update.return_value = team
-    team_repository.count_members.return_value = 0
+    team_repository.count_registrations.return_value = 0
 
     await team_service.delete_if_empty(team.id)
 
     team_repository.get_by_id_for_update.assert_awaited_once_with(team.id)
-    team_repository.count_members.assert_awaited_once_with(team.id)
+    team_repository.count_registrations.assert_awaited_once_with(team.id)
     team_repository.delete.assert_awaited_once_with(team)
 
 
@@ -263,7 +302,7 @@ async def test_delete_if_empty_keeps_team_with_members(
 ):
     team = Team(id=20, hackathon_id=10, name="Crew", join_code="ABCD1234")
     team_repository.get_by_id_for_update.return_value = team
-    team_repository.count_members.return_value = 1
+    team_repository.count_registrations.return_value = 1
 
     await team_service.delete_if_empty(team.id)
 

@@ -125,7 +125,10 @@ class RegistrationRepository:
                 Registration.public_id == registration_public_id,
                 Hackathon.is_deleted.is_(False),
             )
-            .options(selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers))
+            .options(
+                selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
+                selectinload(Registration.team),
+            )
         )
 
         return result.scalar_one_or_none()
