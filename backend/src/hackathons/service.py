@@ -1,10 +1,11 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
+from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.exceptions import (
     AdminRequiredError,
     CoOrganizerAlreadyAssignedError,
@@ -132,6 +133,13 @@ class HackathonService:
         try:
             hackathon.co_organizers.append(co_organizer)
             await self.hackathon_repository.commit()
+        except IntegrityError as error:
+            await self.hackathon_repository.rollback()
+
+            if get_integrity_error_constraint(error) == "hackathon_co_organizers_pkey":
+                raise CoOrganizerAlreadyAssignedError() from error
+
+            raise
         except SQLAlchemyError:
             await self.hackathon_repository.rollback()
             raise

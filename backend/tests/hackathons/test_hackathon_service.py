@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
@@ -27,6 +27,12 @@ from src.hackathons.repository import HackathonRepository
 from src.hackathons.schemas import CoOrganizerAddRequest, HackathonCreate, HackathonUpdate
 from src.hackathons.service import HackathonService
 from tests.hackathons.factories import NOW, HackathonFactory, UserFactory
+
+
+class ConstraintViolation(Exception):
+    def __init__(self, constraint_name: str):
+        self.constraint_name = constraint_name
+        super().__init__(constraint_name)
 
 
 @pytest.fixture
@@ -526,6 +532,34 @@ async def test_add_co_organizer_rejects_duplicate(
 
     assert hackathon.co_organizers == [co_organizer]
     repository.commit.assert_not_awaited()
+
+
+async def test_add_co_organizer_maps_concurrent_duplicate_to_domain_error(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    admin_user: User,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
+    co_organizer = user_factory(user_id=2)
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_owned_by_public_id.return_value = hackathon
+    user_repository.get_by_public_id.return_value = co_organizer
+    repository.commit.side_effect = IntegrityError(
+        "INSERT INTO hackathon_co_organizers",
+        {},
+        ConstraintViolation("hackathon_co_organizers_pkey"),
+    )
+    service = make_service(repository, user_repository)
+
+    with pytest.raises(CoOrganizerAlreadyAssignedError):
+        await service.add_co_organizer(
+            hackathon.public_id,
+            CoOrganizerAddRequest(user_public_id=co_organizer.public_id),
+            admin_user,
+        )
+
+    repository.rollback.assert_awaited_once_with()
 
 
 async def test_add_co_organizer_rolls_back_database_error(
