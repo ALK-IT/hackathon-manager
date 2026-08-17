@@ -14,6 +14,6 @@ export function PublicOnlyRoute({ children }: { children: ReactNode }) {
     )
   }
 
-  if (user) return <Navigate to="/hackathons" replace />
+  if (user) return <Navigate to="/" replace />
   return children
 }

@@ -23,7 +23,6 @@ export function AppRouter() {
           </PublicOnlyRoute>
         }
       />
-      <Route path="/hackathons" element={<HackathonsPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

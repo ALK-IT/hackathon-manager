@@ -22,7 +22,7 @@ function renderPage(page: 'login' | 'register', overrides: Partial<AuthContextVa
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/hackathons" element={<div>Hackathony</div>} />
+          <Route path="/" element={<div>Hackathony</div>} />
         </Routes>
       </AuthContext.Provider>
     </MemoryRouter>,

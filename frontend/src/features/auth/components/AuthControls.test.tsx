@@ -23,10 +23,10 @@ function renderControls(overrides: Partial<AuthContextValue> = {}) {
   }
 
   render(
-    <MemoryRouter initialEntries={['/hackathons']}>
+    <MemoryRouter initialEntries={['/authenticated']}>
       <AuthContext.Provider value={auth}>
         <Routes>
-          <Route path="/hackathons" element={<AuthControls />} />
+          <Route path="/authenticated" element={<AuthControls />} />
           <Route path="/" element={<div>Strona główna</div>} />
         </Routes>
       </AuthContext.Provider>

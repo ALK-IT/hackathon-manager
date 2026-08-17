@@ -27,7 +27,7 @@ export function LoginPage() {
     setIsSubmitting(true)
     try {
       await login(email.trim().toLowerCase(), password)
-      navigate('/hackathons', { replace: true })
+      navigate('/', { replace: true })
     } catch (error) {
       setSubmitError(getLoginErrorMessage(error))
     } finally {
