@@ -1,4 +1,4 @@
-# SPEC-006: Audyt ostatniej zmiany statusu zgłoszenia
+# SPEC-008: Audyt ostatniej zmiany statusu zgłoszenia
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-15

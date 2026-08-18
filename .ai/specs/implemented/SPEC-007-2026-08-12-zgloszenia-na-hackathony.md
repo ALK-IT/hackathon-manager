@@ -1,4 +1,4 @@
-# SPEC-005: Zgłoszenia uczestników na hackathony
+# SPEC-007: Zgłoszenia uczestników na hackathony
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-12
