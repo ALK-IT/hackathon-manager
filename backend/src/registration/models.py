@@ -118,7 +118,7 @@ class RegistrationAnswer(Base):
         back_populates="answers",
     )
 
-    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="RESTRICT"))
 
     question: Mapped["RegistrationQuestion"] = relationship(back_populates="answers")
 

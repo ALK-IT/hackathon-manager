@@ -44,6 +44,7 @@ async def create_hackathon(
     organizer: User,
     *,
     registration_open: bool = True,
+    questions_editable: bool = False,
 ) -> Hackathon:
     now = datetime.now(UTC)
     start_date = now + timedelta(days=1)
@@ -54,7 +55,9 @@ async def create_hackathon(
         description="Hackathon used by endpoint integration tests",
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
-        registration_opens_at=now - timedelta(hours=1),
+        registration_opens_at=(
+            now + timedelta(hours=1) if questions_editable else now - timedelta(hours=1)
+        ),
         registration_deadline=now + timedelta(hours=12),
         registration_open=registration_open,
         capacity=50,
@@ -106,7 +109,7 @@ async def test_admin_creates_question(
         "admin@example.com",
         role=UserRole.ADMIN,
     )
-    hackathon = await create_hackathon(session, admin)
+    hackathon = await create_hackathon(session, admin, questions_editable=True)
     await session.commit()
     force_authenticate(admin)
 
@@ -143,7 +146,7 @@ async def test_admin_creates_many_questions(
         "admin@example.com",
         role=UserRole.ADMIN,
     )
-    hackathon = await create_hackathon(session, admin)
+    hackathon = await create_hackathon(session, admin, questions_editable=True)
     await session.commit()
     force_authenticate(admin)
 
@@ -186,7 +189,7 @@ async def test_organizer_and_co_organizer_create_and_delete_question(
 ):
     organizer = await create_user(session, "organizer@example.com")
     co_organizer = await create_user(session, "co-organizer@example.com")
-    hackathon = await create_hackathon(session, organizer)
+    hackathon = await create_hackathon(session, organizer, questions_editable=True)
     hackathon.co_organizers.append(co_organizer)
     await session.commit()
     current_user = organizer if access_kind == "organizer" else co_organizer
@@ -248,7 +251,7 @@ async def test_admin_deletes_question(
         "admin@example.com",
         role=UserRole.ADMIN,
     )
-    hackathon = await create_hackathon(session, admin)
+    hackathon = await create_hackathon(session, admin, questions_editable=True)
     question = await create_question(session, hackathon)
     await session.commit()
     question_public_id = question.public_id
@@ -266,6 +269,46 @@ async def test_admin_deletes_question(
         )
         is None
     )
+
+
+async def test_create_question_is_locked_after_registration_opened(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    hackathon = await create_hackathon(session, admin)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/questions",
+        json={"content": "A late question", "is_required": True},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "REGISTRATION_QUESTIONS_LOCKED"
+    assert list(await session.scalars(select(RegistrationQuestion))) == []
+
+
+async def test_delete_question_stays_locked_after_registration_is_closed(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    hackathon = await create_hackathon(session, admin, registration_open=False)
+    question = await create_question(session, hackathon)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.delete(
+        f"/api/hackathons/{hackathon.public_id}/questions/{question.public_id}"
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "REGISTRATION_QUESTIONS_LOCKED"
+    assert await session.get(RegistrationQuestion, question.id) is question
 
 
 async def test_delete_missing_question_returns_not_found(

@@ -2,12 +2,18 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.models import User, UserRole
 from src.hackathons.models import Hackathon
-from src.registration.models import Registration, RegistrationQuestion, RegistrationStatus
+from src.registration.models import (
+    Registration,
+    RegistrationAnswer,
+    RegistrationQuestion,
+    RegistrationStatus,
+)
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
 
 
@@ -88,6 +94,26 @@ async def test_delete_question(
     )
 
     assert result.scalar_one_or_none() is None
+
+
+async def test_database_rejects_deleting_question_with_answers(
+    session: AsyncSession,
+    organizer: User,
+):
+    participant = make_user("participant@example.com")
+    hackathon = make_hackathon(organizer)
+    question = RegistrationQuestion(content="Question", is_required=True, hackathon=hackathon)
+    registration = Registration(user=participant, hackathon=hackathon)
+    registration.answers.append(RegistrationAnswer(question=question, content="Answer"))
+    session.add(registration)
+    await session.flush()
+
+    with pytest.raises(IntegrityError):
+        await session.execute(
+            delete(RegistrationQuestion).where(RegistrationQuestion.id == question.id)
+        )
+
+    await session.rollback()
 
 
 async def test_get_question_by_public_id(

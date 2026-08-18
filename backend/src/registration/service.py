@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -14,6 +15,7 @@ from src.registration.exceptions import (
     RegistrationAlreadyExistsError,
     RegistrationClosedError,
     RegistrationNotFoundError,
+    RegistrationQuestionsLockedError,
 )
 from src.registration.models import (
     Registration,
@@ -35,6 +37,11 @@ def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
         or current_user.id == hackathon.organizer_id
         or any(user.id == current_user.id for user in hackathon.co_organizers)
     )
+
+
+def _ensure_questions_editable(hackathon: Hackathon) -> None:
+    if datetime.now(UTC) >= hackathon.registration_opens_at:
+        raise RegistrationQuestionsLockedError()
 
 
 class RegistrationQuestionService:
@@ -70,6 +77,8 @@ class RegistrationQuestionService:
         if not _can_manage_hackathon(question.hackathon, current_user):
             raise InvalidPermission()
 
+        _ensure_questions_editable(question.hackathon)
+
         try:
             await self.question_repository.delete(question)
             await self.question_repository.commit()
@@ -90,6 +99,8 @@ class RegistrationQuestionService:
 
         if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
+
+        _ensure_questions_editable(hackathon)
 
         question = RegistrationQuestion(
             content=data.content,
@@ -118,6 +129,8 @@ class RegistrationQuestionService:
 
         if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
+
+        _ensure_questions_editable(hackathon)
 
         questions = [
             RegistrationQuestion(
