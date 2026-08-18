@@ -16,6 +16,7 @@ from src.registration.exceptions import (
     RegistrationAlreadyExistsError,
     RegistrationClosedError,
     RegistrationNotFoundError,
+    RegistrationQuestionsLockedError,
 )
 from src.registration.models import Registration, RegistrationQuestion, RegistrationStatus
 from src.registration.schema import (
@@ -55,7 +56,7 @@ def make_question(
     )
 
 
-def make_hackathon() -> Hackathon:
+def make_hackathon(*, registration_started: bool = False) -> Hackathon:
     now = datetime.now(UTC)
     start_date = now + timedelta(days=1)
     return Hackathon(
@@ -63,8 +64,10 @@ def make_hackathon() -> Hackathon:
         organizer_id=1,
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
-        registration_opens_at=now - timedelta(hours=1),
-        registration_deadline=start_date - timedelta(hours=1),
+        registration_opens_at=(
+            now - timedelta(hours=1) if registration_started else now + timedelta(hours=1)
+        ),
+        registration_deadline=now + timedelta(hours=12),
         max_team_size=4,
         registration_open=True,
     )
@@ -208,7 +211,7 @@ async def test_admin_can_delete_question(
     question_service,
     question_repository,
 ):
-    question = SimpleNamespace(hackathon=SimpleNamespace())
+    question = SimpleNamespace(hackathon=make_hackathon())
     question_repository.get_by_public_id.return_value = question
 
     await question_service.delete_question(
@@ -226,7 +229,7 @@ async def test_delete_question_rolls_back_repository_error(
     question_repository,
 ):
     error = RuntimeError("delete failed")
-    question_repository.get_by_public_id.return_value = SimpleNamespace(hackathon=SimpleNamespace())
+    question_repository.get_by_public_id.return_value = SimpleNamespace(hackathon=make_hackathon())
     question_repository.delete.side_effect = error
 
     with pytest.raises(RuntimeError, match="delete failed"):
@@ -355,6 +358,7 @@ async def test_organizer_and_co_organizer_can_delete_question(
         hackathon=SimpleNamespace(
             organizer_id=organizer_id,
             co_organizers=[SimpleNamespace(id=co_organizer_id)],
+            registration_opens_at=datetime.now(UTC) + timedelta(hours=1),
         )
     )
     question_repository.get_by_public_id.return_value = question
@@ -363,6 +367,24 @@ async def test_organizer_and_co_organizer_can_delete_question(
 
     question_repository.delete.assert_awaited_once_with(question)
     question_repository.commit.assert_awaited_once_with()
+
+
+async def test_delete_question_rejects_change_after_registration_opened(
+    question_service,
+    question_repository,
+):
+    question = SimpleNamespace(hackathon=make_hackathon(registration_started=True))
+    question.hackathon.registration_open = False
+    question_repository.get_by_public_id.return_value = question
+
+    with pytest.raises(RegistrationQuestionsLockedError):
+        await question_service.delete_question(
+            uuid.uuid4(),
+            make_user(role=UserRole.ADMIN),
+        )
+
+    question_repository.delete.assert_not_awaited()
+    question_repository.commit.assert_not_awaited()
 
 
 async def test_admin_can_create_question(
@@ -387,6 +409,26 @@ async def test_admin_can_create_question(
     question_repository.create.assert_awaited_once_with(result)
     question_repository.commit.assert_awaited_once_with()
     question_repository.rollback.assert_not_awaited()
+
+
+async def test_create_question_rejects_change_after_registration_opened(
+    question_service,
+    question_repository,
+    hackathon_repository,
+):
+    hackathon_repository.get_active_by_public_id.return_value = make_hackathon(
+        registration_started=True
+    )
+
+    with pytest.raises(RegistrationQuestionsLockedError):
+        await question_service.create_question(
+            uuid.uuid4(),
+            RegistrationQuestionCreate(content="Why?"),
+            make_user(role=UserRole.ADMIN),
+        )
+
+    question_repository.create.assert_not_awaited()
+    question_repository.commit.assert_not_awaited()
 
 
 async def test_create_question_rolls_back_repository_error(
@@ -1063,3 +1105,24 @@ async def test_create_many_questions(
     question_repository.create_many.assert_awaited_once_with(result)
     question_repository.commit.assert_awaited_once_with()
     question_repository.rollback.assert_not_awaited()
+
+
+async def test_create_many_questions_rejects_change_after_registration_opened(
+    question_service,
+    question_repository,
+    hackathon_repository,
+):
+    hackathon_repository.get_active_by_public_id.return_value = make_hackathon(
+        registration_started=True
+    )
+    data = RegistrationQuestionBulkCreate(questions=[RegistrationQuestionCreate(content="Why?")])
+
+    with pytest.raises(RegistrationQuestionsLockedError):
+        await question_service.create_questions(
+            uuid.uuid4(),
+            data,
+            make_user(role=UserRole.ADMIN),
+        )
+
+    question_repository.create_many.assert_not_awaited()
+    question_repository.commit.assert_not_awaited()

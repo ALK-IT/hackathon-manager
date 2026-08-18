@@ -15,6 +15,12 @@ class QuestionNotFoundError(RegistrationError):
     detail = "Registration question does not exist."
 
 
+class RegistrationQuestionsLockedError(RegistrationError):
+    status_code = 409
+    error_code = "REGISTRATION_QUESTIONS_LOCKED"
+    detail = "Registration questions cannot be changed after registration has opened."
+
+
 class InvalidPermission(RegistrationError):
     status_code = 403
     error_code = "REGISTRATION_PERMISSION_DENIED"
