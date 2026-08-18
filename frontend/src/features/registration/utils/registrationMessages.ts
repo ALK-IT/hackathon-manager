@@ -8,6 +8,30 @@ export function getQuestionsErrorMessage(error: unknown): string {
   return 'Nie udało się pobrać formularza zgłoszeniowego. Spróbuj ponownie.'
 }
 
+export function areRegistrationQuestionsLocked(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.errorCode === 'REGISTRATION_QUESTIONS_LOCKED'
+  )
+}
+
+export function getQuestionManagementErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    return 'Nie udało się zapisać zmian. Spróbuj ponownie.'
+  }
+
+  const messages: Record<string, string> = {
+    HACKATHON_NOT_FOUND: 'Ten hackathon nie istnieje lub został usunięty.',
+    QUESTION_NOT_FOUND: 'To pytanie już nie istnieje. Odśwież stronę.',
+    REGISTRATION_PERMISSION_DENIED: 'Nie masz uprawnień do edycji tych pytań.',
+    REGISTRATION_QUESTIONS_LOCKED:
+      'Nie można już zmieniać pytań, ponieważ rejestracja została otwarta.',
+    VALIDATION_ERROR: 'Sprawdź treść pytania i spróbuj ponownie.',
+  }
+
+  return error.errorCode ? (messages[error.errorCode] ?? error.message) : error.message
+}
+
 export function getRegistrationErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) {
     return 'Nie udało się wysłać zgłoszenia. Spróbuj ponownie.'

@@ -22,13 +22,25 @@ describe('CreateHackathonPage', () => {
     expect(createHackathon).not.toHaveBeenCalled()
   })
 
-  it('creates a hackathon and returns to the list', async () => {
-    vi.mocked(createHackathon).mockResolvedValue(undefined)
+  it('creates a hackathon and opens the question setup step', async () => {
+    vi.mocked(createHackathon).mockResolvedValue({
+      public_id: 'hackathon-id',
+      name: 'Hackathon AI',
+      start_date: '2026-09-10T08:00:00.000Z',
+      end_date: '2026-09-11T16:00:00.000Z',
+      registration_open: false,
+      capacity: null,
+      max_team_size: 4,
+      access_level: 'owner',
+    })
     render(
       <MemoryRouter initialEntries={['/hackathons/create']}>
         <Routes>
           <Route path="/hackathons/create" element={<CreateHackathonPage />} />
-          <Route path="/hackathons" element={<p>Lista hackathonów</p>} />
+          <Route
+            path="/hackathons/:hackathonPublicId/questions/setup"
+            element={<p>Konfiguracja pytań</p>}
+          />
         </Routes>
       </MemoryRouter>,
     )
@@ -45,7 +57,7 @@ describe('CreateHackathonPage', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Utwórz hackathon' }))
 
-    expect(await screen.findByText('Lista hackathonów')).toBeInTheDocument()
+    expect(await screen.findByText('Konfiguracja pytań')).toBeInTheDocument()
     expect(createHackathon).toHaveBeenCalledWith({
       name: 'Hackathon AI',
       description: '',

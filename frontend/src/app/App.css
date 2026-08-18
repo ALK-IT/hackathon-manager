@@ -71,6 +71,74 @@ button:disabled {
   margin: 0 auto;
 }
 
+.registration-questions-setup-card {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.registration-questions-editor {
+  display: grid;
+  gap: 20px;
+  margin: 24px 0;
+}
+
+.registration-question-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.registration-question-required {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.registration-question-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.registration-question-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.registration-question-content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.registration-question-content span:first-child {
+  overflow-wrap: anywhere;
+}
+
+.registration-question-kind,
+.registration-questions-empty,
+.registration-questions-hint {
+  color: #6b7280;
+}
+
+.registration-question-kind {
+  font-size: 14px;
+}
+
+.registration-questions-empty {
+  margin: 0;
+}
+
 .registration-questions,
 .team-options {
   display: grid;
@@ -125,5 +193,15 @@ button:disabled {
 
   .hackathons-layout {
     grid-template-columns: 1fr;
+  }
+
+  .registration-question-form {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .registration-question-item {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

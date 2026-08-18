@@ -20,7 +20,7 @@ export function getHackathons(options: GetHackathonsOptions = {}) {
 }
 
 export function createHackathon(payload: CreateHackathonPayload) {
-  return apiRequest<void>('/api/hackathons', {
+  return apiRequest<Hackathon>('/api/hackathons', {
     method: 'POST',
     body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' },
