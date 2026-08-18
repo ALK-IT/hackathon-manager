@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -47,12 +48,21 @@ class RegistrationCreate(BaseModel):
         return self
 
 
+class RegistrationStatusChangedByResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+
+
 class RegistrationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     public_id: uuid.UUID
     status: RegistrationStatus
     team: TeamResponse | None = None
+    status_changed_at: datetime | None
+    status_changed_by: RegistrationStatusChangedByResponse | None
 
 
 class RegistrationStatusUpdate(BaseModel):
@@ -88,3 +98,8 @@ class RegistrationAnswerResponse(BaseModel):
 class RegistrationDetailResponse(RegistrationResponse):
     user: RegistrationUserResponse
     answers: list[RegistrationAnswerResponse]
+
+
+class RegistrationQuestionBulkCreate(BaseModel):
+
+    questions: list[RegistrationQuestionCreate] = Field(min_length=1, max_length=50)

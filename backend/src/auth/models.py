@@ -47,6 +47,7 @@ class User(Base):
     )
     registrations: Mapped[list["Registration"]] = relationship(
         back_populates="user",
+        foreign_keys="Registration.user_id",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )

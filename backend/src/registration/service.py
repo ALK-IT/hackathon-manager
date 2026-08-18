@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -15,6 +16,7 @@ from src.registration.exceptions import (
     RegistrationAlreadyExistsError,
     RegistrationClosedError,
     RegistrationNotFoundError,
+    RegistrationQuestionsLockedError,
 )
 from src.registration.models import (
     Registration,
@@ -23,7 +25,11 @@ from src.registration.models import (
     RegistrationStatus,
 )
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
-from src.registration.schema import RegistrationCreate, RegistrationQuestionCreate
+from src.registration.schema import (
+    RegistrationCreate,
+    RegistrationQuestionBulkCreate,
+    RegistrationQuestionCreate,
+)
 from src.teams.service import TeamService
 
 
@@ -33,6 +39,11 @@ def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
         or current_user.id == hackathon.organizer_id
         or any(user.id == current_user.id for user in hackathon.co_organizers)
     )
+
+
+def _ensure_questions_editable(hackathon: Hackathon) -> None:
+    if datetime.now(UTC) >= hackathon.registration_opens_at:
+        raise RegistrationQuestionsLockedError()
 
 
 class RegistrationQuestionService:
@@ -68,6 +79,8 @@ class RegistrationQuestionService:
         if not _can_manage_hackathon(question.hackathon, current_user):
             raise InvalidPermission()
 
+        _ensure_questions_editable(question.hackathon)
+
         try:
             await self.question_repository.delete(question)
             await self.question_repository.commit()
@@ -89,6 +102,8 @@ class RegistrationQuestionService:
         if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
+        _ensure_questions_editable(hackathon)
+
         question = RegistrationQuestion(
             content=data.content,
             is_required=data.is_required,
@@ -99,6 +114,38 @@ class RegistrationQuestionService:
             question = await self.question_repository.create(question)
             await self.question_repository.commit()
             return question
+        except Exception:
+            await self.question_repository.rollback()
+            raise
+
+    async def create_questions(
+        self,
+        hackathon_public_id: uuid.UUID,
+        data: RegistrationQuestionBulkCreate,
+        current_user: User,
+    ) -> list[RegistrationQuestion]:
+        hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
+
+        if hackathon is None:
+            raise HackathonNotFoundError()
+
+        if not _can_manage_hackathon(hackathon, current_user):
+            raise InvalidPermission()
+
+        _ensure_questions_editable(hackathon)
+
+        questions = [
+            RegistrationQuestion(
+                content=question.content, is_required=question.is_required, hackathon=hackathon
+            )
+            for question in data.questions
+        ]
+
+        try:
+            created_questions = await self.question_repository.create_many(questions)
+
+            await self.question_repository.commit()
+            return created_questions
         except Exception:
             await self.question_repository.rollback()
             raise
@@ -121,6 +168,8 @@ class RegistrationService:
         self,
         hackathon_public_id: uuid.UUID,
         current_user: User,
+        limit: int = 50,
+        offset: int = 0,
     ) -> list[Registration]:
         hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
 
@@ -130,7 +179,11 @@ class RegistrationService:
         if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
-        return await self.registration_repository.get_by_hackathon(hackathon_public_id)
+        return await self.registration_repository.get_by_hackathon(
+            hackathon_public_id,
+            limit=limit,
+            offset=offset,
+        )
 
     async def get_my_registration(
         self,
@@ -218,7 +271,9 @@ class RegistrationService:
         registration_public_id: uuid.UUID,
         current_user: User,
     ) -> None:
-        registration = await self.registration_repository.get_by_public_id(registration_public_id)
+        registration = await self.registration_repository.get_active_by_public_id(
+            registration_public_id
+        )
 
         if registration is None:
             raise RegistrationNotFoundError()
@@ -243,7 +298,9 @@ class RegistrationService:
         new_status: RegistrationStatus,
         current_user: User,
     ) -> Registration:
-        registration = await self.registration_repository.get_by_public_id(registration_public_id)
+        registration = await self.registration_repository.get_active_by_public_id(
+            registration_public_id
+        )
 
         if registration is None:
             raise RegistrationNotFoundError()
@@ -257,6 +314,7 @@ class RegistrationService:
             registration = await self.registration_repository.update_status(
                 registration,
                 new_status,
+                current_user,
             )
             await self.registration_repository.commit()
             return registration

@@ -1,9 +1,10 @@
 import uuid
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -71,15 +72,32 @@ class Registration(Base):
         nullable=False,
     )
 
-    user: Mapped["User"] = relationship(back_populates="registrations")
+    user: Mapped["User"] = relationship(
+        back_populates="registrations",
+        foreign_keys=[user_id],
+    )
 
     hackathon_id: Mapped[int] = mapped_column(ForeignKey("hackathons.id", ondelete="CASCADE"))
 
     hackathon: Mapped["Hackathon"] = relationship(back_populates="registrations")
 
+    status_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    status_changed_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    status_changed_by: Mapped["User | None"] = relationship(
+        foreign_keys=[status_changed_by_id],
+    )
+
     answers: Mapped[list["RegistrationAnswer"]] = relationship(
         back_populates="registration",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
     team_id: Mapped[int | None] = mapped_column(
@@ -111,7 +129,7 @@ class RegistrationAnswer(Base):
         back_populates="answers",
     )
 
-    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="RESTRICT"))
 
     question: Mapped["RegistrationQuestion"] = relationship(back_populates="answers")
 
