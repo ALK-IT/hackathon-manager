@@ -1,5 +1,10 @@
 import { apiRequest } from '../../../lib/api/client'
-import type { CreateHackathonPayload, Hackathon, HackathonFilters } from '../types'
+import type {
+  CreateHackathonPayload,
+  Hackathon,
+  HackathonFilters,
+  UpdateHackathonPayload,
+} from '../types'
 
 interface GetHackathonsOptions extends HackathonFilters {
   signal?: AbortSignal
@@ -22,6 +27,21 @@ export function getHackathons(options: GetHackathonsOptions = {}) {
 export function createHackathon(payload: CreateHackathonPayload) {
   return apiRequest<Hackathon>('/api/hackathons', {
     method: 'POST',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+export function getHackathon(publicId: string) {
+  return apiRequest<Hackathon>(`/api/hackathons/${publicId}`, {})
+}
+
+export function updateHackathon(
+  publicId: string,
+  payload: UpdateHackathonPayload,
+) {
+  return apiRequest<Hackathon>(`/api/hackathons/${publicId}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' },
   })

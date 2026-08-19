@@ -56,4 +56,31 @@ describe('HackathonListItem', () => {
     expect(screen.getByText('Rejestracja: zamknięta')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Zarejestruj się' })).not.toBeInTheDocument()
   })
+
+  it('shows settings only to people who manage the hackathon', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={{ ...hackathon, access_level: 'owner' }} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Ustawienia' })).toBeInTheDocument()
+  })
+
+  it('navigates to hackathon settings', () => {
+    function Location() {
+      return <output>{useLocation().pathname}</output>
+    }
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={{ ...hackathon, access_level: 'owner' }} />
+        <Location />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ustawienia' }))
+
+    expect(screen.getByText(`/hackathons/${hackathon.public_id}/settings`)).toBeInTheDocument()
+  })
 })
