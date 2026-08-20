@@ -13,6 +13,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import src.all_models  # noqa: F401
 from src.database import normalize_database_url
 from src.models import Base
+from src.registration.models import (  # noqa: F401
+    Registration,
+    RegistrationAnswer,
+    RegistrationQuestion,
+)
 
 config = context.config
 
