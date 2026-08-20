@@ -120,7 +120,7 @@ class ResourceAuditLog(Base):
     resource_id: Mapped[int] = mapped_column(
         ForeignKey("resources.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    actor_id: Mapped[int] = mapped_column(
+    user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     action: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -130,4 +130,4 @@ class ResourceAuditLog(Base):
     )
 
     resource: Mapped["Resource"] = relationship(back_populates="audit_logs")
-    actor: Mapped["User"] = relationship(back_populates="resource_audit_logs")
+    user: Mapped["User"] = relationship(back_populates="resource_audit_logs")

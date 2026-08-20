@@ -63,4 +63,4 @@ class User(Base):
     resource_assignments_created: Mapped[list["ResourceAssignment"]] = relationship(
         back_populates="assigned_by"
     )
-    resource_audit_logs: Mapped[list["ResourceAuditLog"]] = relationship(back_populates="actor")
+    resource_audit_logs: Mapped[list["ResourceAuditLog"]] = relationship(back_populates="user")
