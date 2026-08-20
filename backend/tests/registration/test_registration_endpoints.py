@@ -1,0 +1,941 @@
+import uuid
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.auth.models import User, UserRole
+from src.hackathons.models import Hackathon
+from src.main import app
+from src.registration.models import (
+    Registration,
+    RegistrationAnswer,
+    RegistrationQuestion,
+    RegistrationStatus,
+)
+
+ForceAuthenticate = Callable[[User | None], None]
+
+
+async def create_user(
+    session: AsyncSession,
+    email: str,
+    *,
+    role: UserRole = UserRole.USER,
+) -> User:
+    local_part, domain = email.split("@", maxsplit=1)
+    unique_email = f"{local_part}-{uuid.uuid4()}@{domain}"
+    user = User(
+        name=local_part.title(),
+        email=unique_email,
+        password_hash="test-password-hash",
+        role=role,
+    )
+    session.add(user)
+    await session.flush()
+    return user
+
+
+async def create_hackathon(
+    session: AsyncSession,
+    organizer: User,
+    *,
+    registration_open: bool = True,
+    questions_editable: bool = False,
+) -> Hackathon:
+    now = datetime.now(UTC)
+    start_date = now + timedelta(days=1)
+    hackathon = Hackathon(
+        organizer=organizer,
+        co_organizers=[],
+        name="Integration Test Hackathon",
+        description="Hackathon used by endpoint integration tests",
+        start_date=start_date,
+        end_date=start_date + timedelta(days=2),
+        registration_opens_at=(
+            now + timedelta(hours=1) if questions_editable else now - timedelta(hours=1)
+        ),
+        registration_deadline=now + timedelta(hours=12),
+        registration_open=registration_open,
+        capacity=50,
+        max_team_size=4,
+    )
+    session.add(hackathon)
+    await session.flush()
+    return hackathon
+
+
+async def create_question(
+    session: AsyncSession,
+    hackathon: Hackathon,
+    *,
+    content: str = "Why do you want to participate?",
+    is_required: bool = True,
+) -> RegistrationQuestion:
+    question = RegistrationQuestion(
+        hackathon=hackathon,
+        content=content,
+        is_required=is_required,
+    )
+    session.add(question)
+    await session.flush()
+    return question
+
+
+def test_registration_routes_are_registered():
+    paths = set(app.openapi()["paths"])
+
+    assert {
+        "/api/hackathons/{hackathon_public_id}/questions",
+        "/api/hackathons/{hackathon_public_id}/questions/bulk",
+        "/api/hackathons/{hackathon_public_id}/questions/{question_public_id}",
+        "/api/hackathons/{hackathon_public_id}/registrations",
+        "/api/hackathons/{hackathon_public_id}/registrations/me",
+        "/api/registrations/{registration_public_id}",
+        "/api/registrations/{registration_public_id}/status",
+    }.issubset(paths)
+
+
+async def test_admin_creates_question(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(
+        session,
+        "admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    hackathon = await create_hackathon(session, admin, questions_editable=True)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/questions",
+        json={
+            "content": "Why do you want to participate?",
+            "is_required": True,
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert set(body) == {"public_id", "content", "is_required"}
+    assert body["content"] == "Why do you want to participate?"
+    assert body["is_required"] is True
+
+    question = await session.scalar(
+        select(RegistrationQuestion).where(
+            RegistrationQuestion.public_id == uuid.UUID(body["public_id"])
+        )
+    )
+    assert question is not None
+    assert question.hackathon_id == hackathon.id
+
+
+async def test_admin_creates_many_questions(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(
+        session,
+        "admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    hackathon = await create_hackathon(session, admin, questions_editable=True)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/questions/bulk",
+        json={
+            "questions": [
+                {"content": "Why do you want to participate?", "is_required": True},
+                {"content": "What is your experience?", "is_required": False},
+            ]
+        },
+    )
+
+    assert response.status_code == 201
+    assert [question["content"] for question in response.json()] == [
+        "Why do you want to participate?",
+        "What is your experience?",
+    ]
+    assert [question["is_required"] for question in response.json()] == [True, False]
+
+    saved_questions = list(
+        await session.scalars(
+            select(RegistrationQuestion)
+            .where(RegistrationQuestion.hackathon_id == hackathon.id)
+            .order_by(RegistrationQuestion.id)
+        )
+    )
+    assert [question.content for question in saved_questions] == [
+        "Why do you want to participate?",
+        "What is your experience?",
+    ]
+
+
+@pytest.mark.parametrize("access_kind", ["organizer", "co_organizer"])
+async def test_organizer_and_co_organizer_create_and_delete_question(
+    access_kind: str,
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    co_organizer = await create_user(session, "co-organizer@example.com")
+    hackathon = await create_hackathon(session, organizer, questions_editable=True)
+    hackathon.co_organizers.append(co_organizer)
+    await session.commit()
+    current_user = organizer if access_kind == "organizer" else co_organizer
+    force_authenticate(current_user)
+
+    create_response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/questions",
+        json={"content": "Team experience?", "is_required": False},
+    )
+
+    assert create_response.status_code == 201
+    question_public_id = uuid.UUID(create_response.json()["public_id"])
+
+    delete_response = await api_client.delete(
+        f"/api/hackathons/{hackathon.public_id}/questions/{question_public_id}"
+    )
+
+    assert delete_response.status_code == 204
+    assert (
+        await session.scalar(
+            select(RegistrationQuestion).where(RegistrationQuestion.public_id == question_public_id)
+        )
+        is None
+    )
+
+
+async def test_create_question_rejects_invalid_payload(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(
+        session,
+        "admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    hackathon = await create_hackathon(session, admin)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/questions",
+        json={"content": "", "is_required": True},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+    questions = await session.scalars(select(RegistrationQuestion))
+    assert list(questions) == []
+
+
+async def test_admin_deletes_question(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(
+        session,
+        "admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    hackathon = await create_hackathon(session, admin, questions_editable=True)
+    question = await create_question(session, hackathon)
+    await session.commit()
+    question_public_id = question.public_id
+    force_authenticate(admin)
+
+    response = await api_client.delete(
+        f"/api/hackathons/{hackathon.public_id}/questions/{question_public_id}"
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert (
+        await session.scalar(
+            select(RegistrationQuestion).where(RegistrationQuestion.public_id == question_public_id)
+        )
+        is None
+    )
+
+
+async def test_create_question_is_locked_after_registration_opened(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    hackathon = await create_hackathon(session, admin)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/questions",
+        json={"content": "A late question", "is_required": True},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "REGISTRATION_QUESTIONS_LOCKED"
+    assert list(await session.scalars(select(RegistrationQuestion))) == []
+
+
+async def test_delete_question_stays_locked_after_registration_is_closed(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    hackathon = await create_hackathon(session, admin, registration_open=False)
+    question = await create_question(session, hackathon)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.delete(
+        f"/api/hackathons/{hackathon.public_id}/questions/{question.public_id}"
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "REGISTRATION_QUESTIONS_LOCKED"
+    assert await session.get(RegistrationQuestion, question.id) is question
+
+
+async def test_delete_missing_question_returns_not_found(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(
+        session,
+        "admin@example.com",
+        role=UserRole.ADMIN,
+    )
+    hackathon = await create_hackathon(session, admin)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.delete(
+        f"/api/hackathons/{hackathon.public_id}/questions/{uuid.uuid4()}"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error_code"] == "QUESTION_NOT_FOUND"
+
+
+async def test_participant_lists_registration_questions(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    required_question = await create_question(session, hackathon, content="Why?")
+    optional_question = await create_question(
+        session,
+        hackathon,
+        content="Anything else?",
+        is_required=False,
+    )
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/questions")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "public_id": str(required_question.public_id),
+            "content": "Why?",
+            "is_required": True,
+        },
+        {
+            "public_id": str(optional_question.public_id),
+            "content": "Anything else?",
+            "is_required": False,
+        },
+    ]
+
+
+async def test_user_creates_registration(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    question = await create_question(session, hackathon)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={
+            "answers": [
+                {
+                    "question_public_id": str(question.public_id),
+                    "content": "My answer",
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 201
+    registration_public_id = uuid.UUID(response.json()["public_id"])
+    registration = await session.scalar(
+        select(Registration).where(Registration.public_id == registration_public_id)
+    )
+    assert registration is not None
+    assert registration.user_id == participant.id
+    assert registration.hackathon_id == hackathon.id
+
+    answer = await session.scalar(
+        select(RegistrationAnswer).where(RegistrationAnswer.registration_id == registration.id)
+    )
+    assert answer is not None
+    assert answer.question_id == question.id
+    assert answer.content == "My answer"
+
+
+async def test_user_cannot_register_when_registration_is_closed(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(
+        session,
+        organizer,
+        registration_open=False,
+    )
+    question = await create_question(session, hackathon)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={
+            "answers": [
+                {
+                    "question_public_id": str(question.public_id),
+                    "content": "My answer",
+                }
+            ]
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "REGISTRATION_CLOSED"
+    registration = await session.scalar(
+        select(Registration).where(
+            Registration.user_id == participant.id,
+            Registration.hackathon_id == hackathon.id,
+        )
+    )
+    assert registration is None
+
+
+async def test_user_creates_registration_with_multiple_answers(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    required_question = await create_question(
+        session,
+        hackathon,
+        content="Why",
+    )
+    optional_question = await create_question(
+        session,
+        hackathon,
+        content="What",
+        is_required=False,
+    )
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={
+            "answers": [
+                {
+                    "question_public_id": str(required_question.public_id),
+                    "content": "noo",
+                },
+                {
+                    "question_public_id": str(optional_question.public_id),
+                    "content": "yes",
+                },
+            ]
+        },
+    )
+
+    assert response.status_code == 201
+    registration_public_id = uuid.UUID(response.json()["public_id"])
+    registration = await session.scalar(
+        select(Registration).where(Registration.public_id == registration_public_id)
+    )
+    assert registration is not None
+
+    answers = await session.scalars(
+        select(RegistrationAnswer).where(RegistrationAnswer.registration_id == registration.id)
+    )
+    answers_by_question_id = {answer.question_id: answer.content for answer in answers}
+    assert answers_by_question_id == {
+        required_question.id: "noo",
+        optional_question.id: "yes",
+    }
+
+
+async def test_create_registration_rejects_duplicate_question_answers(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    question = await create_question(session, hackathon)
+    await session.commit()
+    force_authenticate(participant)
+    answer = {
+        "question_public_id": str(question.public_id),
+        "content": "My answer",
+    }
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        json={"answers": [answer, answer]},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+    registration = await session.scalar(
+        select(Registration).where(
+            Registration.user_id == participant.id,
+            Registration.hackathon_id == hackathon.id,
+        )
+    )
+    assert registration is None
+
+
+async def test_owner_deletes_registration(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.commit()
+    registration_public_id = registration.public_id
+    force_authenticate(participant)
+
+    response = await api_client.delete(f"/api/registrations/{registration_public_id}")
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert (
+        await session.scalar(
+            select(Registration).where(Registration.public_id == registration_public_id)
+        )
+        is None
+    )
+
+
+async def test_delete_missing_registration_returns_not_found(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    user = await create_user(session, "participant@example.com")
+    await session.commit()
+    force_authenticate(user)
+
+    response = await api_client.delete(f"/api/registrations/{uuid.uuid4()}")
+
+    assert response.status_code == 404
+    assert response.json()["error_code"] == "REGISTRATION_NOT_FOUND"
+
+
+@pytest.mark.parametrize("operation", ["delete", "update-status"])
+async def test_deleted_hackathon_blocks_registration_changes(
+    operation: str,
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.flush()
+    registration_public_id = registration.public_id
+    hackathon.is_deleted = True
+    await session.commit()
+    force_authenticate(organizer)
+
+    if operation == "delete":
+        response = await api_client.delete(f"/api/registrations/{registration_public_id}")
+    else:
+        response = await api_client.patch(
+            f"/api/registrations/{registration_public_id}/status",
+            json={"status": "accepted"},
+        )
+
+    assert response.status_code == 404
+    assert response.json()["error_code"] == "REGISTRATION_NOT_FOUND"
+    saved_registration = await session.scalar(
+        select(Registration).where(Registration.public_id == registration_public_id)
+    )
+    assert saved_registration is not None
+    assert saved_registration.status is RegistrationStatus.PENDING
+
+
+async def test_registration_endpoint_requires_authentication(
+    api_client: AsyncClient,
+):
+    response = await api_client.delete(f"/api/registrations/{uuid.uuid4()}")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("access_kind", ["admin", "organizer", "co_organizer"])
+async def test_authorized_user_lists_registrations_with_answers(
+    access_kind: str,
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    co_organizer = await create_user(session, "co-organizer@example.com")
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    hackathon.co_organizers.append(co_organizer)
+    question = await create_question(session, hackathon, content="Why participate?")
+    registration = Registration(
+        user=participant,
+        hackathon=hackathon,
+        answers=[RegistrationAnswer(question=question, content="To build something useful")],
+    )
+    session.add(registration)
+    await session.commit()
+
+    current_user = {
+        "admin": admin,
+        "organizer": organizer,
+        "co_organizer": co_organizer,
+    }[access_kind]
+    force_authenticate(current_user)
+
+    response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/registrations")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "public_id": str(registration.public_id),
+            "status": "pending",
+            "status_changed_at": None,
+            "status_changed_by": None,
+            "user": {
+                "public_id": str(participant.public_id),
+                "name": participant.name,
+                "email": participant.email,
+            },
+            "answers": [
+                {
+                    "content": "To build something useful",
+                    "question": {
+                        "public_id": str(question.public_id),
+                        "content": "Why participate?",
+                        "is_required": True,
+                    },
+                }
+            ],
+        }
+    ]
+
+
+async def test_list_registrations_applies_limit_and_offset(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    participants = [
+        await create_user(session, f"participant-{index}@example.com") for index in range(3)
+    ]
+    registrations = [
+        Registration(
+            user=participant,
+            hackathon=hackathon,
+        )
+        for participant in participants
+    ]
+    session.add_all(registrations)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.get(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        params={"limit": 1, "offset": 1},
+    )
+
+    assert response.status_code == 200
+    assert [item["public_id"] for item in response.json()] == [str(registrations[1].public_id)]
+
+
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}])
+async def test_list_registrations_rejects_invalid_pagination(
+    params: dict[str, int],
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.get(
+        f"/api/hackathons/{hackathon.public_id}/registrations",
+        params=params,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
+async def test_regular_user_cannot_list_hackathon_registrations(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/registrations")
+
+    assert response.status_code == 403
+    assert response.json()["error_code"] == "REGISTRATION_PERMISSION_DENIED"
+
+
+async def test_participant_gets_own_registration_with_answers(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    question = await create_question(session, hackathon, content="Why participate?")
+    registration = Registration(
+        user=participant,
+        hackathon=hackathon,
+        answers=[RegistrationAnswer(question=question, content="To learn")],
+    )
+    session.add(registration)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/registrations/me")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "public_id": str(registration.public_id),
+        "status": "pending",
+        "status_changed_at": None,
+        "status_changed_by": None,
+        "user": {
+            "public_id": str(participant.public_id),
+            "name": participant.name,
+            "email": participant.email,
+        },
+        "answers": [
+            {
+                "content": "To learn",
+                "question": {
+                    "public_id": str(question.public_id),
+                    "content": "Why participate?",
+                    "is_required": True,
+                },
+            }
+        ],
+    }
+
+
+async def test_participant_cannot_get_another_users_registration_as_own(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    outsider = await create_user(session, "outsider@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    session.add(Registration(user=participant, hackathon=hackathon))
+    await session.commit()
+    force_authenticate(outsider)
+
+    response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/registrations/me")
+
+    assert response.status_code == 404
+    assert response.json()["error_code"] == "REGISTRATION_NOT_FOUND"
+
+
+@pytest.mark.parametrize("access_kind", ["admin", "organizer", "co_organizer"])
+@pytest.mark.parametrize(
+    "new_status",
+    [RegistrationStatus.ACCEPTED, RegistrationStatus.REJECTED],
+)
+async def test_authorized_user_updates_registration_status(
+    access_kind: str,
+    new_status: RegistrationStatus,
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    co_organizer = await create_user(session, "co-organizer@example.com")
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    hackathon.co_organizers.append(co_organizer)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.commit()
+
+    current_user = {
+        "admin": admin,
+        "organizer": organizer,
+        "co_organizer": co_organizer,
+    }[access_kind]
+    force_authenticate(current_user)
+
+    response = await api_client.patch(
+        f"/api/registrations/{registration.public_id}/status",
+        json={"status": new_status.value},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["public_id"] == str(registration.public_id)
+    assert body["status"] == new_status.value
+    assert datetime.fromisoformat(body["status_changed_at"]).tzinfo is not None
+    assert body["status_changed_by"] == {
+        "public_id": str(current_user.public_id),
+        "name": current_user.name,
+    }
+    await session.refresh(registration)
+    assert registration.status is new_status
+    assert registration.status_changed_at is not None
+    assert registration.status_changed_by_id == current_user.id
+
+
+async def test_status_audit_tracks_the_most_recent_change(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    co_organizer = await create_user(session, "co-organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    hackathon.co_organizers.append(co_organizer)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.commit()
+
+    force_authenticate(organizer)
+    first_response = await api_client.patch(
+        f"/api/registrations/{registration.public_id}/status",
+        json={"status": "accepted"},
+    )
+    first_changed_at = datetime.fromisoformat(first_response.json()["status_changed_at"])
+
+    force_authenticate(co_organizer)
+    second_response = await api_client.patch(
+        f"/api/registrations/{registration.public_id}/status",
+        json={"status": "rejected"},
+    )
+
+    assert second_response.status_code == 200
+    body = second_response.json()
+    assert body["status"] == "rejected"
+    assert datetime.fromisoformat(body["status_changed_at"]) >= first_changed_at
+    assert body["status_changed_by"] == {
+        "public_id": str(co_organizer.public_id),
+        "name": co_organizer.name,
+    }
+    await session.refresh(registration)
+    assert registration.status_changed_by_id == co_organizer.id
+
+
+async def test_regular_user_cannot_update_registration_status(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.patch(
+        f"/api/registrations/{registration.public_id}/status",
+        json={"status": "accepted"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error_code"] == "REGISTRATION_PERMISSION_DENIED"
+    await session.refresh(registration)
+    assert registration.status is RegistrationStatus.PENDING
+
+
+async def test_update_registration_status_rejects_pending_value(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, admin)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.patch(
+        f"/api/registrations/{registration.public_id}/status",
+        json={"status": "pending"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
