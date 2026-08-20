@@ -22,5 +22,7 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-003 | Rejestracja, logowanie i sesje JWT | Zaimplementowany | [implemented/SPEC-003-2026-08-03-logowanie-jwt.md](implemented/SPEC-003-2026-08-03-logowanie-jwt.md) |
 | SPEC-004 | CRUD hackathonów i kontekstowe uprawnienia organizatorów | Zaimplementowany | [implemented/SPEC-004-2026-08-03-crud-hackathonow.md](implemented/SPEC-004-2026-08-03-crud-hackathonow.md) |
 | SPEC-005 | Frontend uwierzytelniania i routing | Zaimplementowany | [implemented/SPEC-005-2026-08-11-frontend-auth-routing.md](implemented/SPEC-005-2026-08-11-frontend-auth-routing.md) |
+| SPEC-006 | Zgłoszenia uczestników na hackathony | Zaimplementowany | [implemented/SPEC-006-2026-08-12-zgloszenia-na-hackathony.md](implemented/SPEC-006-2026-08-12-zgloszenia-na-hackathony.md) |
+| SPEC-007 | Audyt ostatniej zmiany statusu zgłoszenia | Zaimplementowany | [implemented/SPEC-007-2026-08-15-audyt-zmiany-statusu-zgloszenia.md](implemented/SPEC-007-2026-08-15-audyt-zmiany-statusu-zgloszenia.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).
