@@ -10,13 +10,15 @@ from src.api import api_router
 from src.auth.config import get_frontend_origins, validate_configuration
 from src.hackathons.exceptions import HackathonError
 from src.registration.exceptions import RegistrationError
-from src.teams.exceptions import TeamError
+from src.resources.config import validate_resource_configuration
 from src.resources.exceptions import ResourceError
+from src.teams.exceptions import TeamError
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     validate_configuration()
+    validate_resource_configuration()
     yield
 
 

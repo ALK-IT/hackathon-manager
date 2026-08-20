@@ -18,6 +18,7 @@ from src.models import Base
 if TYPE_CHECKING:
     from src.hackathons.models import Hackathon
     from src.registration.models import Registration
+    from src.resources.models import ResourceAssignment
 
 
 class Team(Base):
@@ -55,3 +56,7 @@ class Team(Base):
     hackathon: Mapped["Hackathon"] = relationship(back_populates="teams")
 
     registrations: Mapped[list["Registration"]] = relationship(back_populates="team")
+    resource_assignments: Mapped[list["ResourceAssignment"]] = relationship(
+        back_populates="team",
+        passive_deletes=True,
+    )
