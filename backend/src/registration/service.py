@@ -144,9 +144,10 @@ class RegistrationQuestionService:
         ]
 
         try:
-            questions = await self.question_repository.create_many(questions)
+            created_questions = await self.question_repository.create_many(questions)
+
             await self.question_repository.commit()
-            return questions
+            return created_questions
         except Exception:
             await self.question_repository.rollback()
             raise

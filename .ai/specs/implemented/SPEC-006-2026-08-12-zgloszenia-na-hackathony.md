@@ -103,10 +103,10 @@ błędzie.
 - **Backend:** nowy moduł `src/registration`, router, zależności, serwisy, repozytoria, schematy
   Pydantic, wyjątki domenowe oraz rejestracja globalnej obsługi błędów.
 - **Baza danych:** tabele `questions`, `registrations` i `answers`, enum statusu, klucze obce z
-  usuwaniem kaskadowym oraz ograniczenia unikalności. Migracje tworzą liniowy ciąg: `0005` i
-  `0006` konfigurują zaplanowane okno rejestracji, `0007` tworzy zgłoszenia, a `0008` dodaje
-  nullable pola `status_changed_at` i `status_changed_by_id`; usunięcie użytkownika zeruje
-  wskazanie autora decyzji przez `ON DELETE SET NULL`.
+  usuwaniem kaskadowym oraz ograniczenia unikalności. Migracja `0007` scala gałąź migracji
+  zgłoszeń z migracjami zaplanowanego okna rejestracji. Migracja `0008` dodaje nullable pola
+  `status_changed_at` i `status_changed_by_id`; usunięcie użytkownika zeruje wskazanie autora
+  decyzji przez `ON DELETE SET NULL`.
 - **API:** nowe chronione endpointy pod `/api/hackathons/...` i `/api/registrations/...`.
 
 ## Alternatywy rozważane

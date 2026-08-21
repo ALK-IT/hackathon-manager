@@ -94,12 +94,6 @@ class Registration(Base):
         foreign_keys=[status_changed_by_id],
     )
 
-    answers: Mapped[list["RegistrationAnswer"]] = relationship(
-        back_populates="registration",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
-
     team_id: Mapped[int | None] = mapped_column(
         ForeignKey("teams.id", ondelete="RESTRICT"),
         index=True,
@@ -108,6 +102,12 @@ class Registration(Base):
 
     team: Mapped["Team | None"] = relationship(
         back_populates="registrations",
+    )
+
+    answers: Mapped[list["RegistrationAnswer"]] = relationship(
+        back_populates="registration",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
