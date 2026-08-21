@@ -2,12 +2,18 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.models import User, UserRole
 from src.hackathons.models import Hackathon
-from src.registration.models import Registration, RegistrationQuestion, RegistrationStatus
+from src.registration.models import (
+    Registration,
+    RegistrationAnswer,
+    RegistrationQuestion,
+    RegistrationStatus,
+)
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
 
 
@@ -37,7 +43,7 @@ def make_hackathon(
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
         registration_opens_at=now - timedelta(hours=1),
-        registration_deadline=start_date - timedelta(hours=1),
+        registration_deadline=now + timedelta(hours=12),
         max_team_size=4,
     )
 
@@ -90,6 +96,26 @@ async def test_delete_question(
     assert result.scalar_one_or_none() is None
 
 
+async def test_database_rejects_deleting_question_with_answers(
+    session: AsyncSession,
+    organizer: User,
+):
+    participant = make_user("participant@example.com")
+    hackathon = make_hackathon(organizer)
+    question = RegistrationQuestion(content="Question", is_required=True, hackathon=hackathon)
+    registration = Registration(user=participant, hackathon=hackathon)
+    registration.answers.append(RegistrationAnswer(question=question, content="Answer"))
+    session.add(registration)
+    await session.flush()
+
+    with pytest.raises(IntegrityError):
+        await session.execute(
+            delete(RegistrationQuestion).where(RegistrationQuestion.id == question.id)
+        )
+
+    await session.rollback()
+
+
 async def test_get_question_by_public_id(
     session: AsyncSession,
     organizer: User,
@@ -116,6 +142,34 @@ async def test_get_question_by_public_id_returns_none_when_missing(
     result = await repository.get_by_public_id(uuid.uuid4())
 
     assert result is None
+
+
+async def test_get_question_by_public_id_returns_none_for_deleted_hackathon(
+    session: AsyncSession,
+    organizer: User,
+):
+    hackathon = make_hackathon(organizer)
+    question = RegistrationQuestion(
+        content="Question",
+        is_required=True,
+        hackathon=hackathon,
+    )
+    session.add(question)
+    await session.flush()
+    question_public_id = question.public_id
+    hackathon.is_deleted = True
+    await session.flush()
+    repository = RegistrationQuestionRepository(session)
+
+    result = await repository.get_by_public_id(question_public_id)
+
+    assert result is None
+    assert (
+        await session.scalar(
+            select(RegistrationQuestion).where(RegistrationQuestion.public_id == question_public_id)
+        )
+        is question
+    )
 
 
 async def test_get_questions_by_hackathon_public_id(
@@ -169,11 +223,40 @@ async def test_get_registrations_by_hackathon(
     session.add(other_hackathon)
     await session.flush()
 
-    result = await repository.get_by_hackathon(hackathon.public_id)
-    empty_result = await repository.get_by_hackathon(other_hackathon.public_id)
+    result = await repository.get_by_hackathon(hackathon.public_id, limit=50, offset=0)
+    empty_result = await repository.get_by_hackathon(
+        other_hackathon.public_id,
+        limit=50,
+        offset=0,
+    )
 
     assert result == [registration]
     assert empty_result == []
+
+
+async def test_get_registrations_by_hackathon_applies_limit_and_offset(
+    session: AsyncSession,
+    organizer: User,
+):
+    hackathon = make_hackathon(organizer)
+    registrations = [
+        Registration(
+            user=make_user(f"participant-{index}@example.com"),
+            hackathon=hackathon,
+        )
+        for index in range(3)
+    ]
+    repository = RegistrationRepository(session)
+    for registration in registrations:
+        await repository.create(registration)
+
+    result = await repository.get_by_hackathon(
+        hackathon.public_id,
+        limit=1,
+        offset=1,
+    )
+
+    assert result == [registrations[1]]
 
 
 async def test_get_registration_by_hackathon_and_user(
@@ -202,40 +285,30 @@ async def test_get_registration_by_hackathon_and_user(
     assert missing_result is None
 
 
-async def test_get_registration_by_public_id(
+async def test_get_active_registration_by_public_id_excludes_deleted_hackathon(
     session: AsyncSession,
     organizer: User,
 ):
-    participant = make_user("participant@example.com")
+    hackathon = make_hackathon(organizer)
     registration = Registration(
-        user=participant,
-        hackathon=make_hackathon(organizer),
+        user=make_user("participant@example.com"),
+        hackathon=hackathon,
     )
     repository = RegistrationRepository(session)
     await repository.create(registration)
 
-    result = await repository.get_by_public_id(registration.public_id)
-    missing_result = await repository.get_by_public_id(uuid.uuid4())
+    assert await repository.get_active_by_public_id(registration.public_id) is registration
 
-    assert result is registration
-    assert missing_result is None
-
-
-async def test_get_registration_by_public_id_hides_soft_deleted_hackathon(
-    session: AsyncSession,
-    organizer: User,
-):
-    participant = make_user("participant@example.com")
-    hackathon = make_hackathon(organizer)
-    registration = Registration(user=participant, hackathon=hackathon)
-    repository = RegistrationRepository(session)
-    await repository.create(registration)
     hackathon.is_deleted = True
     await session.flush()
 
-    result = await repository.get_by_public_id(registration.public_id)
-
-    assert result is None
+    assert await repository.get_active_by_public_id(registration.public_id) is None
+    assert (
+        await session.scalar(
+            select(Registration).where(Registration.public_id == registration.public_id)
+        )
+        is registration
+    )
 
 
 async def test_delete_registration(
@@ -252,7 +325,10 @@ async def test_delete_registration(
 
     await repository.delete(registration)
 
-    assert await repository.get_by_public_id(public_id) is None
+    assert (
+        await session.scalar(select(Registration).where(Registration.public_id == public_id))
+        is None
+    )
 
 
 async def test_rollback_discards_registration(
@@ -269,7 +345,10 @@ async def test_rollback_discards_registration(
 
     await repository.rollback()
 
-    assert await repository.get_by_public_id(public_id) is None
+    assert (
+        await session.scalar(select(Registration).where(Registration.public_id == public_id))
+        is None
+    )
 
 
 async def test_update_status_registration_accepted(session: AsyncSession, organizer: User):
@@ -284,9 +363,11 @@ async def test_update_status_registration_accepted(session: AsyncSession, organi
 
     new_status = RegistrationStatus.ACCEPTED
 
-    registration = await repository.update_status(registration, new_status)
+    registration = await repository.update_status(registration, new_status, organizer)
 
     assert registration.status == RegistrationStatus.ACCEPTED
+    assert registration.status_changed_at is not None
+    assert registration.status_changed_by is organizer
 
 
 async def test_update_status_registration_rejected(session: AsyncSession, organizer: User):
@@ -301,35 +382,37 @@ async def test_update_status_registration_rejected(session: AsyncSession, organi
 
     new_status = RegistrationStatus.REJECTED
 
-    registration = await repository.update_status(registration, new_status)
+    registration = await repository.update_status(registration, new_status, organizer)
 
     assert registration.status == RegistrationStatus.REJECTED
+    assert registration.status_changed_at is not None
+    assert registration.status_changed_by is organizer
 
 
 async def test_create_many_questions(session: AsyncSession, organizer: User):
     hackathon = make_hackathon(organizer)
-    questions = [
-        RegistrationQuestion(
-            content="Why?",
-            is_required=True,
-            hackathon=hackathon,
-        ),
-        RegistrationQuestion(
-            content="What?",
-            is_required=True,
-            hackathon=hackathon,
-        ),
-    ]
-    repository = RegistrationQuestionRepository(session)
-
-    result = await repository.create_many(questions)
-
-    assert result == questions
-    saved_questions = list(
-        await session.scalars(
-            select(RegistrationQuestion)
-            .where(RegistrationQuestion.hackathon_id == hackathon.id)
-            .order_by(RegistrationQuestion.id)
-        )
+    question = RegistrationQuestion(
+        content="Why?",
+        is_required=True,
+        hackathon=hackathon,
     )
+
+    question2 = RegistrationQuestion(
+        content="What?",
+        is_required=True,
+        hackathon=hackathon,
+    )
+
+    repository = RegistrationQuestionRepository(session)
+    questions = [question, question2]
+    return_questions = await repository.create_many(questions)
+
+    assert return_questions == questions
+
+    result = await session.execute(
+        select(RegistrationQuestion).where(RegistrationQuestion.hackathon_id == hackathon.id)
+    )
+
+    saved_questions = list(result.scalars().all())
+
     assert saved_questions == questions

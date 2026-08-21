@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +37,11 @@ class RegistrationQuestionRepository:
     ) -> RegistrationQuestion | None:
         result = await self.session.execute(
             select(RegistrationQuestion)
-            .where(RegistrationQuestion.public_id == question_public_id)
+            .join(RegistrationQuestion.hackathon)
+            .where(
+                RegistrationQuestion.public_id == question_public_id,
+                Hackathon.is_deleted.is_(False),
+            )
             .options(
                 selectinload(RegistrationQuestion.hackathon).selectinload(Hackathon.co_organizers)
             )
@@ -80,6 +85,8 @@ class RegistrationRepository:
     async def get_by_hackathon(
         self,
         hackathon_public_id: uuid.UUID,
+        limit: int,
+        offset: int,
     ) -> list[Registration]:
         result = await self.session.execute(
             select(Registration)
@@ -88,9 +95,13 @@ class RegistrationRepository:
             .options(
                 selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
                 selectinload(Registration.user),
+                selectinload(Registration.status_changed_by),
+                selectinload(Registration.team),
                 selectinload(Registration.answers).selectinload(RegistrationAnswer.question),
             )
             .order_by(Registration.id)
+            .limit(limit)
+            .offset(offset)
         )
 
         return list(result.scalars().all())
@@ -111,13 +122,18 @@ class RegistrationRepository:
             .options(
                 selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
                 selectinload(Registration.user),
+                selectinload(Registration.status_changed_by),
+                selectinload(Registration.team),
                 selectinload(Registration.answers).selectinload(RegistrationAnswer.question),
             )
         )
 
         return result.scalar_one_or_none()
 
-    async def get_by_public_id(self, registration_public_id: uuid.UUID) -> Registration | None:
+    async def get_active_by_public_id(
+        self,
+        registration_public_id: uuid.UUID,
+    ) -> Registration | None:
         result = await self.session.execute(
             select(Registration)
             .join(Registration.hackathon)
@@ -128,6 +144,7 @@ class RegistrationRepository:
             .options(
                 selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
                 selectinload(Registration.team),
+                selectinload(Registration.status_changed_by),
             )
         )
 
@@ -137,8 +154,11 @@ class RegistrationRepository:
         self,
         registration: Registration,
         new_status: RegistrationStatus,
+        changed_by: User,
     ) -> Registration:
         registration.status = new_status
+        registration.status_changed_at = datetime.now(UTC)
+        registration.status_changed_by = changed_by
         await self.session.flush()
         return registration
 

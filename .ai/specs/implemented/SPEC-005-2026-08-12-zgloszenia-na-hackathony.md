@@ -1,7 +1,7 @@
-# SPEC-006: Zgłoszenia uczestników na hackathony
+# SPEC-005: Zgłoszenia uczestników na hackathony
 
-**Status:** Zaimplementowany
-**Data:** 2026-08-12
+**Status:** Zaimplementowany  
+**Data:** 2026-08-12  
 **Autor:** zespół hackathon-manager
 
 ## Kontekst / Problem
@@ -37,8 +37,6 @@ publiczny identyfikator i nazwę. Rejestrowana jest ostatnia zmiana, a nie pełn
   użytkownika.
 - `POST /api/hackathons/{hackathon_public_id}/questions` — dodanie pytania przez osobę
   zarządzającą hackathonem.
-- `POST /api/hackathons/{hackathon_public_id}/questions/bulk` — dodanie od 1 do 50 pytań w
-  jednej operacji przez osobę zarządzającą hackathonem.
 - `DELETE /api/hackathons/{hackathon_public_id}/questions/{question_public_id}` — usunięcie
   pytania przez osobę zarządzającą hackathonem.
 - `POST /api/hackathons/{hackathon_public_id}/registrations` — wysłanie zgłoszenia przez
@@ -103,10 +101,10 @@ błędzie.
 - **Backend:** nowy moduł `src/registration`, router, zależności, serwisy, repozytoria, schematy
   Pydantic, wyjątki domenowe oraz rejestracja globalnej obsługi błędów.
 - **Baza danych:** tabele `questions`, `registrations` i `answers`, enum statusu, klucze obce z
-  usuwaniem kaskadowym oraz ograniczenia unikalności. Migracja `0007` scala gałąź migracji
-  zgłoszeń z migracjami zaplanowanego okna rejestracji. Migracja `0008` dodaje nullable pola
-  `status_changed_at` i `status_changed_by_id`; usunięcie użytkownika zeruje wskazanie autora
-  decyzji przez `ON DELETE SET NULL`.
+  usuwaniem kaskadowym oraz ograniczenia unikalności. Migracje tworzą liniowy ciąg: `0005` i
+  `0006` konfigurują zaplanowane okno rejestracji, `0007` tworzy zgłoszenia, a `0008` dodaje
+  nullable pola `status_changed_at` i `status_changed_by_id`; usunięcie użytkownika zeruje
+  wskazanie autora decyzji przez `ON DELETE SET NULL`.
 - **API:** nowe chronione endpointy pod `/api/hackathons/...` i `/api/registrations/...`.
 
 ## Alternatywy rozważane
