@@ -25,7 +25,7 @@ async def list_hackathons(
     current_user: Annotated[User | None, Depends(get_optional_current_user)],
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
     upcoming: Annotated[bool | None, Query()] = None,
-    registration_open: Annotated[bool | None, Query(alias="open")] = True,
+    registration_open: Annotated[bool | None, Query(alias="open")] = None,
 ) -> list[HackathonListItem]:
     hackathons = await service.list_hackathons(
         upcoming=upcoming,
