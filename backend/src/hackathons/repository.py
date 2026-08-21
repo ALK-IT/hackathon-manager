@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -19,18 +19,33 @@ class HackathonRepository:
             selectinload(Hackathon.co_organizers),
         )
 
-    async def list_active(self) -> list[Hackathon]:
-        statement = (
-            select(Hackathon)
-            .where(
-                Hackathon.is_deleted.is_(False),
-                Hackathon.registration_open.is_(True),
-                Hackathon.registration_opens_at <= func.now(),
-                Hackathon.registration_deadline > func.now(),
-            )
-            .options(*self._with_relationships())
-            .order_by(Hackathon.created_at.desc())
+    async def list_active(
+        self,
+        upcoming: bool | None = None,
+        registration_open: bool | None = None,
+    ) -> list[Hackathon]:
+        statement = select(Hackathon).where(Hackathon.is_deleted.is_(False))
+
+        if upcoming is True:
+            statement = statement.where(Hackathon.start_date > func.now())
+        elif upcoming is False:
+            statement = statement.where(Hackathon.start_date <= func.now())
+
+        registration_is_open = and_(
+            Hackathon.registration_open.is_(True),
+            Hackathon.registration_opens_at <= func.now(),
+            Hackathon.registration_deadline > func.now(),
         )
+
+        if registration_open is True:
+            statement = statement.where(registration_is_open)
+        elif registration_open is False:
+            statement = statement.where(not_(registration_is_open))
+
+        statement = statement.options(*self._with_relationships()).order_by(
+            Hackathon.created_at.desc()
+        )
+
         result = await self.session.scalars(statement)
         return list(result.unique().all())
 

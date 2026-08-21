@@ -1,6 +1,6 @@
 from sqlalchemy.exc import IntegrityError
 
-from src.database import get_integrity_error_constraint
+from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.models import Hackathon
 from src.teams.exceptions import (
     TeamFullError,
