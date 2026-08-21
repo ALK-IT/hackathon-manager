@@ -2,7 +2,7 @@
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-03
-**Autor:** Codex
+**Autor:** Mateusz Guzowski
 
 ## Kontekst / Problem
 
@@ -26,8 +26,8 @@ Model `Hackathon` zawiera:
 - unikalne `public_id` UUID używane w URL-ach i odpowiedziach;
 - `organizer_id` wskazujące jednego właściciela wydarzenia;
 - `name`, `description`, `start_date` i `end_date`;
-- `registration_open`, `registration_opens_at`, `registration_deadline`, `capacity` i
-  `max_team_size`;
+- `registration_open`, `registration_opens_at`, `registration_deadline`, `capacity`,
+  `max_team_size` i `teams_enabled`;
 - pola soft-delete: `is_deleted` i `deleted_at`;
 - `created_at` oraz automatycznie aktualizowane `updated_at`;
 - relację wielu współorganizatorów przez tabelę `hackathon_co_organizers`.

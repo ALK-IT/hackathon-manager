@@ -26,6 +26,7 @@ class HackathonCreate(BaseModel):
     registration_deadline: datetime | None = None
     capacity: int | None = Field(default=None, ge=1)
     max_team_size: int = Field(ge=1)
+    teams_enabled: bool = True
 
     @field_validator("name", mode="before")
     @classmethod
@@ -79,6 +80,7 @@ class HackathonUpdate(BaseModel):
     registration_deadline: datetime | None = None
     capacity: int | None = Field(default=None, ge=1)
     max_team_size: int | None = Field(default=None, ge=1)
+    teams_enabled: bool | None = None
 
     @field_validator("name", mode="before")
     @classmethod
@@ -119,6 +121,7 @@ class HackathonUpdate(BaseModel):
             "registration_opens_at",
             "registration_deadline",
             "max_team_size",
+            "teams_enabled",
         }
         if any(
             field in self.model_fields_set and getattr(self, field) is None
@@ -203,6 +206,7 @@ class HackathonListItem(BaseModel):
     registration_open: bool
     capacity: int | None
     max_team_size: int
+    teams_enabled: bool
     access_level: HackathonAccessLevel
 
     @classmethod
@@ -217,6 +221,7 @@ class HackathonListItem(BaseModel):
             registration_open=hackathon.is_registration_open_at(),
             capacity=hackathon.capacity,
             max_team_size=hackathon.max_team_size,
+            teams_enabled=hackathon.teams_enabled,
             access_level=_get_access_level(hackathon, user_id),
         )
 
@@ -241,6 +246,7 @@ class HackathonRead(HackathonListItem):
             registration_open=hackathon.is_registration_open_at(),
             capacity=hackathon.capacity,
             max_team_size=hackathon.max_team_size,
+            teams_enabled=hackathon.teams_enabled,
             organizer=UserSummary.model_validate(hackathon.organizer),
             co_organizers=[
                 UserSummary.model_validate(co_organizer) for co_organizer in hackathon.co_organizers

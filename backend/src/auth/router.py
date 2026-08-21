@@ -14,7 +14,7 @@ from src.auth.dependencies import (
 )
 from src.auth.exceptions import EmailAlreadyRegisteredError, InvalidAccessTokenError
 from src.auth.models import User
-from src.auth.schemas import TokenResponse, UserCreate, UserRead
+from src.auth.schemas import TokenResponse, UserCreate, UserMeRead, UserRead
 from src.auth.service import IssuedTokenPair, TokenService, UserService
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -119,6 +119,6 @@ async def logout(
     )
 
 
-@router.get("/me", response_model=UserRead)
+@router.get("/me", response_model=UserMeRead)
 async def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     return current_user

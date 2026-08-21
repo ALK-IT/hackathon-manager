@@ -21,6 +21,8 @@ from src.models import Base
 
 if TYPE_CHECKING:
     from src.auth.models import User
+    from src.registration.models import Registration, RegistrationQuestion
+    from src.teams.models import Team
 
 
 hackathon_co_organizers = Table(
@@ -93,6 +95,7 @@ class Hackathon(Base):
     registration_open: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_team_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    teams_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -114,6 +117,19 @@ class Hackathon(Base):
     co_organizers: Mapped[list["User"]] = relationship(
         secondary=hackathon_co_organizers,
         back_populates="co_organized_hackathons",
+    )
+    questions: Mapped[list["RegistrationQuestion"]] = relationship(
+        back_populates="hackathon",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    registrations: Mapped[list["Registration"]] = relationship(
+        back_populates="hackathon",
+        passive_deletes=True,
+    )
+    teams: Mapped[list["Team"]] = relationship(
+        back_populates="hackathon",
+        passive_deletes=True,
     )
 
     def is_registration_open_at(self, moment: datetime | None = None) -> bool:
