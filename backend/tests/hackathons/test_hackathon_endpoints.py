@@ -118,7 +118,7 @@ async def test_list_endpoint_returns_all_access_levels(
     ]
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=None,
-        registration_open=None,
+        registration_open=True,
     )
 
 
@@ -143,7 +143,7 @@ async def test_list_endpoint_is_public(
     assert response.json()[0]["access_level"] == "viewer"
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=None,
-        registration_open=None,
+        registration_open=True,
     )
 
 
