@@ -21,7 +21,7 @@ async def test_admin_completes_hackathon_management_flow(
         "/api/hackathons/managed",
         headers=admin_account.headers,
     )
-    public_before_open_response = await e2e_client.get("/api/hackathons")
+    public_before_open_response = await e2e_client.get("/api/hackathons?open=true")
 
     assert managed_response.status_code == 200
     assert [item["public_id"] for item in managed_response.json()] == [hackathon_id]
@@ -37,7 +37,7 @@ async def test_admin_completes_hackathon_management_flow(
         f"/api/hackathons/{hackathon_id}/open-registration",
         headers=admin_account.headers,
     )
-    public_after_open_response = await e2e_client.get("/api/hackathons")
+    public_after_open_response = await e2e_client.get("/api/hackathons?open=true")
 
     assert update_response.status_code == 200
     assert update_response.json()["description"] == "Updated through the E2E API flow"
@@ -49,7 +49,7 @@ async def test_admin_completes_hackathon_management_flow(
         f"/api/hackathons/{hackathon_id}/close-registration",
         headers=admin_account.headers,
     )
-    public_after_close_response = await e2e_client.get("/api/hackathons")
+    public_after_close_response = await e2e_client.get("/api/hackathons?open=true")
     delete_response = await e2e_client.request(
         "DELETE",
         f"/api/hackathons/{hackathon_id}",
