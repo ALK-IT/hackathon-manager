@@ -1,4 +1,4 @@
-# SPEC-004: Frontend uwierzytelniania i routing
+# SPEC-009: Frontend uwierzytelniania i routing
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-11

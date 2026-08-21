@@ -1,7 +1,7 @@
 # SPEC-007: Audyt ostatniej zmiany statusu zgłoszenia
 
-**Status:** Zaimplementowany  
-**Data:** 2026-08-15  
+**Status:** Zaimplementowany
+**Data:** 2026-08-15
 **Autor:** Patryk Nisgorski
 
 ## Kontekst / Problem
