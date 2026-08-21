@@ -11,7 +11,7 @@ async def test_users_complete_registration_and_team_flow(
     hackathon_response = await e2e_client.post(
         "/api/hackathons",
         headers=admin_account.headers,
-        json=hackathon_payload(registration_is_current=True),
+        json=hackathon_payload(),
     )
     assert hackathon_response.status_code == 201
     hackathon_id = hackathon_response.json()["public_id"]
@@ -28,6 +28,12 @@ async def test_users_complete_registration_and_team_flow(
     )
     assert questions_response.status_code == 201
     required_question_id = questions_response.json()[0]["public_id"]
+
+    open_registration_response = await e2e_client.post(
+        f"/api/hackathons/{hackathon_id}/open-registration",
+        headers=admin_account.headers,
+    )
+    assert open_registration_response.status_code == 200
 
     first_participant = await account_factory(
         name="First Participant",
