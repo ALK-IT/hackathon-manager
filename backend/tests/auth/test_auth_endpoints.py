@@ -145,6 +145,7 @@ async def test_register_login_and_me_use_database(auth_client: AsyncClient):
     assert me_response.status_code == 200
     assert uuid.UUID(me_response.json()["public_id"]) == public_id
     assert me_response.json()["email"] == "jan@example.com"
+    assert me_response.json()["role"] == "user"
 
 
 async def test_register_endpoint_rejects_duplicate_email(auth_client: AsyncClient):

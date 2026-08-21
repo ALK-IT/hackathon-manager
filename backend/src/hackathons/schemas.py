@@ -169,6 +169,12 @@ class HackathonDeleteRequest(BaseModel):
         return value
 
 
+class CoOrganizerAddRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    user_public_id: uuid.UUID
+
+
 class UserSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

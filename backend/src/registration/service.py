@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from sqlalchemy.exc import IntegrityError
 
 from src.auth.models import User, UserRole
-from src.database import get_integrity_error_constraint
+from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository

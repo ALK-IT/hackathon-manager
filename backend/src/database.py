@@ -1,6 +1,5 @@
 import os
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 
@@ -12,27 +11,6 @@ def normalize_database_url(url: str) -> str:
     if url.startswith("postgresql://"):
         url = "postgresql+asyncpg://" + url[len("postgresql://") :]
     return url
-
-
-def get_integrity_error_constraint(error: IntegrityError) -> str | None:
-    current: BaseException | None = error.orig
-    visited: set[int] = set()
-
-    while current is not None and id(current) not in visited:
-        visited.add(id(current))
-
-        constraint_name = getattr(current, "constraint_name", None)
-        if constraint_name:
-            return constraint_name
-
-        diagnostic = getattr(current, "diag", None)
-        constraint_name = getattr(diagnostic, "constraint_name", None)
-        if constraint_name:
-            return constraint_name
-
-        current = current.__cause__ or current.__context__
-
-    return None
 
 
 DATABASE_URL = normalize_database_url(

@@ -1,0 +1,153 @@
+body {
+  margin: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.centered-page,
+.auth-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-form,
+.state-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.form-field {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.field-error {
+  display: block;
+}
+
+.app-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.create-hackathon-card {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.registration-entry-card {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.registration-questions,
+.team-options {
+  display: grid;
+  gap: 12px;
+}
+
+.team-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+}
+
+.registration-opening-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hackathons-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 24px;
+}
+
+.hackathon-filters {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.hackathon-filters h2 {
+  margin-bottom: 8px;
+}
+
+.details-back-link {
+  margin-bottom: 16px;
+}
+
+.hackathon-details-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.co-organizer-list {
+  padding-left: 20px;
+}
+
+.co-organizer-form {
+  display: grid;
+  max-width: 520px;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.co-organizer-form button {
+  justify-self: start;
+}
+
+@media (max-width: 560px) {
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hackathons-layout {
+    grid-template-columns: 1fr;
+  }
+}

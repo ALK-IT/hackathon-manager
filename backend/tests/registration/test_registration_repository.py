@@ -43,7 +43,7 @@ def make_hackathon(
         start_date=start_date,
         end_date=start_date + timedelta(days=2),
         registration_opens_at=now - timedelta(hours=1),
-        registration_deadline=now + timedelta(hours=12),
+        registration_deadline=start_date - timedelta(hours=1),
         max_team_size=4,
     )
 
@@ -311,6 +311,23 @@ async def test_get_active_registration_by_public_id_excludes_deleted_hackathon(
     )
 
 
+async def test_get_registration_by_public_id_hides_soft_deleted_hackathon(
+    session: AsyncSession,
+    organizer: User,
+):
+    participant = make_user("participant@example.com")
+    hackathon = make_hackathon(organizer)
+    registration = Registration(user=participant, hackathon=hackathon)
+    repository = RegistrationRepository(session)
+    await repository.create(registration)
+    hackathon.is_deleted = True
+    await session.flush()
+
+    result = await repository.get_active_by_public_id(registration.public_id)
+
+    assert result is None
+
+
 async def test_delete_registration(
     session: AsyncSession,
     organizer: User,
@@ -391,28 +408,28 @@ async def test_update_status_registration_rejected(session: AsyncSession, organi
 
 async def test_create_many_questions(session: AsyncSession, organizer: User):
     hackathon = make_hackathon(organizer)
-    question = RegistrationQuestion(
-        content="Why?",
-        is_required=True,
-        hackathon=hackathon,
-    )
-
-    question2 = RegistrationQuestion(
-        content="What?",
-        is_required=True,
-        hackathon=hackathon,
-    )
-
+    questions = [
+        RegistrationQuestion(
+            content="Why?",
+            is_required=True,
+            hackathon=hackathon,
+        ),
+        RegistrationQuestion(
+            content="What?",
+            is_required=True,
+            hackathon=hackathon,
+        ),
+    ]
     repository = RegistrationQuestionRepository(session)
-    questions = [question, question2]
-    return_questions = await repository.create_many(questions)
 
-    assert return_questions == questions
+    result = await repository.create_many(questions)
 
-    result = await session.execute(
-        select(RegistrationQuestion).where(RegistrationQuestion.hackathon_id == hackathon.id)
+    assert result == questions
+    saved_questions = list(
+        await session.scalars(
+            select(RegistrationQuestion)
+            .where(RegistrationQuestion.hackathon_id == hackathon.id)
+            .order_by(RegistrationQuestion.id)
+        )
     )
-
-    saved_questions = list(result.scalars().all())
-
     assert saved_questions == questions

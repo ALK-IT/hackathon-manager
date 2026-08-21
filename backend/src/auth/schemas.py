@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from src.auth.models import UserRole
+
 
 class UserCreate(BaseModel):
     name: str = Field(min_length=3, max_length=100)
@@ -33,6 +35,10 @@ class UserRead(BaseModel):
     name: str
     email: EmailStr
     created_at: datetime
+
+
+class UserMeRead(UserRead):
+    role: UserRole
 
 
 class TokenResponse(BaseModel):
