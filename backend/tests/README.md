@@ -5,8 +5,10 @@ Testy backendu dzielimy według granicy odpowiedzialności:
 - **jednostkowe** testują logikę serwisów z repozytoriami zastąpionymi mockami;
 - **integracyjne** testują endpoint HTTP, serializację, autoryzację, transakcję i rzeczywiste
   ograniczenia PostgreSQL;
-- **E2E backendu** wykonują pełną historię kilku użytkowników przez prawdziwe endpointy,
-  oddzielne sesje żądań, PostgreSQL i izolowaną bazę Redis nr 15;
+- **E2E backendu** wykonują pełną historię kilku użytkowników przez rzeczywiste endpointy
+  aplikacji, oddzielne sesje żądań, PostgreSQL i izolowaną bazę Redis nr 15. Korzystają z
+  `httpx.ASGITransport` i działają in-process, bez uruchamiania osobnego serwera HTTP, więc nie
+  testują warstwy sieciowej;
 - test repozytorium jest integracyjny, jeżeli wykonuje zapytania na prawdziwej bazie.
 
 Nie mockujemy repozytorium w testach endpointów głównej ścieżki. Dzięki temu test potwierdza cały
