@@ -1,35 +1,48 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.auth.models import User, UserRole
+from src.auth.repository import UserRepository
+from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.exceptions import (
     AdminRequiredError,
+    CoOrganizerAlreadyAssignedError,
+    CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
     InvalidConfirmNameError,
     InvalidDateRangeError,
     InvalidRegistrationDeadlineError,
     InvalidRegistrationWindowError,
     InvalidTeamSizeError,
+    OrganizerCannotBeCoOrganizerError,
     RegistrationAlreadyClosedError,
     RegistrationAlreadyOpenError,
     RegistrationDeadlinePassedError,
 )
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
-from src.hackathons.schemas import HackathonCreate, HackathonUpdate
+from src.hackathons.schemas import CoOrganizerAddRequest, HackathonCreate, HackathonUpdate
 
 
 class HackathonService:
-    def __init__(self, repository: HackathonRepository):
-        self.repository = repository
+    def __init__(self, hackathon_repository: HackathonRepository, user_repository: UserRepository):
+        self.hackathon_repository = hackathon_repository
+        self.user_repository = user_repository
 
-    async def list_hackathons(self) -> list[Hackathon]:
-        return await self.repository.list_active()
+    async def list_hackathons(
+        self,
+        upcoming: bool | None = None,
+        registration_open: bool | None = None,
+    ) -> list[Hackathon]:
+        return await self.hackathon_repository.list_active(
+            upcoming=upcoming,
+            registration_open=registration_open,
+        )
 
     async def list_managed_hackathons(self, user: User) -> list[Hackathon]:
-        return await self.repository.list_managed_by_user(user.id)
+        return await self.hackathon_repository.list_managed_by_user(user.id)
 
     async def create_hackathon(self, data: HackathonCreate, user: User) -> Hackathon:
         if user.role != UserRole.ADMIN:
@@ -43,15 +56,15 @@ class HackathonService:
             is_deleted=False,
         )
         try:
-            await self.repository.add(hackathon)
-            await self.repository.commit()
+            await self.hackathon_repository.add(hackathon)
+            await self.hackathon_repository.commit()
         except SQLAlchemyError:
-            await self.repository.rollback()
+            await self.hackathon_repository.rollback()
             raise
         return hackathon
 
     async def get_hackathon(self, public_id: uuid.UUID) -> Hackathon:
-        hackathon = await self.repository.get_active_by_public_id(public_id)
+        hackathon = await self.hackathon_repository.get_active_by_public_id(public_id)
         if hackathon is None:
             raise HackathonNotFoundError
         return hackathon
@@ -91,8 +104,8 @@ class HackathonService:
         if "registration_opens_at" in changes:
             hackathon.registration_open = True
 
-        await self.repository.commit()
-        await self.repository.refresh_updated_at(hackathon)
+        await self.hackathon_repository.commit()
+        await self.hackathon_repository.refresh_updated_at(hackathon)
         return hackathon
 
     async def delete_hackathon(
@@ -107,7 +120,37 @@ class HackathonService:
 
         hackathon.is_deleted = True
         hackathon.deleted_at = datetime.now(UTC)
-        await self.repository.commit()
+        await self.hackathon_repository.commit()
+
+    async def add_co_organizer(
+        self, public_id: uuid.UUID, data: CoOrganizerAddRequest, user: User
+    ) -> Hackathon:
+        hackathon = await self._get_owned_hackathon(public_id, user)
+        co_organizer = await self.user_repository.get_by_public_id(data.user_public_id)
+
+        if co_organizer is None:
+            raise CoOrganizerUserNotFoundError
+
+        if any(item.id == co_organizer.id for item in hackathon.co_organizers):
+            raise CoOrganizerAlreadyAssignedError
+
+        if co_organizer.id == hackathon.organizer_id:
+            raise OrganizerCannotBeCoOrganizerError
+
+        try:
+            hackathon.co_organizers.append(co_organizer)
+            await self.hackathon_repository.commit()
+        except IntegrityError as error:
+            await self.hackathon_repository.rollback()
+
+            if get_integrity_error_constraint(error) == "hackathon_co_organizers_pkey":
+                raise CoOrganizerAlreadyAssignedError() from error
+
+            raise
+        except SQLAlchemyError:
+            await self.hackathon_repository.rollback()
+            raise
+        return hackathon
 
     async def open_registration(self, public_id: uuid.UUID, user: User) -> Hackathon:
         hackathon = await self._get_owned_hackathon(public_id, user)
@@ -119,7 +162,7 @@ class HackathonService:
 
         hackathon.registration_opens_at = opened_at
         hackathon.registration_open = True
-        await self.repository.commit()
+        await self.hackathon_repository.commit()
         return hackathon
 
     async def close_registration(self, public_id: uuid.UUID, user: User) -> Hackathon:
@@ -128,11 +171,11 @@ class HackathonService:
             raise RegistrationAlreadyClosedError
 
         hackathon.registration_open = False
-        await self.repository.commit()
+        await self.hackathon_repository.commit()
         return hackathon
 
     async def _get_owned_hackathon(self, public_id: uuid.UUID, user: User) -> Hackathon:
-        hackathon = await self.repository.get_owned_by_public_id(public_id, user.id)
+        hackathon = await self.hackathon_repository.get_owned_by_public_id(public_id, user.id)
         if hackathon is None:
             raise HackathonNotFoundError
         return hackathon
