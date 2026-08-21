@@ -1,4 +1,4 @@
-# SPEC-007: Strategia testów backendu i przepływy E2E
+# SPEC-008: Strategia testów backendu i przepływy E2E
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-16

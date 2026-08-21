@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -15,6 +16,7 @@ from src.registration.exceptions import (
     RegistrationAlreadyExistsError,
     RegistrationClosedError,
     RegistrationNotFoundError,
+    RegistrationQuestionsLockedError,
 )
 from src.registration.models import (
     Registration,
@@ -37,6 +39,11 @@ def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
         or current_user.id == hackathon.organizer_id
         or any(user.id == current_user.id for user in hackathon.co_organizers)
     )
+
+
+def _ensure_questions_editable(hackathon: Hackathon) -> None:
+    if datetime.now(UTC) >= hackathon.registration_opens_at:
+        raise RegistrationQuestionsLockedError()
 
 
 class RegistrationQuestionService:
@@ -72,6 +79,8 @@ class RegistrationQuestionService:
         if not _can_manage_hackathon(question.hackathon, current_user):
             raise InvalidPermission()
 
+        _ensure_questions_editable(question.hackathon)
+
         try:
             await self.question_repository.delete(question)
             await self.question_repository.commit()
@@ -92,6 +101,8 @@ class RegistrationQuestionService:
 
         if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
+
+        _ensure_questions_editable(hackathon)
 
         question = RegistrationQuestion(
             content=data.content,
@@ -121,6 +132,8 @@ class RegistrationQuestionService:
         if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
+        _ensure_questions_editable(hackathon)
+
         questions = [
             RegistrationQuestion(
                 content=question.content,
@@ -131,9 +144,10 @@ class RegistrationQuestionService:
         ]
 
         try:
-            questions = await self.question_repository.create_many(questions)
+            created_questions = await self.question_repository.create_many(questions)
+
             await self.question_repository.commit()
-            return questions
+            return created_questions
         except Exception:
             await self.question_repository.rollback()
             raise
@@ -273,8 +287,11 @@ class RegistrationService:
         if not (_can_manage_hackathon(hackathon, current_user) or is_owner):
             raise InvalidPermission()
 
+        team_id = registration.team_id
         try:
             await self.registration_repository.delete(registration)
+            if team_id is not None:
+                await self.team_service.delete_if_empty(team_id)
             await self.registration_repository.commit()
         except Exception:
             await self.registration_repository.rollback()
@@ -299,6 +316,15 @@ class RegistrationService:
             raise InvalidPermission()
 
         try:
+            if (
+                registration.team_id is not None
+                and registration.status is RegistrationStatus.REJECTED
+                and new_status is RegistrationStatus.ACCEPTED
+            ):
+                await self.team_service.ensure_member_can_be_activated(
+                    registration.team_id,
+                    hackathon.max_team_size,
+                )
             registration = await self.registration_repository.update_status(
                 registration,
                 new_status,

@@ -23,6 +23,7 @@ def create_payload() -> dict:
         "registration_opens_at": "2026-08-01T10:00:00Z",
         "capacity": 100,
         "max_team_size": 4,
+        "teams_enabled": True,
     }
 
 
@@ -44,6 +45,7 @@ async def test_create_endpoint_returns_hackathon_without_internal_ids(
     assert response.status_code == 201
     assert response.json()["public_id"] == str(hackathon.public_id)
     assert response.json()["access_level"] == "owner"
+    assert response.json()["teams_enabled"] is True
     assert datetime.fromisoformat(response.json()["registration_opens_at"]) == (
         hackathon.registration_opens_at
     )
@@ -246,14 +248,17 @@ async def test_patch_endpoint_updates_only_sent_fields(
 
     response = await hackathon_client.patch(
         f"/api/hackathons/{hackathon.public_id}",
-        json={"name": "  Updated Hackathon  "},
+        json={"name": "  Updated Hackathon  ", "teams_enabled": False},
     )
 
     assert response.status_code == 200
     assert response.json()["name"] == "Updated Hackathon"
     public_id, update, current_user = mock_hackathon_service.update_hackathon.await_args.args
     assert public_id == hackathon.public_id
-    assert update.model_dump(exclude_unset=True) == {"name": "Updated Hackathon"}
+    assert update.model_dump(exclude_unset=True) == {
+        "name": "Updated Hackathon",
+        "teams_enabled": False,
+    }
     assert current_user is admin_user
 
 
