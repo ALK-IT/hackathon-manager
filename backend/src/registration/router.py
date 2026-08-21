@@ -200,7 +200,7 @@ async def create_questions(
         RegistrationQuestionService,
         Depends(get_registration_question_service),
     ],
-):
+) -> list[RegistrationQuestionResponse]:
     return await service.create_questions(
         hackathon_public_id=hackathon_public_id,
         data=data,

@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from sqlalchemy.exc import IntegrityError
 
 from src.auth.models import User, UserRole
+from src.database import get_integrity_error_constraint
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
@@ -29,6 +30,7 @@ from src.registration.schema import (
     RegistrationQuestionBulkCreate,
     RegistrationQuestionCreate,
 )
+from src.teams.service import TeamService
 
 
 def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
@@ -134,7 +136,9 @@ class RegistrationQuestionService:
 
         questions = [
             RegistrationQuestion(
-                content=question.content, is_required=question.is_required, hackathon=hackathon
+                content=question.content,
+                is_required=question.is_required,
+                hackathon=hackathon,
             )
             for question in data.questions
         ]
@@ -155,10 +159,12 @@ class RegistrationService:
         registration_repository: RegistrationRepository,
         question_repository: RegistrationQuestionRepository,
         hackathon_repository: HackathonRepository,
+        team_service: TeamService,
     ):
         self.registration_repository = registration_repository
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
+        self.team_service = team_service
 
     async def list_registrations(
         self,
@@ -228,28 +234,36 @@ class RegistrationService:
         missing_required_ids = required_question_ids - submitted_question_ids
         if missing_required_ids:
             raise MissingRequiredAnswersError(
-                "Missing required answers: " f"{sorted(map(str, missing_required_ids))}"
+                f"Missing required answers: {sorted(map(str, missing_required_ids))}"
             )
 
-        registration = Registration(
-            user_id=current_user.id,
-            hackathon_id=hackathon.id,
-            answers=[
-                RegistrationAnswer(
-                    question_id=questions_by_public_id[answer.question_public_id].id,
-                    content=answer.content,
-                )
-                for answer in data.answers
-            ],
-        )
-
         try:
+            team = await self.team_service.resolve_team(
+                selection=data.team,
+                hackathon=hackathon,
+            )
+
+            registration = Registration(
+                user_id=current_user.id,
+                hackathon_id=hackathon.id,
+                team=team,
+                answers=[
+                    RegistrationAnswer(
+                        question_id=questions_by_public_id[answer.question_public_id].id,
+                        content=answer.content,
+                    )
+                    for answer in data.answers
+                ],
+            )
+
             registration = await self.registration_repository.create(registration)
             await self.registration_repository.commit()
             return registration
         except IntegrityError as error:
             await self.registration_repository.rollback()
-            raise RegistrationAlreadyExistsError() from error
+            if get_integrity_error_constraint(error) == "uq_application_user_hackathon":
+                raise RegistrationAlreadyExistsError() from error
+            raise
         except Exception:
             await self.registration_repository.rollback()
             raise
@@ -273,8 +287,11 @@ class RegistrationService:
         if not (_can_manage_hackathon(hackathon, current_user) or is_owner):
             raise InvalidPermission()
 
+        team_id = registration.team_id
         try:
             await self.registration_repository.delete(registration)
+            if team_id is not None:
+                await self.team_service.delete_if_empty(team_id)
             await self.registration_repository.commit()
         except Exception:
             await self.registration_repository.rollback()
@@ -299,6 +316,15 @@ class RegistrationService:
             raise InvalidPermission()
 
         try:
+            if (
+                registration.team_id is not None
+                and registration.status is RegistrationStatus.REJECTED
+                and new_status is RegistrationStatus.ACCEPTED
+            ):
+                await self.team_service.ensure_member_can_be_activated(
+                    registration.team_id,
+                    hackathon.max_team_size,
+                )
             registration = await self.registration_repository.update_status(
                 registration,
                 new_status,

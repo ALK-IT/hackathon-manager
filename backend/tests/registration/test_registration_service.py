@@ -27,6 +27,12 @@ from src.registration.schema import (
 from src.registration.service import RegistrationQuestionService, RegistrationService
 
 
+class ConstraintViolation(Exception):
+    def __init__(self, constraint_name: str):
+        self.constraint_name = constraint_name
+        super().__init__(constraint_name)
+
+
 def make_user(
     *,
     user_id: int = 1,
@@ -126,15 +132,26 @@ def question_service(question_repository, hackathon_repository):
 
 
 @pytest.fixture
+def team_service(mocker):
+    service = mocker.Mock()
+    service.resolve_team = mocker.AsyncMock(return_value=None)
+    service.delete_if_empty = mocker.AsyncMock()
+    service.ensure_member_can_be_activated = mocker.AsyncMock()
+    return service
+
+
+@pytest.fixture
 def registration_service(
     registration_repository,
     question_repository,
     hackathon_repository,
+    team_service,
 ):
     return RegistrationService(
         registration_repository=registration_repository,
         question_repository=question_repository,
         hackathon_repository=hackathon_repository,
+        team_service=team_service,
     )
 
 
@@ -646,7 +663,7 @@ async def test_create_registration_maps_integrity_error_and_rolls_back(
     registration_repository.create.side_effect = IntegrityError(
         "INSERT INTO registrations",
         {},
-        Exception("duplicate registration"),
+        ConstraintViolation("uq_application_user_hackathon"),
     )
 
     with pytest.raises(RegistrationAlreadyExistsError):
@@ -737,6 +754,7 @@ async def test_authorized_user_can_delete_registration(
 
     registration = SimpleNamespace(
         user_id=owner_id,
+        team_id=None,
         hackathon=SimpleNamespace(
             organizer_id=organizer_id,
             co_organizers=co_organizers,
@@ -758,6 +776,7 @@ async def test_delete_registration_rolls_back_repository_error(
     current_user = make_user(user_id=10)
     registration = SimpleNamespace(
         user_id=current_user.id,
+        team_id=None,
         hackathon=SimpleNamespace(organizer_id=20, co_organizers=[]),
     )
     registration_repository.get_active_by_public_id.return_value = registration
@@ -825,6 +844,7 @@ async def test_authorized_user_can_update_status(
 
     registration = SimpleNamespace(
         status=RegistrationStatus.PENDING,
+        team_id=None,
         hackathon=SimpleNamespace(
             organizer_id=organizer_id,
             co_organizers=[SimpleNamespace(id=co_organizer_id)],
@@ -856,6 +876,8 @@ async def test_update_status_rolls_back_repository_error(
     registration_repository,
 ):
     registration_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        team_id=None,
+        status=RegistrationStatus.PENDING,
         hackathon=SimpleNamespace(organizer_id=10, co_organizers=[]),
     )
     registration_repository.update_status.side_effect = RuntimeError("update failed")

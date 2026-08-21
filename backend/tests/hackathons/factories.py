@@ -31,6 +31,7 @@ def make_hackathon(
     registration_opens_at: datetime | None = None,
     registration_deadline: datetime | None = None,
     co_organizers: list[User] | None = None,
+    teams_enabled: bool = True,
 ) -> Hackathon:
     start_date = NOW + timedelta(days=7)
     effective_deadline = (
@@ -48,6 +49,7 @@ def make_hackathon(
         registration_open=registration_open,
         capacity=100,
         max_team_size=4,
+        teams_enabled=teams_enabled,
         organizer=organizer,
         organizer_id=organizer.id,
         co_organizers=co_organizers or [],

@@ -5,11 +5,13 @@ from src.registration.models import (
     RegistrationAnswer,
     RegistrationQuestion,
 )
+from src.teams.models import Team
 
 __all__ = [
     "Hackathon",
     "Registration",
     "RegistrationAnswer",
     "RegistrationQuestion",
+    "Team",
     "User",
 ]

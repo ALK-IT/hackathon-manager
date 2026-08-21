@@ -13,6 +13,7 @@ from src.models import Base
 if TYPE_CHECKING:
     from src.auth.models import User
     from src.hackathons.models import Hackathon
+    from src.teams.models import Team
 
 
 class RegistrationStatus(str, Enum):
@@ -91,6 +92,16 @@ class Registration(Base):
     )
     status_changed_by: Mapped["User | None"] = relationship(
         foreign_keys=[status_changed_by_id],
+    )
+
+    team_id: Mapped[int | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"),
+        index=True,
+        nullable=True,
+    )
+
+    team: Mapped["Team | None"] = relationship(
+        back_populates="registrations",
     )
 
     answers: Mapped[list["RegistrationAnswer"]] = relationship(

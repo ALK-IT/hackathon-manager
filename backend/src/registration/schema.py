@@ -5,14 +5,19 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.registration.models import RegistrationStatus
+from src.teams.schemas import TeamResponse, TeamSelection
 
 
 class RegistrationQuestionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     content: str = Field(min_length=1, max_length=500)
     is_required: bool = True
 
 
 class RegistrationAnswerCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     question_public_id: uuid.UUID
     content: str = Field(min_length=1, max_length=5000)
 
@@ -28,7 +33,10 @@ class RegistrationAnswerCreate(BaseModel):
 
 
 class RegistrationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     answers: list[RegistrationAnswerCreate] = Field(min_length=1)
+    team: TeamSelection | None = None
 
     @model_validator(mode="after")
     def validate_unique_questions(self):
@@ -52,6 +60,7 @@ class RegistrationResponse(BaseModel):
 
     public_id: uuid.UUID
     status: RegistrationStatus
+    team: TeamResponse | None = None
     status_changed_at: datetime | None
     status_changed_by: RegistrationStatusChangedByResponse | None
 
@@ -92,5 +101,6 @@ class RegistrationDetailResponse(RegistrationResponse):
 
 
 class RegistrationQuestionBulkCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
     questions: list[RegistrationQuestionCreate] = Field(min_length=1, max_length=50)

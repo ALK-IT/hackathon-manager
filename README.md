@@ -14,6 +14,8 @@ hackathon-manager/
 ├── backend/                   # FastAPI + Python (SQLAlchemy async + Alembic + Redis)
 │   ├── src/auth/              # Użytkownicy, JWT, router, schema, model, service i repository
 │   ├── src/hackathons/        # Hackathony: router, schema, model, service i repository
+│   ├── src/registration/      # Pytania i zgłoszenia uczestników
+│   ├── src/teams/             # Drużyny tworzone lub wybierane podczas zgłoszenia
 │   ├── src/system/            # Endpointy systemowe, np. healthcheck
 │   ├── src/database.py        # Połączenie i sesje SQLAlchemy
 │   └── src/main.py            # Punkt wejścia aplikacji FastAPI

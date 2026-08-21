@@ -5,10 +5,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+import src.all_models  # noqa: F401
 from src.api import api_router
 from src.auth.config import get_frontend_origins, validate_configuration
 from src.hackathons.exceptions import HackathonError
 from src.registration.exceptions import RegistrationError
+from src.teams.exceptions import TeamError
 
 
 @asynccontextmanager
@@ -34,6 +36,14 @@ async def handle_registration_error(
     _request: Request,
     exc: RegistrationError,
 ) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error_code": exc.error_code, "detail": exc.detail},
+    )
+
+
+@app.exception_handler(TeamError)
+async def handle_team_error(_request: Request, exc: TeamError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={"error_code": exc.error_code, "detail": exc.detail},

@@ -655,6 +655,7 @@ async def test_authorized_user_lists_registrations_with_answers(
         {
             "public_id": str(registration.public_id),
             "status": "pending",
+            "team": None,
             "status_changed_at": None,
             "status_changed_by": None,
             "user": {
@@ -768,6 +769,7 @@ async def test_participant_gets_own_registration_with_answers(
     assert response.json() == {
         "public_id": str(registration.public_id),
         "status": "pending",
+        "team": None,
         "status_changed_at": None,
         "status_changed_by": None,
         "user": {
