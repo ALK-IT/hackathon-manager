@@ -101,6 +101,11 @@ button:disabled {
   gap: 8px;
 }
 
+.question-editor {
+  display: grid;
+  gap: 8px;
+}
+
 .hackathons-layout {
   display: grid;
   grid-template-columns: 180px 1fr;

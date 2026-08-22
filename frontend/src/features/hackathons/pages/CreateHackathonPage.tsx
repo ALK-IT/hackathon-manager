@@ -47,7 +47,7 @@ export function CreateHackathonPage() {
     setIsSubmitting(true)
 
     try {
-      await createHackathon({
+      const hackathon = await createHackathon({
         name: name.trim(),
         description: description.trim(),
         start_date: new Date(startDate).toISOString(),
@@ -59,7 +59,7 @@ export function CreateHackathonPage() {
         ...(capacity && { capacity: Number(capacity) }),
         max_team_size: Number(maxTeamSize),
       })
-      navigate('/hackathons', { replace: true })
+      navigate(`/hackathons/${hackathon.public_id}/questions/setup`, { replace: true })
     } catch (error) {
       setSubmitError(getCreateHackathonErrorMessage(error))
     } finally {
