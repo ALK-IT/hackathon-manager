@@ -103,9 +103,7 @@ async def test_create_resource_rejects_missing_hackathon_or_outsider(
 
 
 async def test_co_organizer_can_create_resource(service, repository):
-    repository.get_hackathon.return_value = make_hackathon(
-        organizer_id=99, co_organizer_ids=(1,)
-    )
+    repository.get_hackathon.return_value = make_hackathon(organizer_id=99, co_organizer_ids=(1,))
 
     await service.create_resource(
         uuid.uuid4(),
@@ -181,9 +179,7 @@ async def test_write_failures_are_rolled_back(service, repository, method):
 
 
 @pytest.mark.parametrize("state", ["missing", "assigned", "revoked"])
-async def test_assign_item_rejects_missing_or_unavailable_item(
-    service, repository, state
-):
+async def test_assign_item_rejects_missing_or_unavailable_item(service, repository, state):
     repository.get_hackathon.return_value = make_hackathon()
     resource = make_resource()
     repository.get_resource.return_value = resource
@@ -250,17 +246,13 @@ async def test_assign_item_rejects_unknown_recipient(service, repository, target
         await service.assign_item(
             uuid.uuid4(),
             resource.public_id,
-            ResourceAssignmentCreate(
-                resource_item_public_id=uuid.uuid4(), **{field: uuid.uuid4()}
-            ),
+            ResourceAssignmentCreate(resource_item_public_id=uuid.uuid4(), **{field: uuid.uuid4()}),
             make_user(),
         )
 
 
 @pytest.mark.parametrize("target", ["individual", "team"])
-async def test_assign_item_creates_assignment_and_marks_item_assigned(
-    service, repository, target
-):
+async def test_assign_item_creates_assignment_and_marks_item_assigned(service, repository, target):
     user = make_user()
     repository.get_hackathon.return_value = make_hackathon()
     resource = make_resource(target=target)
