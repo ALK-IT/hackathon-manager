@@ -33,21 +33,27 @@ def make_hackathon(
     created_offset: int = 0,
     is_deleted: bool = False,
     registration_open: bool = True,
+    start_date: datetime | None = None,
     registration_opens_at: datetime | None = None,
     registration_deadline: datetime | None = None,
     co_organizers: list[User] | None = None,
 ) -> Hackathon:
     current_time = datetime.now(UTC)
-    start_date = current_time + timedelta(days=7)
+    effective_start_date = start_date or current_time + timedelta(days=7)
+    effective_deadline = registration_deadline or effective_start_date - timedelta(hours=48)
+    effective_opens_at = registration_opens_at or min(
+        current_time - timedelta(hours=1),
+        effective_deadline - timedelta(hours=1),
+    )
     return Hackathon(
         organizer=organizer,
         co_organizers=co_organizers or [],
         name=name,
         description="Description",
-        start_date=start_date,
-        end_date=current_time + timedelta(days=8),
-        registration_opens_at=registration_opens_at or current_time - timedelta(hours=1),
-        registration_deadline=registration_deadline or start_date - timedelta(hours=48),
+        start_date=effective_start_date,
+        end_date=effective_start_date + timedelta(days=1),
+        registration_opens_at=effective_opens_at,
+        registration_deadline=effective_deadline,
         registration_open=registration_open,
         capacity=100,
         max_team_size=4,
@@ -76,7 +82,7 @@ async def test_repository_adds_and_reads_hackathon(session: AsyncSession):
     assert result.co_organizers == []
 
 
-async def test_list_active_returns_only_hackathons_with_open_registration_window(
+async def test_list_active_without_filters_returns_all_non_deleted_hackathons(
     session: AsyncSession,
 ):
     current_user = await persist_user(session, email="current@example.com")
@@ -111,17 +117,20 @@ async def test_list_active_returns_only_hackathons_with_open_registration_window
     scheduled = make_hackathon(
         current_user,
         name="Scheduled",
+        created_offset=5,
         registration_opens_at=datetime.now(UTC) + timedelta(days=1),
     )
     expired = make_hackathon(
         current_user,
         name="Expired",
+        created_offset=6,
         registration_opens_at=datetime.now(UTC) - timedelta(days=2),
         registration_deadline=datetime.now(UTC) - timedelta(days=1),
     )
     manually_closed = make_hackathon(
         current_user,
         name="Manually closed",
+        created_offset=7,
         registration_open=False,
     )
     session.add_all(
@@ -140,8 +149,79 @@ async def test_list_active_returns_only_hackathons_with_open_registration_window
 
     result = await repository.list_active()
 
-    assert result == [unrelated, co_organized, owned]
-    assert result[1].co_organizers == [current_user]
+    assert result == [manually_closed, expired, scheduled, unrelated, co_organized, owned]
+    assert result[4].co_organizers == [current_user]
+
+
+async def test_list_active_filters_upcoming_hackathons(session: AsyncSession):
+    owner = await persist_user(session, email="owner@example.com")
+    current_time = datetime.now(UTC)
+    upcoming = make_hackathon(
+        owner,
+        name="Upcoming",
+        created_offset=1,
+        start_date=current_time + timedelta(days=2),
+    )
+    started = make_hackathon(
+        owner,
+        name="Started",
+        created_offset=2,
+        start_date=current_time - timedelta(days=1),
+    )
+    deleted = make_hackathon(
+        owner,
+        name="Deleted upcoming",
+        created_offset=3,
+        start_date=current_time + timedelta(days=3),
+        is_deleted=True,
+    )
+    session.add_all([upcoming, started, deleted])
+    await session.commit()
+    repository = HackathonRepository(session)
+
+    assert await repository.list_active(upcoming=True) == [upcoming]
+    assert await repository.list_active(upcoming=False) == [started]
+
+
+async def test_list_active_filters_effective_registration_state(session: AsyncSession):
+    owner = await persist_user(session, email="owner@example.com")
+    current_time = datetime.now(UTC)
+    opened = make_hackathon(owner, name="Open", created_offset=1)
+    scheduled = make_hackathon(
+        owner,
+        name="Scheduled",
+        created_offset=2,
+        registration_opens_at=current_time + timedelta(days=1),
+    )
+    expired = make_hackathon(
+        owner,
+        name="Expired",
+        created_offset=3,
+        registration_opens_at=current_time - timedelta(days=2),
+        registration_deadline=current_time - timedelta(days=1),
+    )
+    manually_closed = make_hackathon(
+        owner,
+        name="Manually closed",
+        created_offset=4,
+        registration_open=False,
+    )
+    deleted = make_hackathon(
+        owner,
+        name="Deleted open",
+        created_offset=5,
+        is_deleted=True,
+    )
+    session.add_all([opened, scheduled, expired, manually_closed, deleted])
+    await session.commit()
+    repository = HackathonRepository(session)
+
+    assert await repository.list_active(registration_open=True) == [opened]
+    assert await repository.list_active(registration_open=False) == [
+        manually_closed,
+        expired,
+        scheduled,
+    ]
 
 
 async def test_list_managed_returns_only_owned_and_co_organized_hackathons(

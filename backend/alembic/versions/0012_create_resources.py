@@ -1,7 +1,7 @@
 """create resources and resource items
 
 Revision ID: 0012
-Revises: 0011
+Revises: 0010
 Create Date: 2026-08-19
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0012"
-down_revision: str | None = "0011"
+down_revision: str | None = "0010"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

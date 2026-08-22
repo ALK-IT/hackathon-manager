@@ -27,10 +27,6 @@ Administrator, właściciel i współorganizator hackathonu mogą zarządzać py
 zgłoszenia wraz z danymi uczestników i odpowiedziami oraz zmieniać status na `accepted` albo
 `rejected`. Uczestnik może pobrać i usunąć własne zgłoszenie.
 
-Przy każdej zmianie statusu zgłoszenie zapisuje czas decyzji oraz użytkownika, który jej dokonał.
-API zwraca `status_changed_at` oraz bezpieczne podsumowanie `status_changed_by` zawierające
-publiczny identyfikator i nazwę. Rejestrowana jest ostatnia zmiana, a nie pełna historia decyzji.
-
 ## Endpointy API
 
 - `GET /api/hackathons/{hackathon_public_id}/questions` — pobranie pytań przez zalogowanego
@@ -49,8 +45,7 @@ publiczny identyfikator i nazwę. Rejestrowana jest ostatnia zmiana, a nie pełn
 - `DELETE /api/registrations/{registration_public_id}` — usunięcie zgłoszenia przez jego autora
   albo osobę zarządzającą hackathonem.
 - `PATCH /api/registrations/{registration_public_id}/status` — akceptacja albo odrzucenie
-  zgłoszenia przez osobę zarządzającą hackathonem; odpowiedź zawiera osobę i czas ostatniej
-  zmiany statusu.
+  zgłoszenia przez osobę zarządzającą hackathonem.
 
 Wszystkie endpointy modułu wymagają uwierzytelnienia.
 
@@ -81,7 +76,6 @@ błędzie.
 - pobieranie własnego zgłoszenia;
 - lista zgłoszeń wraz z uczestnikami, pytaniami i odpowiedziami;
 - akceptowanie i odrzucanie zgłoszeń;
-- audyt osoby i czasu ostatniej zmiany statusu;
 - kontrola aktualnego okna rejestracji;
 - autoryzacja administratora, właściciela i współorganizatora;
 - migracja Alembic oraz testy endpointów, serwisów i repozytoriów.
@@ -93,20 +87,19 @@ błędzie.
 - limity zaakceptowanych uczestników i automatyczne pilnowanie pojemności;
 - powiadomienia e-mail o zmianie statusu;
 - edycja wysłanego zgłoszenia;
-- przywracanie statusu zgłoszenia do `pending` przez API;
-- pełna historia wszystkich zmian statusu.
+- przywracanie statusu zgłoszenia do `pending` przez API.
 
 ## Wpływ
 
 - **Frontend:** brak interfejsu w tej zmianie; udostępniono kontrakty API potrzebne do późniejszego
-  formularza uczestnika i panelu organizatora, w tym dane ostatniej decyzji.
+  formularza uczestnika i panelu organizatora.
 - **Backend:** nowy moduł `src/registration`, router, zależności, serwisy, repozytoria, schematy
   Pydantic, wyjątki domenowe oraz rejestracja globalnej obsługi błędów.
 - **Baza danych:** tabele `questions`, `registrations` i `answers`, enum statusu, klucze obce z
-  usuwaniem kaskadowym oraz ograniczenia unikalności. Migracje tworzą liniowy ciąg: `0005` i
-  `0006` konfigurują zaplanowane okno rejestracji, `0007` tworzy zgłoszenia, a `0008` dodaje
-  nullable pola `status_changed_at` i `status_changed_by_id`; usunięcie użytkownika zeruje
-  wskazanie autora decyzji przez `ON DELETE SET NULL`.
+  usuwaniem kaskadowym oraz ograniczenia unikalności. Wspólna migracja scalająca łączy gałęzie
+  zgłoszeń, drużyn i zaplanowanego okna rejestracji. Migracja `0008` dodaje nullable pola
+  `status_changed_at` i `status_changed_by_id`; usunięcie użytkownika zeruje wskazanie autora
+  decyzji przez `ON DELETE SET NULL`.
 - **API:** nowe chronione endpointy pod `/api/hackathons/...` i `/api/registrations/...`.
 
 ## Alternatywy rozważane
@@ -119,16 +112,12 @@ błędzie.
   uprawnień właściciela i współorganizatorów wydarzenia.
 - **Sprawdzanie tylko flagi `registration_open`** — odrzucono; zgłoszenie musi respektować także
   `registration_opens_at` i `registration_deadline`.
-- **Osobna tabela pełnej historii statusów** — odłożona, ponieważ obecny zakres wymaga jedynie
-  informacji o ostatniej zmianie.
 
 ## Testy
 
 Testy obejmują kontrakty HTTP, uprawnienia, walidację odpowiedzi, zamknięte zapisy, duplikaty
-zgłoszeń, zmianę statusu wraz z ostatnim wykonawcą i czasem, rollback transakcji oraz rzeczywiste
-operacje repozytoriów na PostgreSQL.
+zgłoszeń, zmianę statusu, rollback transakcji i rzeczywiste operacje repozytoriów na PostgreSQL.
 
 ## Changelog
 
 - 2026-08-12 — opisano zaimplementowany moduł zgłoszeń uczestników.
-- 2026-08-15 — dodano audyt osoby i czasu ostatniej zmiany statusu zgłoszenia.

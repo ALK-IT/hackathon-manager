@@ -60,7 +60,6 @@ async def handle_resource_error(_request: Request, exc: ResourceError) -> JSONRe
         content={"error_code": exc.error_code, "detail": exc.detail},
     )
 
-
 @app.exception_handler(RequestValidationError)
 async def handle_request_validation_error(
     _request: Request,

@@ -1,4 +1,4 @@
-# SPEC-008: Zasoby hackathonu i ręczny przydział
+# SPEC-010: Zasoby hackathonu i ręczny przydział
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-20

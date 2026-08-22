@@ -238,8 +238,8 @@ transakcją zgłoszenia, czego obecny model biznesowy nie przewiduje.
   istniejącej. Po utworzeniu powinien pokazać użytkownikowi zwrócony `join_code`.
 - **Backend:** dodany moduł `src/teams/`; `RegistrationService` deleguje obsługę drużyny do
   `TeamService`; błędy drużyn są mapowane na JSON przez handler FastAPI.
-- **Baza danych:** migracja `0010` tworzy tabelę `teams`, indeksy i opcjonalny klucz
-  `registrations.team_id`, a migracja `0011` dodaje flagę `hackathons.teams_enabled`. Migracje
+- **Baza danych:** migracja `3cae343ea484` tworzy tabelę `teams`, indeksy i opcjonalny klucz
+  `registrations.team_id`, a migracja `0010` dodaje flagę `hackathons.teams_enabled`. Migracje
   przechodzą pełny cykl upgrade/downgrade/upgrade.
 - **Testy:** osobne testy serwisu drużyn oraz testy jednostkowe i integracyjne całego przepływu
   zgłoszenia. Lokalne testy Docker korzystają z osobnego PostgreSQL w `tmpfs`.

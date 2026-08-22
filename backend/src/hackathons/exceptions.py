@@ -16,6 +16,24 @@ class HackathonNotFoundError(HackathonError):
     detail = "Hackathon does not exist or you do not have access to it."
 
 
+class CoOrganizerUserNotFoundError(HackathonError):
+    status_code = 404
+    error_code = "CO_ORGANIZER_USER_NOT_FOUND"
+    detail = "User selected as a co-organizer does not exist."
+
+
+class CoOrganizerAlreadyAssignedError(HackathonError):
+    status_code = 409
+    error_code = "CO_ORGANIZER_ALREADY_ASSIGNED"
+    detail = "User is already a co-organizer of this hackathon."
+
+
+class OrganizerCannotBeCoOrganizerError(HackathonError):
+    status_code = 409
+    error_code = "ORGANIZER_CANNOT_BE_CO_ORGANIZER"
+    detail = "Hackathon owner cannot also be a co-organizer."
+
+
 class InvalidDateRangeError(HackathonError):
     status_code = 422
     error_code = "INVALID_DATE_RANGE"
