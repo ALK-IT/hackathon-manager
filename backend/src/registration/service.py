@@ -315,6 +315,9 @@ class RegistrationService:
         if not _can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
+        if datetime.now(UTC) >= hackathon.end_date:
+            raise RegistrationClosedError()
+
         try:
             if (
                 registration.team_id is not None

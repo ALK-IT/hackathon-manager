@@ -948,6 +948,29 @@ async def test_update_status_rejects_user_without_access(
     registration_repository.update_status.assert_not_awaited()
 
 
+async def test_update_status_rejects_changes_after_hackathon_end(
+    registration_service,
+    registration_repository,
+):
+    registration_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        hackathon=SimpleNamespace(
+            organizer_id=10,
+            co_organizers=[],
+            end_date=datetime.now(UTC) - timedelta(seconds=1),
+        ),
+    )
+
+    with pytest.raises(RegistrationClosedError):
+        await registration_service.update_status(
+            uuid.uuid4(),
+            RegistrationStatus.ACCEPTED,
+            make_user(user_id=10),
+        )
+
+    registration_repository.update_status.assert_not_awaited()
+    registration_repository.commit.assert_not_awaited()
+
+
 @pytest.mark.parametrize("access_kind", ["admin", "organizer", "co_organizer"])
 async def test_authorized_user_can_update_status(
     access_kind,
@@ -971,6 +994,7 @@ async def test_authorized_user_can_update_status(
         hackathon=SimpleNamespace(
             organizer_id=organizer_id,
             co_organizers=[SimpleNamespace(id=co_organizer_id)],
+            end_date=datetime.max.replace(tzinfo=UTC),
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
@@ -1007,6 +1031,7 @@ async def test_reactivating_rejected_team_member_checks_available_place(
             organizer_id=10,
             co_organizers=[],
             max_team_size=4,
+            end_date=datetime.max.replace(tzinfo=UTC),
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
@@ -1037,6 +1062,7 @@ async def test_reactivating_rejected_team_member_rolls_back_when_team_is_full(
             organizer_id=10,
             co_organizers=[],
             max_team_size=4,
+            end_date=datetime.max.replace(tzinfo=UTC),
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
@@ -1061,7 +1087,11 @@ async def test_update_status_rolls_back_repository_error(
     registration_repository.get_active_by_public_id.return_value = SimpleNamespace(
         status=RegistrationStatus.PENDING,
         team_id=None,
-        hackathon=SimpleNamespace(organizer_id=10, co_organizers=[]),
+        hackathon=SimpleNamespace(
+            organizer_id=10,
+            co_organizers=[],
+            end_date=datetime.max.replace(tzinfo=UTC),
+        ),
     )
     registration_repository.update_status.side_effect = RuntimeError("update failed")
 
