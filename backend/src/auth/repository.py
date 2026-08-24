@@ -18,6 +18,21 @@ class UserRepository:
         result = await self.session.execute(select(User).where(User.public_id == public_id))
         return result.scalar_one_or_none()
 
+    async def search_by_name(self, query: str, excluded_user_ids: set[int]) -> list[User]:
+        escaped_query = (
+            query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        )
+        statement = (
+            select(User)
+            .where(User.name.ilike(f"%{escaped_query}%", escape="\\"))
+            .order_by(User.name, User.id)
+            .limit(7)
+        )
+        if excluded_user_ids:
+            statement = statement.where(User.id.notin_(excluded_user_ids))
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
+
     async def create(self, user: User) -> User:
         self.session.add(user)
         await self.session.flush()

@@ -152,6 +152,27 @@ class HackathonService:
             raise
         return hackathon
 
+    async def get_co_organizer_candidates(
+        self,
+        public_id: uuid.UUID,
+        user: User,
+        query: str,
+    ) -> list[User]:
+        hackathon = await self._get_owned_hackathon(public_id, user)
+        excluded_user_ids = {
+            hackathon.organizer_id,
+            *(co_organizer.id for co_organizer in hackathon.co_organizers),
+        }
+        normalized_query = query.strip()
+        if len(normalized_query) < 2:
+            return []
+
+        candidates = await self.user_repository.search_by_name(
+            normalized_query,
+            excluded_user_ids,
+        )
+        return candidates
+
     async def open_registration(self, public_id: uuid.UUID, user: User) -> Hackathon:
         hackathon = await self._get_owned_hackathon(public_id, user)
         opened_at = datetime.now(UTC)
