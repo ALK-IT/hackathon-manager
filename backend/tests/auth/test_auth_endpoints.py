@@ -2,7 +2,6 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +11,7 @@ from src.auth.models import User
 from src.auth.repository import UserRepository
 from src.auth.service import IssuedTokenPair
 from src.auth.utils import hash_password
+from src.common.errors import AuthenticationRequiredError
 
 
 async def test_optional_current_user_allows_missing_token(mocker):
@@ -30,7 +30,7 @@ async def test_optional_current_user_rejects_invalid_token(mocker):
     token_service = mocker.Mock()
     token_service.is_revoked = mocker.AsyncMock(return_value=False)
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(AuthenticationRequiredError) as exc_info:
         await get_optional_current_user("invalid-token", user_service, token_service)
 
     assert exc_info.value.status_code == 401
@@ -111,6 +111,10 @@ async def test_refresh_endpoint_requires_cookie(auth_client_with_user_service):
     response = await auth_client_with_user_service.post("/api/auth/refresh")
 
     assert response.status_code == 401
+    assert response.json() == {
+        "error_code": "AUTHENTICATION_REQUIRED",
+        "detail": "Invalid email, password, or access token.",
+    }
 
 
 async def test_register_login_and_me_use_database(auth_client: AsyncClient):
@@ -160,6 +164,10 @@ async def test_register_endpoint_rejects_duplicate_email(auth_client: AsyncClien
 
     assert first_response.status_code == 201
     assert duplicate_response.status_code == 409
+    assert duplicate_response.json() == {
+        "error_code": "EMAIL_ALREADY_REGISTERED",
+        "detail": "An account with this email already exists.",
+    }
 
 
 async def test_user_me_information(
@@ -196,3 +204,4 @@ async def test_user_me_information(
     assert participant_response.status_code == 200
     assert participant_response.json()["email"] == "participant@example.com"
     assert anonymous_response.status_code == 401
+    assert anonymous_response.json()["error_code"] == "AUTHENTICATION_REQUIRED"
