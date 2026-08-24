@@ -19,9 +19,7 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def search_by_name(self, query: str, excluded_user_ids: set[int]) -> list[User]:
-        escaped_query = (
-            query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        )
+        escaped_query = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         statement = (
             select(User)
             .where(User.name.ilike(f"%{escaped_query}%", escape="\\"))
