@@ -66,6 +66,7 @@ def repository(mocker) -> HackathonRepository:
 def user_repository(mocker) -> UserRepository:
     repository = mocker.Mock(spec=UserRepository)
     repository.get_by_public_id = mocker.AsyncMock()
+    repository.search_by_name = mocker.AsyncMock(return_value=[])
     return repository
 
 
@@ -603,6 +604,55 @@ async def test_add_co_organizer_rolls_back_database_error(
         )
 
     repository.rollback.assert_awaited_once_with()
+
+
+async def test_owner_can_search_for_co_organizer_candidates(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    admin_user: User,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
+    existing_co_organizer = user_factory(user_id=2)
+    candidate = user_factory(user_id=3)
+    candidate.name = "Jan Kowalski"
+    hackathon = hackathon_factory(
+        organizer=admin_user,
+        co_organizers=[existing_co_organizer],
+    )
+    repository.get_owned_by_public_id.return_value = hackathon
+    user_repository.search_by_name.return_value = [candidate]
+    service = make_service(repository, user_repository)
+
+    result = await service.get_co_organizer_candidates(
+        hackathon.public_id,
+        admin_user,
+        "  jan  ",
+    )
+
+    assert result == [candidate]
+    user_repository.search_by_name.assert_awaited_once_with(
+        "jan",
+        {admin_user.id, existing_co_organizer.id},
+    )
+
+
+async def test_candidate_search_hides_unowned_hackathon_before_user_lookup(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    regular_user: User,
+):
+    repository.get_owned_by_public_id.return_value = None
+    service = make_service(repository, user_repository)
+
+    with pytest.raises(HackathonNotFoundError):
+        await service.get_co_organizer_candidates(
+            uuid.uuid4(),
+            regular_user,
+            "Jan",
+        )
+
+    user_repository.search_by_name.assert_not_awaited()
 
 
 async def test_owner_can_open_and_close_registration(

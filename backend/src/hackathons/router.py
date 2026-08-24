@@ -14,6 +14,7 @@ from src.hackathons.schemas import (
     HackathonRead,
     HackathonRegistrationStateRead,
     HackathonUpdate,
+    UserSummary,
 )
 from src.hackathons.service import HackathonService
 
@@ -107,6 +108,21 @@ async def add_co_organizer(
 ) -> HackathonRead:
     hackathon = await service.add_co_organizer(public_id, data, current_user)
     return HackathonRead.from_hackathon(hackathon, current_user.id)
+
+
+@router.get(
+    path="/{public_id}/co-organizer-candidates",
+    response_model=list[UserSummary],
+    status_code=status.HTTP_200_OK,
+)
+async def get_co_organizer_candidates(
+    public_id: uuid.UUID,
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    query: Annotated[str, Query(min_length=2, max_length=100)],
+) -> list[UserSummary]:
+    candidates = await service.get_co_organizer_candidates(public_id, current_user, query)
+    return [UserSummary.model_validate(candidate) for candidate in candidates]
 
 
 @router.post(
