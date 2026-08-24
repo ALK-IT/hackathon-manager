@@ -18,13 +18,13 @@ export function getRegistrationErrorMessage(error: unknown): string {
   }
 
   const messages: Record<string, string> = {
-    REGISTRATION_ALREADY_EXISTS: 'Masz już zgłoszenie do tego hackathonu.',
+    ALREADY_REGISTERED: 'Masz już zgłoszenie do tego hackathonu.',
     REGISTRATION_CLOSED: 'Rejestracja na ten hackathon jest już zamknięta.',
     MISSING_REQUIRED_ANSWERS: 'Odpowiedz na wszystkie wymagane pytania.',
     INVALID_REGISTRATION_QUESTION: 'Formularz uległ zmianie. Odśwież stronę i spróbuj ponownie.',
     TEAM_NOT_FOUND: 'Nie znaleziono drużyny z podanym kodem.',
     TEAM_FULL: 'Ta drużyna ma już maksymalną liczbę członków.',
-    TEAM_NAME_ALREADY_EXISTS: 'Drużyna o tej nazwie już istnieje w tym hackathonie.',
+    TEAM_NAME_TAKEN: 'Drużyna o tej nazwie już istnieje w tym hackathonie.',
     VALIDATION_ERROR: 'Sprawdź poprawność danych formularza.',
   }
 
