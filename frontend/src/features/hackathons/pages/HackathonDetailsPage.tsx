@@ -2,12 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { useAuth } from '../../auth'
-import { FormField } from '../../auth/components/FormField'
-import {
-  addCoOrganizer,
-  getHackathon,
-  searchCoOrganizerCandidates,
-} from '../api/hackathonsApi'
+import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
+import { CoOrganizerAutocomplete } from '../components/CoOrganizerAutocomplete'
 import type { HackathonDetails, UserSummary } from '../types'
 import {
   getAddCoOrganizerErrorMessage,
@@ -23,9 +19,6 @@ export function HackathonDetailsPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [coOrganizerName, setCoOrganizerName] = useState('')
   const [selectedCandidate, setSelectedCandidate] = useState<UserSummary | null>(null)
-  const [candidates, setCandidates] = useState<UserSummary[]>([])
-  const [isSearchingCandidates, setIsSearchingCandidates] = useState(false)
-  const [candidateSearchError, setCandidateSearchError] = useState<string | null>(null)
   const [fieldError, setFieldError] = useState<string | undefined>()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -57,47 +50,6 @@ export function HackathonDetailsPage() {
     return () => controller.abort()
   }, [hackathonPublicId, isAuthLoading])
 
-  useEffect(() => {
-    const normalizedName = coOrganizerName.trim()
-    if (
-      !hackathonPublicId ||
-      hackathon?.access_level !== 'owner' ||
-      normalizedName.length < 2 ||
-      selectedCandidate?.name === coOrganizerName
-    ) {
-      setCandidates([])
-      setCandidateSearchError(null)
-      setIsSearchingCandidates(false)
-      return
-    }
-
-    const controller = new AbortController()
-    const timeoutId = window.setTimeout(async () => {
-      setIsSearchingCandidates(true)
-      setCandidateSearchError(null)
-
-      try {
-        const results = await searchCoOrganizerCandidates(
-          hackathonPublicId,
-          normalizedName,
-          controller.signal,
-        )
-        setCandidates(results)
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') return
-        setCandidates([])
-        setCandidateSearchError('Nie udało się wyszukać użytkowników.')
-      } finally {
-        if (!controller.signal.aborted) setIsSearchingCandidates(false)
-      }
-    }, 300)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-      controller.abort()
-    }
-  }, [coOrganizerName, hackathon?.access_level, hackathonPublicId, selectedCandidate])
-
   async function handleAddCoOrganizer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!hackathonPublicId || !hackathon || hackathon.access_level !== 'owner') return
@@ -122,7 +74,6 @@ export function HackathonDetailsPage() {
       setHackathon(updatedHackathon)
       setCoOrganizerName('')
       setSelectedCandidate(null)
-      setCandidates([])
       setSuccessMessage(
         addedCoOrganizer
           ? `Dodano współorganizatora: ${addedCoOrganizer.name}.`
@@ -184,54 +135,23 @@ export function HackathonDetailsPage() {
 
             {hackathon.access_level === 'owner' && (
               <form className="co-organizer-form" onSubmit={handleAddCoOrganizer} noValidate>
-                <FormField
-                  id="co-organizer-name"
-                  label="Nazwa użytkownika"
-                  value={coOrganizerName}
+                <CoOrganizerAutocomplete
+                  hackathonPublicId={hackathon.public_id}
+                  query={coOrganizerName}
+                  selectedCandidate={selectedCandidate}
                   error={fieldError}
-                  placeholder="Zacznij wpisywać imię i nazwisko"
-                  autoComplete="off"
-                  role="combobox"
-                  aria-autocomplete="list"
-                  aria-controls="co-organizer-candidates"
-                  aria-expanded={candidates.length > 0}
-                  required
-                  onChange={(event) => {
-                    setCoOrganizerName(event.target.value)
+                  onQueryChange={(query) => {
+                    setCoOrganizerName(query)
                     setSelectedCandidate(null)
                     setFieldError(undefined)
                     setSuccessMessage(null)
                   }}
+                  onCandidateSelect={(candidate) => {
+                    setSelectedCandidate(candidate)
+                    setCoOrganizerName(candidate.name)
+                    setFieldError(undefined)
+                  }}
                 />
-                {isSearchingCandidates && <p role="status">Wyszukiwanie…</p>}
-                {candidateSearchError && (
-                  <Alert variant="error">{candidateSearchError}</Alert>
-                )}
-                {candidates.length > 0 && (
-                  <ul
-                    id="co-organizer-candidates"
-                    className="co-organizer-candidates"
-                    role="listbox"
-                  >
-                    {candidates.map((candidate) => (
-                      <li key={candidate.public_id}>
-                        <button
-                          type="button"
-                          role="option"
-                          aria-selected={selectedCandidate?.public_id === candidate.public_id}
-                          onClick={() => {
-                            setSelectedCandidate(candidate)
-                            setCoOrganizerName(candidate.name)
-                            setCandidates([])
-                            setFieldError(undefined)
-                          }}
-                        >
-                          {candidate.name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
                 {submitError && <Alert variant="error">{submitError}</Alert>}
                 {successMessage && <Alert>{successMessage}</Alert>}
                 <Button type="submit" variant="ghost" disabled={isSubmitting}>
