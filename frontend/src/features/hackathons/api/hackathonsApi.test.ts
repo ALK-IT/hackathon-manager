@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiRequest } from '../../../lib/api/client'
-import { addCoOrganizer, getHackathon, getHackathons } from './hackathonsApi'
+import {
+  addCoOrganizer,
+  getHackathon,
+  getHackathons,
+  searchCoOrganizerCandidates,
+} from './hackathonsApi'
 
 vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
 
@@ -46,6 +51,17 @@ describe('getHackathons', () => {
         body: JSON.stringify(payload),
         headers: { 'Content-Type': 'application/json' },
       },
+    )
+  })
+
+  it('searches co-organizer candidates by name', () => {
+    const controller = new AbortController()
+
+    searchCoOrganizerCandidates('hackathon-id', 'Jan Kowalski', controller.signal)
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon-id/co-organizer-candidates?query=Jan+Kowalski',
+      { signal: controller.signal },
     )
   })
 })

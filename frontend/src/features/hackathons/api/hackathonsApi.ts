@@ -5,6 +5,7 @@ import type {
   Hackathon,
   HackathonDetails,
   HackathonFilters,
+  UserSummary,
 } from '../types'
 
 interface GetHackathonsOptions extends HackathonFilters {
@@ -47,5 +48,17 @@ export function addCoOrganizer(publicId: string, payload: AddCoOrganizerPayload)
       body: JSON.stringify(payload),
       headers: { 'Content-Type': 'application/json' },
     },
+  )
+}
+
+export function searchCoOrganizerCandidates(
+  publicId: string,
+  query: string,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams({ query })
+  return apiRequest<UserSummary[]>(
+    `/api/hackathons/${encodeURIComponent(publicId)}/co-organizer-candidates?${params.toString()}`,
+    { signal },
   )
 }

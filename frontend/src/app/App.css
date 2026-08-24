@@ -141,6 +141,31 @@ button:disabled {
   justify-self: start;
 }
 
+.co-organizer-candidates {
+  display: grid;
+  padding: 0;
+  margin: -4px 0 0;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  list-style: none;
+}
+
+.co-organizer-candidates button {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.co-organizer-candidates button:hover,
+.co-organizer-candidates button:focus-visible {
+  background: #f3f4f6;
+}
+
 @media (max-width: 560px) {
   .page-header {
     align-items: flex-start;
