@@ -32,6 +32,7 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-013 | Spójny kontrakt błędów API | Zaimplementowany | [implemented/SPEC-013-2026-08-24-spojny-kontrakt-bledow-api.md](implemented/SPEC-013-2026-08-24-spojny-kontrakt-bledow-api.md) |
 | SPEC-014 | Potwierdzanie konta i reset hasła przez e-mail | Zaimplementowany | [implemented/SPEC-014-2026-09-02-email-verification-password-reset.md](implemented/SPEC-014-2026-09-02-email-verification-password-reset.md) |
 | SPEC-015 | Profil użytkownika i lista własnych hackathonów | Zaimplementowany | [implemented/SPEC-015-2026-09-04-profil-uzytkownika.md](implemented/SPEC-015-2026-09-04-profil-uzytkownika.md) |
+| SPEC-016 | Strefa uczestnika i status zgłoszenia na liście hackathonów | Zaimplementowany | [implemented/SPEC-016-2026-08-26-strefa-uczestnika.md](implemented/SPEC-016-2026-08-26-strefa-uczestnika.md) |
 | SPEC-018 | Odliczanie na publicznej stronie hackathonu | Zaimplementowany | [implemented/SPEC-018-2026-08-26-odliczanie-hackathonu.md](implemented/SPEC-018-2026-08-26-odliczanie-hackathonu.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).
