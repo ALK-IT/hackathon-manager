@@ -7,6 +7,7 @@ export interface Hackathon {
   capacity: number | null
   max_team_size: number
   access_level: 'owner' | 'co_organizer' | 'viewer'
+  my_registration_status: 'pending' | 'accepted' | 'rejected' | null
 }
 
 export interface UserSummary {
