@@ -4,6 +4,7 @@ import {
   createRegistration,
   createRegistrationQuestions,
   getMyRegistration,
+  getParticipantArea,
   getRegistrationQuestions,
 } from './registrationApi'
 
@@ -40,6 +41,15 @@ describe('registrationApi', () => {
 
     expect(apiRequest).toHaveBeenCalledWith(
       '/api/hackathons/hackathon-id/registrations/me',
+      { signal: undefined },
+    )
+  })
+
+  it('gets the participant area for the selected hackathon', () => {
+    getParticipantArea('hackathon-id')
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon-id/participant-area',
       { signal: undefined },
     )
   })

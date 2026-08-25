@@ -51,3 +51,16 @@ export function getRegistrationErrorMessage(error: unknown): string {
 
   return error.errorCode ? (messages[error.errorCode] ?? error.message) : error.message
 }
+
+export function getParticipantAreaErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    return 'Nie udało się pobrać strefy uczestnika. Spróbuj ponownie.'
+  }
+
+  const messages: Record<string, string> = {
+    REGISTRATION_NOT_FOUND: 'Nie masz zgłoszenia do tego hackathonu.',
+    REGISTRATION_NOT_ACCEPTED: 'Strefa uczestnika będzie dostępna po zaakceptowaniu zgłoszenia.',
+  }
+
+  return error.errorCode ? (messages[error.errorCode] ?? error.message) : error.message
+}

@@ -66,9 +66,14 @@ button:disabled {
   margin: 0 auto;
 }
 
-.registration-entry-card {
+.registration-entry-card,
+.participant-area-card {
   max-width: 640px;
   margin: 0 auto;
+}
+
+.participant-list {
+  padding-left: 20px;
 }
 
 .registration-questions,
