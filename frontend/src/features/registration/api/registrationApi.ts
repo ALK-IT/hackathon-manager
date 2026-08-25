@@ -1,10 +1,21 @@
 import { apiRequest } from '../../../lib/api/client'
 import type {
+  ParticipantArea,
   RegistrationPayload,
   RegistrationQuestion,
   RegistrationQuestionPayload,
   RegistrationResponse,
 } from '../types'
+
+export function getParticipantArea(
+  hackathonPublicId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<ParticipantArea>(
+    `/api/hackathons/${hackathonPublicId}/participant-area`,
+    { signal },
+  )
+}
 
 export function getRegistrationQuestions(
   hackathonPublicId: string,

@@ -33,4 +33,21 @@ export interface RegistrationResponse {
   team: RegistrationTeam | null
 }
 
+export interface Participant {
+  public_id: string
+  name: string
+}
+
+export interface ParticipantTeam {
+  public_id: string
+  name: string
+  members: Participant[]
+}
+
+export interface ParticipantArea {
+  public_id: string
+  name: string
+  team: ParticipantTeam | null
+}
+
 export type TeamMode = 'none' | 'create' | 'join'
