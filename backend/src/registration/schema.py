@@ -48,6 +48,29 @@ class RegistrationCreate(BaseModel):
         return self
 
 
+class ParticipantResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+
+
+class ParticipantTeamResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+    members: list[ParticipantResponse]
+
+
+class ParticipantAreaResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+    team: ParticipantTeamResponse | None
+
+
 class RegistrationStatusChangedByResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
