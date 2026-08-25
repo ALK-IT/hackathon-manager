@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth.models import User, UserRole
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
+from src.registration.models import Registration, RegistrationStatus
 from tests.hackathons.factories import NOW
 
 
@@ -149,8 +150,16 @@ async def test_list_active_without_filters_returns_all_non_deleted_hackathons(
 
     result = await repository.list_active()
 
-    assert result == [manually_closed, expired, scheduled, unrelated, co_organized, owned]
-    assert result[4].co_organizers == [current_user]
+    assert [hackathon for hackathon, _status in result] == [
+        manually_closed,
+        expired,
+        scheduled,
+        unrelated,
+        co_organized,
+        owned,
+    ]
+    assert all(status is None for _hackathon, status in result)
+    assert result[4][0].co_organizers == [current_user]
 
 
 async def test_list_active_filters_upcoming_hackathons(session: AsyncSession):
@@ -179,8 +188,8 @@ async def test_list_active_filters_upcoming_hackathons(session: AsyncSession):
     await session.commit()
     repository = HackathonRepository(session)
 
-    assert await repository.list_active(upcoming=True) == [upcoming]
-    assert await repository.list_active(upcoming=False) == [started]
+    assert await repository.list_active(upcoming=True) == [(upcoming, None)]
+    assert await repository.list_active(upcoming=False) == [(started, None)]
 
 
 async def test_list_active_filters_effective_registration_state(session: AsyncSession):
@@ -216,12 +225,51 @@ async def test_list_active_filters_effective_registration_state(session: AsyncSe
     await session.commit()
     repository = HackathonRepository(session)
 
-    assert await repository.list_active(registration_open=True) == [opened]
+    assert await repository.list_active(registration_open=True) == [(opened, None)]
     assert await repository.list_active(registration_open=False) == [
-        manually_closed,
-        expired,
-        scheduled,
+        (manually_closed, None),
+        (expired, None),
+        (scheduled, None),
     ]
+
+
+async def test_list_active_returns_only_current_users_registration_status(
+    session: AsyncSession,
+):
+    current_user = await persist_user(session, email="current@example.com")
+    other_user = await persist_user(session, email="other@example.com")
+    owner = await persist_user(
+        session,
+        email="owner@example.com",
+        role=UserRole.ADMIN,
+    )
+    hackathon = make_hackathon(owner, name="AI Hackathon")
+    session.add(hackathon)
+    await session.flush()
+    session.add_all(
+        [
+            Registration(
+                user=current_user,
+                hackathon=hackathon,
+                status=RegistrationStatus.ACCEPTED,
+            ),
+            Registration(
+                user=other_user,
+                hackathon=hackathon,
+                status=RegistrationStatus.REJECTED,
+            ),
+        ]
+    )
+    await session.commit()
+    repository = HackathonRepository(session)
+
+    assert await repository.list_active(user_id=current_user.id) == [
+        (hackathon, RegistrationStatus.ACCEPTED)
+    ]
+    assert await repository.list_active(user_id=other_user.id) == [
+        (hackathon, RegistrationStatus.REJECTED)
+    ]
+    assert await repository.list_active() == [(hackathon, None)]
 
 
 async def test_list_managed_returns_only_owned_and_co_organized_hackathons(
