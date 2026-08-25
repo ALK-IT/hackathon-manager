@@ -16,6 +16,7 @@ from src.registration.exceptions import (
     QuestionNotFoundError,
     RegistrationAlreadyExistsError,
     RegistrationClosedError,
+    RegistrationNotAcceptedError,
     RegistrationNotFoundError,
     RegistrationQuestionsLockedError,
     RegistrationStatusChangeLockedError,
@@ -28,6 +29,9 @@ from src.registration.models import (
 )
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
 from src.registration.schema import (
+    ParticipantAreaResponse,
+    ParticipantResponse,
+    ParticipantTeamResponse,
     RegistrationCreate,
     RegistrationQuestionBulkCreate,
     RegistrationQuestionCreate,
@@ -260,6 +264,42 @@ class RegistrationService:
         except Exception:
             await self.registration_repository.rollback()
             raise
+
+    async def get_participant_area(
+        self,
+        hackathon_public_id: uuid.UUID,
+        user: User,
+    ) -> ParticipantAreaResponse:
+        registration = await self.registration_repository.get_by_hackathon_and_user(
+            hackathon_public_id, user.public_id
+        )
+        if registration is None:
+            raise RegistrationNotFoundError()
+        if registration.status != RegistrationStatus.ACCEPTED:
+            raise RegistrationNotAcceptedError()
+        team = registration.team
+        hackathon = registration.hackathon
+        if registration.team_id is None:
+            return ParticipantAreaResponse(
+                public_id=hackathon.public_id,
+                name=hackathon.name,
+                team=None,
+            )
+        users = await self.team_service.list_accepted_users(registration.team_id)
+
+        members = [ParticipantResponse.model_validate(member) for member in users]
+
+        team_response = ParticipantTeamResponse(
+            public_id=team.public_id,
+            name=team.name,
+            members=members,
+        )
+
+        return ParticipantAreaResponse(
+            public_id=hackathon.public_id,
+            name=hackathon.name,
+            team=team_response,
+        )
 
     async def delete_registration(
         self,

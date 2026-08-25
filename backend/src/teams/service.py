@@ -1,5 +1,6 @@
 from sqlalchemy.exc import IntegrityError
 
+from src.auth.models import User
 from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.models import Hackathon
 from src.teams.exceptions import (
@@ -85,6 +86,9 @@ class TeamService:
         elif isinstance(selection, TeamJoinRequest):
             return await self.join_team(selection, hackathon)
         return None
+
+    async def list_accepted_users(self, team_id: int) -> list[User]:
+        return await self.repository.get_members(team_id)
 
     @staticmethod
     def _ensure_teams_enabled(hackathon: Hackathon) -> None:

@@ -15,6 +15,7 @@ from src.registration.exceptions import (
     QuestionNotFoundError,
     RegistrationAlreadyExistsError,
     RegistrationClosedError,
+    RegistrationNotAcceptedError,
     RegistrationNotFoundError,
     RegistrationQuestionsLockedError,
     RegistrationStatusChangeLockedError,
@@ -156,6 +157,7 @@ def team_service(mocker):
     service.resolve_team = mocker.AsyncMock(return_value=None)
     service.delete_if_empty = mocker.AsyncMock()
     service.ensure_member_can_be_activated = mocker.AsyncMock()
+    service.list_accepted_users = mocker.AsyncMock(return_value=[])
     return service
 
 
@@ -1192,3 +1194,78 @@ async def test_create_many_questions_rejects_change_after_registration_opened(
 
     question_repository.create_many.assert_not_awaited()
     question_repository.commit.assert_not_awaited()
+
+
+async def test_participant_area_returns_accepted_team_members(
+    registration_service,
+    registration_repository,
+    team_service,
+):
+    current_user = make_user()
+    hackathon = SimpleNamespace(public_id=uuid.uuid4(), name="AI Hackathon")
+    team = SimpleNamespace(id=20, public_id=uuid.uuid4(), name="Byte Buccaneers")
+    members = [
+        SimpleNamespace(public_id=uuid.uuid4(), name="Jan Kowalski"),
+        SimpleNamespace(public_id=uuid.uuid4(), name="Anna Nowak"),
+    ]
+    registration_repository.get_by_hackathon_and_user.return_value = SimpleNamespace(
+        status=RegistrationStatus.ACCEPTED,
+        team_id=team.id,
+        team=team,
+        hackathon=hackathon,
+    )
+    team_service.list_accepted_users.return_value = members
+
+    result = await registration_service.get_participant_area(
+        hackathon.public_id,
+        current_user,
+    )
+
+    assert result.public_id == hackathon.public_id
+    assert result.name == hackathon.name
+    assert result.team is not None
+    assert result.team.public_id == team.public_id
+    assert [member.name for member in result.team.members] == [
+        "Jan Kowalski",
+        "Anna Nowak",
+    ]
+    team_service.list_accepted_users.assert_awaited_once_with(team.id)
+
+
+async def test_participant_area_returns_null_team_for_accepted_individual(
+    registration_service,
+    registration_repository,
+    team_service,
+):
+    current_user = make_user()
+    hackathon = SimpleNamespace(public_id=uuid.uuid4(), name="AI Hackathon")
+    registration_repository.get_by_hackathon_and_user.return_value = SimpleNamespace(
+        status=RegistrationStatus.ACCEPTED,
+        team_id=None,
+        team=None,
+        hackathon=hackathon,
+    )
+
+    result = await registration_service.get_participant_area(
+        hackathon.public_id,
+        current_user,
+    )
+
+    assert result.team is None
+    team_service.list_accepted_users.assert_not_awaited()
+
+
+async def test_participant_area_rejects_registration_that_is_not_accepted(
+    registration_service,
+    registration_repository,
+    team_service,
+):
+    current_user = make_user()
+    registration_repository.get_by_hackathon_and_user.return_value = SimpleNamespace(
+        status=RegistrationStatus.PENDING,
+    )
+
+    with pytest.raises(RegistrationNotAcceptedError):
+        await registration_service.get_participant_area(uuid.uuid4(), current_user)
+
+    team_service.list_accepted_users.assert_not_awaited()
