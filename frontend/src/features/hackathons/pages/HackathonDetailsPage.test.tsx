@@ -28,6 +28,7 @@ const hackathon: HackathonDetails = {
   organizer: { public_id: ownerId, name: 'Admin' },
   co_organizers: [],
   access_level: 'owner',
+  my_registration_status: null,
   created_at: '2026-07-01T10:00:00Z',
   updated_at: '2026-07-01T10:00:00Z',
 }

@@ -16,6 +16,7 @@ const hackathon: Hackathon = {
   capacity: 100,
   max_team_size: 4,
   access_level: 'viewer',
+  my_registration_status: null,
 }
 
 function renderHackathonList() {
