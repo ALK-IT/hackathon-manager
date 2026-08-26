@@ -30,6 +30,7 @@ describe('HackathonListItem', () => {
       `/hackathons/${hackathon.public_id}`,
     )
     expect(screen.getByText('Rejestracja: otwarta')).toBeInTheDocument()
+    expect(screen.getByLabelText('Odliczanie czasu hackathonu')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Zarejestruj się' })).toBeInTheDocument()
   })
 
