@@ -20,6 +20,7 @@ import {
 } from '../features/registration'
 import { ManageRegistrationsPage } from '../features/registration/pages/ManageRegistrationsPage'
 import { ProfilePage } from '../features/profile'
+import { MyResourcesPage } from '../features/resources'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { RequireHackathonManager } from './routes/RequireHackathonManager'
@@ -98,6 +99,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute>
             <RegistrationEntryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-resources"
+        element={
+          <ProtectedRoute>
+            <MyResourcesPage />
           </ProtectedRoute>
         }
       />
