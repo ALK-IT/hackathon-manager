@@ -15,8 +15,8 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 
 ## Indeks specyfikacji
 
-| # | Tytuł | Status | Plik |
-|---|---|---|---|
+| #        | Tytuł | Status | Plik |
+|----------|---|---|---|
 | SPEC-001 | Hello World — szkielet frontend/backend | Zaimplementowany | [SPEC-001-hello-world.md](SPEC-001-hello-world.md) |
 | SPEC-002 | Postgres + Redis + ORM — przykładowy szkielet architektury | Zaimplementowany | [implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md](implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md) |
 | SPEC-003 | Rejestracja, logowanie i sesje JWT | Zaimplementowany | [implemented/SPEC-003-2026-08-03-logowanie-jwt.md](implemented/SPEC-003-2026-08-03-logowanie-jwt.md) |
@@ -37,5 +37,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-018 | Odliczanie na publicznej stronie hackathonu | Zaimplementowany | [implemented/SPEC-018-2026-08-26-odliczanie-hackathonu.md](implemented/SPEC-018-2026-08-26-odliczanie-hackathonu.md) |
 | SPEC-019 | Potwierdzanie obecności uczestników kodem QR | Zaimplementowany | [implemented/SPEC-019-2026-09-07-potwierdzanie-obecnosci-qr.md](implemented/SPEC-019-2026-09-07-potwierdzanie-obecnosci-qr.md) |
 | SPEC-020 | Rate limiting endpointów auth | Zaimplementowany | [implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md](implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md) |
+| SPEC-021 | Frontendowy panel „Moje zasoby” | Zaimplementowany | [implemented/SPEC-013-2026-08-27-panel-moje-zasoby.md](implemented/SPEC-013-2026-08-27-panel-moje-zasoby.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).
