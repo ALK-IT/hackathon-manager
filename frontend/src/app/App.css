@@ -61,6 +61,25 @@ button:disabled {
   gap: 16px;
 }
 
+.app-navigation {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.app-navigation a {
+  color: #111827;
+  text-decoration: none;
+}
+
+.app-navigation a.active {
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .create-hackathon-card {
   max-width: 640px;
   margin: 0 auto;
@@ -146,6 +165,84 @@ button:disabled {
   justify-self: start;
 }
 
+.resource-list {
+  display: grid;
+  gap: 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.resource-card {
+  display: grid;
+  gap: 12px;
+}
+
+.resource-card h2,
+.resource-card p {
+  margin: 0;
+}
+
+.resource-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.resource-target-badge {
+  padding: 4px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.resource-metadata {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.resource-metadata div {
+  display: grid;
+  grid-template-columns: minmax(100px, 160px) 1fr;
+  gap: 8px;
+}
+
+.resource-metadata dt {
+  font-weight: 600;
+}
+
+.resource-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.resource-secret {
+  display: grid;
+  gap: 8px;
+}
+
+.resource-secret-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resource-secret-value {
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.resource-secret-actions {
+  display: flex;
+  gap: 8px;
+}
+
 @media (max-width: 560px) {
   .page-header {
     align-items: flex-start;
@@ -154,5 +251,15 @@ button:disabled {
 
   .hackathons-layout {
     grid-template-columns: 1fr;
+  }
+
+  .resource-card-header,
+  .resource-secret-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .resource-secret-actions button {
+    flex: 1;
   }
 }
