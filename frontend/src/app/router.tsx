@@ -19,6 +19,7 @@ import {
 } from '../features/registration'
 import { ProfilePage } from '../features/profile'
 import { ManageRegistrationsPage } from '../features/registration/pages/ManageRegistrationsPage'
+import { MyResourcesPage } from '../features/resources'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { PublicOnlyRoute } from './routes/PublicOnlyRoute'
@@ -96,6 +97,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute>
             <RegistrationEntryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-resources"
+        element={
+          <ProtectedRoute>
+            <MyResourcesPage />
           </ProtectedRoute>
         }
       />
