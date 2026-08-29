@@ -98,9 +98,53 @@ def test_registration_routes_are_registered():
         "/api/hackathons/{hackathon_public_id}/questions/{question_public_id}",
         "/api/hackathons/{hackathon_public_id}/registrations",
         "/api/hackathons/{hackathon_public_id}/registrations/me",
+        "/api/profile/hackathons",
         "/api/registrations/{registration_public_id}",
         "/api/registrations/{registration_public_id}/status",
     }.issubset(paths)
+
+
+async def test_user_lists_all_own_hackathons_with_status(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    another_user = await create_user(session, "another@example.com")
+    accepted_hackathon = await create_hackathon(session, organizer)
+    pending_hackathon = await create_hackathon(session, organizer)
+    session.add_all(
+        [
+            Registration(
+                user=participant,
+                hackathon=accepted_hackathon,
+                status=RegistrationStatus.ACCEPTED,
+                status_changed_at=datetime.now(UTC),
+            ),
+            Registration(
+                user=participant,
+                hackathon=pending_hackathon,
+                status=RegistrationStatus.PENDING,
+            ),
+            Registration(
+                user=another_user,
+                hackathon=accepted_hackathon,
+                status=RegistrationStatus.ACCEPTED,
+            ),
+        ]
+    )
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.get("/api/profile/hackathons")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 2
+    hackathons_by_id = {item["hackathon_public_id"]: item for item in body}
+    assert hackathons_by_id[str(accepted_hackathon.public_id)]["status"] == "accepted"
+    assert hackathons_by_id[str(pending_hackathon.public_id)]["status"] == "pending"
 
 
 async def test_admin_creates_question(

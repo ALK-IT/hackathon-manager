@@ -106,6 +106,22 @@ class RegistrationRepository:
 
         return list(result.scalars().all())
 
+    async def get_by_user(self, user_id: int) -> list[Registration]:
+        result = await self.session.execute(
+            select(Registration)
+            .join(Registration.hackathon)
+            .where(
+                Registration.user_id == user_id,
+                Hackathon.is_deleted.is_(False),
+            )
+            .options(
+                selectinload(Registration.hackathon),
+                selectinload(Registration.team),
+            )
+            .order_by(Hackathon.start_date.desc())
+        )
+        return list(result.scalars().all())
+
     async def get_by_hackathon_and_user(
         self, hackathon_public_id: uuid.UUID, user_public_id: uuid.UUID
     ) -> Registration | None:

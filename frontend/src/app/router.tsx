@@ -6,6 +6,7 @@ import {
   HackathonsPage,
 } from '../features/hackathons'
 import { RegistrationEntryPage } from '../features/registration'
+import { ProfilePage } from '../features/profile'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { PublicOnlyRoute } from './routes/PublicOnlyRoute'
@@ -42,6 +43,14 @@ export function AppRouter() {
         }
       />
       <Route path="/hackathons/:hackathonPublicId" element={<HackathonDetailsPage />} />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/hackathons/:hackathonPublicId/register"
         element={

@@ -187,6 +187,12 @@ class RegistrationService:
             offset=offset,
         )
 
+    async def list_my_hackathons(
+        self,
+        current_user: User,
+    ) -> list[Registration]:
+        return await self.registration_repository.get_by_user(current_user.id)
+
     async def get_my_registration(
         self,
         hackathon_public_id: uuid.UUID,

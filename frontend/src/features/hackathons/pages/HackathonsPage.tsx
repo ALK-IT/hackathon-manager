@@ -22,6 +22,7 @@ export function HackathonsPage() {
         {user ? (
           <div className="page-header-actions">
             <span>Rola: {user.role}</span>
+            <Link to="/profile">Mój profil</Link>
             {user.role === 'admin' && (
               <Button
                 type="button"
