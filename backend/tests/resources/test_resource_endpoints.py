@@ -194,7 +194,77 @@ async def test_import_encrypts_every_value_and_never_returns_plaintext(
     assert all(item.encrypted_value not in {"first-secret", "second-secret"} for item in items)
 
 
-@pytest.mark.parametrize("operation", ["create", "import", "assign"])
+async def test_organizer_imports_lists_and_assigns_item_using_only_public_api(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = await create_registration(session, hackathon, participant)
+    resource = await create_resource(session, hackathon, target="individual")
+    await session.commit()
+    force_authenticate(organizer)
+    items_url = (
+        f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/items"
+    )
+
+    import_response = await api_client.post(items_url, json={"values": ["secret-api-key"]})
+    list_response = await api_client.get(items_url)
+
+    assert import_response.status_code == 201
+    assert list_response.status_code == 200
+    assert "secret-api-key" not in list_response.text
+    items = list_response.json()
+    assert len(items) == 1
+    assert set(items[0]) == {
+        "public_id",
+        "resource_public_id",
+        "is_assigned",
+        "is_revoked",
+    }
+    assert items[0]["resource_public_id"] == str(resource.public_id)
+    assert items[0]["is_assigned"] is False
+    assert items[0]["is_revoked"] is False
+
+    assignment_response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/resources/"
+        f"{resource.public_id}/assignments",
+        json={
+            "resource_item_public_id": items[0]["public_id"],
+            "registration_public_id": str(registration.public_id),
+        },
+    )
+
+    assert assignment_response.status_code == 201
+
+    assigned_items_response = await api_client.get(items_url)
+    assert assigned_items_response.status_code == 200
+    assert assigned_items_response.json()[0]["is_assigned"] is True
+
+
+@pytest.mark.parametrize("query", ["limit=0", "limit=101", "offset=-1"])
+async def test_list_resource_items_validates_pagination(
+    query: str,
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    resource = await create_resource(session, hackathon, target="individual")
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.get(
+        f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/items?{query}"
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("operation", ["create", "import", "list", "assign"])
 async def test_outsider_cannot_manage_resources(
     operation: str,
     api_client: AsyncClient,
@@ -220,6 +290,10 @@ async def test_outsider_cannot_manage_resources(
             f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/items",
             json={"values": ["secret"]},
         )
+    elif operation == "list":
+        response = await api_client.get(
+            f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/items"
+        )
     else:
         response = await api_client.post(
             f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/assignments",
@@ -233,7 +307,7 @@ async def test_outsider_cannot_manage_resources(
     assert response.json()["error_code"] == "PERMISSION_DENIED"
 
 
-@pytest.mark.parametrize("operation", ["create", "import", "assign"])
+@pytest.mark.parametrize("operation", ["create", "import", "list", "assign"])
 async def test_co_organizer_can_manage_resources(
     operation: str,
     api_client: AsyncClient,
@@ -261,6 +335,10 @@ async def test_co_organizer_can_manage_resources(
             f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/items",
             json={"values": ["secret"]},
         )
+    elif operation == "list":
+        response = await api_client.get(
+            f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/items"
+        )
     else:
         response = await api_client.post(
             f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/assignments",
@@ -270,7 +348,7 @@ async def test_co_organizer_can_manage_resources(
             },
         )
 
-    assert response.status_code == 201
+    assert response.status_code == (200 if operation == "list" else 201)
 
 
 async def test_organizer_assigns_item_to_participant_registration(

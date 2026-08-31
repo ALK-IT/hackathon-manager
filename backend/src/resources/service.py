@@ -95,6 +95,20 @@ class ResourceService:
             imported_count=len(items),
         )
 
+    async def list_items(
+        self,
+        hackathon_public_id: uuid.UUID,
+        resource_public_id: uuid.UUID,
+        current_user: User,
+        limit: int,
+        offset: int,
+    ) -> list[ResourceItem]:
+        await self._get_owned_hackathon(hackathon_public_id, current_user)
+        resource = await self.repository.get_resource(hackathon_public_id, resource_public_id)
+        if resource is None:
+            raise ResourceNotFoundError()
+        return await self.repository.list_items(resource.id, limit, offset)
+
     async def assign_item(
         self,
         hackathon_public_id: uuid.UUID,

@@ -116,6 +116,25 @@ async def test_item_registration_and_team_queries_are_scoped(session: AsyncSessi
     assert await repository.get_team(other_hackathon.id, team.public_id) is None
 
 
+async def test_list_items_is_scoped_ordered_and_paginated(session: AsyncSession):
+    organizer = make_user("organizer@example.com")
+    hackathon = make_hackathon(organizer)
+    resource = make_resource(hackathon)
+    other_resource = make_resource(hackathon, name="Other keys")
+    items = [
+        ResourceItem(resource=resource, encrypted_value=f"secret-{index}")
+        for index in range(3)
+    ]
+    other_item = ResourceItem(resource=other_resource, encrypted_value="other-secret")
+    session.add_all([*items, other_item])
+    await session.flush()
+    repository = ResourceRepository(session)
+
+    result = await repository.list_items(resource.id, limit=1, offset=1)
+
+    assert result == [items[1]]
+
+
 async def test_create_methods_flush_entities(session: AsyncSession):
     organizer = make_user("organizer@example.com")
     participant = make_user("participant@example.com")

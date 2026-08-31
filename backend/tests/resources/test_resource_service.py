@@ -61,6 +61,7 @@ def repository(mocker):
     repository.get_hackathon = mocker.AsyncMock()
     repository.get_resource = mocker.AsyncMock()
     repository.get_item_for_update = mocker.AsyncMock()
+    repository.list_items = mocker.AsyncMock()
     repository.get_registration = mocker.AsyncMock()
     repository.get_team = mocker.AsyncMock()
     repository.create_resource = mocker.AsyncMock()
@@ -150,6 +151,41 @@ async def test_import_items_rejects_unknown_resource(service, repository):
         await service.import_items(uuid.uuid4(), uuid.uuid4(), ["secret"], make_user())
 
     repository.create_items.assert_not_awaited()
+
+
+async def test_list_items_returns_paginated_resource_items(service, repository):
+    repository.get_hackathon.return_value = make_hackathon()
+    resource = make_resource()
+    items = [ResourceItem(resource_id=resource.id, encrypted_value="secret")]
+    repository.get_resource.return_value = resource
+    repository.list_items.return_value = items
+
+    result = await service.list_items(
+        uuid.uuid4(),
+        resource.public_id,
+        make_user(),
+        limit=25,
+        offset=50,
+    )
+
+    assert result is items
+    repository.list_items.assert_awaited_once_with(resource.id, 25, 50)
+
+
+async def test_list_items_rejects_unknown_resource(service, repository):
+    repository.get_hackathon.return_value = make_hackathon()
+    repository.get_resource.return_value = None
+
+    with pytest.raises(ResourceNotFoundError):
+        await service.list_items(
+            uuid.uuid4(),
+            uuid.uuid4(),
+            make_user(),
+            limit=50,
+            offset=0,
+        )
+
+    repository.list_items.assert_not_awaited()
 
 
 @pytest.mark.parametrize("method", ["create_resource", "create_items", "create_assignment"])

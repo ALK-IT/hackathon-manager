@@ -59,6 +59,21 @@ class ResourceRepository:
             .with_for_update()
         )
 
+    async def list_items(
+        self,
+        resource_id: int,
+        limit: int,
+        offset: int,
+    ) -> list[ResourceItem]:
+        result = await self.session.scalars(
+            select(ResourceItem)
+            .where(ResourceItem.resource_id == resource_id)
+            .order_by(ResourceItem.created_at, ResourceItem.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(result.all())
+
     async def get_registration(
         self,
         hackathon_id: int,
