@@ -1,11 +1,9 @@
-from cryptography.fernet import Fernet
-
-from src.resources.config import get_resource_encryption_key
+from src.resources.config import get_resource_fernet
 
 
 def encrypt_value(value: str) -> str:
-    return Fernet(get_resource_encryption_key()).encrypt(value.encode()).decode()
+    return get_resource_fernet().encrypt(value.encode()).decode()
 
 
 def decrypt_value(value: str) -> str:
-    return Fernet(get_resource_encryption_key()).decrypt(value.encode()).decode()
+    return get_resource_fernet().decrypt(value.encode()).decode()
