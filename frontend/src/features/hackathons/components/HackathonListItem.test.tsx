@@ -132,4 +132,20 @@ describe('HackathonListItem', () => {
       screen.queryByRole('button', { name: 'Przejdź do hackathonu' }),
     ).not.toBeInTheDocument()
   })
+
+  it('shows a rejected status without registration or participant area buttons', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{ ...hackathon, my_registration_status: 'rejected' }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Status zgłoszenia: odrzucone')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Zarejestruj się' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Przejdź do hackathonu' }),
+    ).not.toBeInTheDocument()
+  })
 })
