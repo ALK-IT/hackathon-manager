@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../../../lib/api/client'
 import { createRegistrationQuestions } from '../api/registrationApi'
 import { RegistrationQuestionsSetupPage } from './RegistrationQuestionsSetupPage'
 
@@ -51,5 +52,40 @@ describe('RegistrationQuestionsSetupPage', () => {
       { content: 'Dlaczego chcesz wziąć udział?', is_required: true },
       { content: 'Jakie masz doświadczenie?', is_required: false },
     ])
+  })
+
+  it('uses contextual labels for removing questions', () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj pytanie' }))
+
+    expect(screen.getByRole('button', { name: 'Usuń pytanie 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Usuń pytanie 2' })).toBeInTheDocument()
+  })
+
+  it('prevents adding more than 50 questions', () => {
+    renderPage()
+
+    const addButton = screen.getByRole('button', { name: 'Dodaj pytanie' })
+    for (let index = 1; index < 50; index += 1) fireEvent.click(addButton)
+
+    expect(addButton).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent('Możesz dodać maksymalnie 50 pytań.')
+  })
+
+  it('shows a specific error when registration questions are locked', async () => {
+    vi.mocked(createRegistrationQuestions).mockImplementationOnce(async () => {
+      throw new ApiError(409, { error_code: 'REGISTRATION_QUESTIONS_LOCKED' })
+    })
+    renderPage()
+
+    fireEvent.change(screen.getByLabelText('Pytanie 1'), {
+      target: { value: 'Jakie masz doświadczenie?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz pytania' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Nie można zmieniać pytań po otwarciu rejestracji.',
+    )
   })
 })
