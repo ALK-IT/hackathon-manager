@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getHackathon, updateHackathon } from '../api/hackathonsApi'
+import { ApiError } from '../../../lib/api/client'
 import type { HackathonDetails } from '../types'
 import { EditHackathonPage } from './EditHackathonPage'
 
@@ -63,7 +64,35 @@ describe('EditHackathonPage', () => {
     renderPage()
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Nie udało się pobrać ustawień hackathonu.',
+      'Nie udało się pobrać szczegółów hackathonu. Spróbuj ponownie.',
+    )
+  })
+
+  it('validates settings before sending the update', async () => {
+    vi.mocked(getHackathon).mockResolvedValue(hackathon)
+    renderPage()
+
+    fireEvent.change(await screen.findByLabelText('Zakończenie hackathonu'), {
+      target: { value: '2026-09-09T10:00' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz ustawienia' }))
+
+    expect(
+      await screen.findByText('Zakończenie musi być późniejsze niż rozpoczęcie.'),
+    ).toBeInTheDocument()
+    expect(updateHackathon).not.toHaveBeenCalled()
+  })
+
+  it('shows a specific permission error when saving', async () => {
+    vi.mocked(getHackathon).mockResolvedValue(hackathon)
+    vi.mocked(updateHackathon).mockRejectedValue(new ApiError(403))
+    renderPage()
+
+    await screen.findByLabelText('Nazwa')
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz ustawienia' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Nie masz uprawnień do edycji tego hackathonu.',
     )
   })
 })

@@ -1,30 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Alert, Button, Card, Spinner } from '../../../components/ui'
+import { Alert, Card, Spinner } from '../../../components/ui'
 import { getHackathon, updateHackathon } from '../api/hackathonsApi'
-
-type Form = Record<
-  | 'name'
-  | 'description'
-  | 'startDate'
-  | 'endDate'
-  | 'registrationOpensAt'
-  | 'registrationDeadline'
-  | 'capacity'
-  | 'maxTeamSize',
-  string
->
-
-const fields: Array<[keyof Form, string, string]> = [
-  ['name', 'Nazwa', 'text'],
-  ['description', 'Opis', 'text'],
-  ['startDate', 'Rozpoczęcie hackathonu', 'datetime-local'],
-  ['endDate', 'Zakończenie hackathonu', 'datetime-local'],
-  ['registrationOpensAt', 'Otwarcie zapisów', 'datetime-local'],
-  ['registrationDeadline', 'Zamknięcie zapisów', 'datetime-local'],
-  ['capacity', 'Limit uczestników (opcjonalny)', 'number'],
-  ['maxTeamSize', 'Maksymalna wielkość drużyny', 'number'],
-]
+import { HackathonForm, type NormalizedHackathonValues } from '../components/HackathonForm'
+import {
+  getHackathonDetailsErrorMessage,
+  getUpdateHackathonErrorMessage,
+} from '../utils/hackathonMessages'
+import type { HackathonFormValues } from '../utils/validation'
 
 const localDate = (value: string) => {
   const date = new Date(value)
@@ -36,7 +19,7 @@ const localDate = (value: string) => {
 export function EditHackathonPage() {
   const { hackathonPublicId } = useParams()
   const navigate = useNavigate()
-  const [form, setForm] = useState<Form | null>(null)
+  const [form, setForm] = useState<HackathonFormValues | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -58,31 +41,24 @@ export function EditHackathonPage() {
       )
       .catch((requestError: unknown) => {
         if (!(requestError instanceof Error && requestError.name === 'AbortError')) {
-          setError('Nie udało się pobrać ustawień hackathonu.')
+          setError(getHackathonDetailsErrorMessage(requestError))
         }
       })
     return () => controller.abort()
   }, [hackathonPublicId])
 
-  async function save(event: FormEvent) {
-    event.preventDefault()
-    if (!form || !hackathonPublicId) return
+  async function save(values: NormalizedHackathonValues) {
+    if (!hackathonPublicId || !values.registration_deadline) return
     setSaving(true)
     setError(null)
     try {
       await updateHackathon(hackathonPublicId, {
-        name: form.name.trim(),
-        description: form.description.trim(),
-        start_date: new Date(form.startDate).toISOString(),
-        end_date: new Date(form.endDate).toISOString(),
-        registration_opens_at: new Date(form.registrationOpensAt).toISOString(),
-        registration_deadline: new Date(form.registrationDeadline).toISOString(),
-        capacity: form.capacity ? Number(form.capacity) : null,
-        max_team_size: Number(form.maxTeamSize),
+        ...values,
+        registration_deadline: values.registration_deadline,
       })
       navigate(`/hackathons/${hackathonPublicId}`, { replace: true })
-    } catch {
-      setError('Nie udało się zapisać ustawień hackathonu.')
+    } catch (requestError) {
+      setError(getUpdateHackathonErrorMessage(requestError))
     } finally {
       setSaving(false)
     }
@@ -95,28 +71,15 @@ export function EditHackathonPage() {
         {!form && !error && <Spinner label="Ładowanie ustawień…" />}
         {error && <Alert variant="error">{error}</Alert>}
         {form && (
-          <form className="auth-form" onSubmit={save}>
-            {fields.map(([name, label, type]) => (
-              <label className="form-field" key={name}>
-                {label}
-                <input
-                  type={type}
-                  value={form[name]}
-                  required={name !== 'description' && name !== 'capacity'}
-                  min={type === 'number' ? 1 : undefined}
-                  onChange={(event) => setForm({ ...form, [name]: event.target.value })}
-                />
-              </label>
-            ))}
-            <div className="form-actions">
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Zapisywanie…' : 'Zapisz ustawienia'}
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
-                Anuluj
-              </Button>
-            </div>
-          </form>
+          <HackathonForm
+            initialValues={form}
+            isSubmitting={saving}
+            submitLabel="Zapisz ustawienia"
+            submittingLabel="Zapisywanie…"
+            registrationDeadlineRequired
+            onSubmit={save}
+            onCancel={() => navigate(-1)}
+          />
         )}
       </Card>
     </main>
