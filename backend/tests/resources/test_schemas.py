@@ -40,7 +40,7 @@ def test_resource_create_counts_metadata_size_in_utf8_bytes():
 
 
 def test_resource_items_import_accepts_limit_values():
-    data = ResourceItemsImport(values=["x" * 4096] * 100)
+    data = ResourceItemsImport(values=[f"{index:03d}" + "x" * 4093 for index in range(100)])
 
     assert len(data.values) == 100
     assert len(data.values[0]) == 4096
@@ -54,3 +54,14 @@ def test_resource_items_import_rejects_more_than_100_values():
 def test_resource_items_import_rejects_value_longer_than_4096_characters():
     with pytest.raises(ValidationError):
         ResourceItemsImport(values=["x" * 4097])
+
+
+def test_resource_items_import_rejects_duplicates_after_trimming():
+    with pytest.raises(ValidationError, match="must be unique within an import"):
+        ResourceItemsImport(values=["secret", " secret "])
+
+
+def test_resource_items_import_treats_values_as_case_sensitive():
+    data = ResourceItemsImport(values=["secret", "SECRET"])
+
+    assert data.values == ["secret", "SECRET"]

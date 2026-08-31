@@ -42,6 +42,8 @@ class ResourceItemsImport(BaseModel):
         self.values = [value.strip() for value in self.values]
         if any(not value for value in self.values):
             raise ValueError("Resource values cannot be empty")
+        if len(set(self.values)) != len(self.values):
+            raise ValueError("Resource values must be unique within an import")
         return self
 
 
