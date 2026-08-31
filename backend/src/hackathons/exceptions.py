@@ -34,6 +34,12 @@ class OrganizerCannotBeCoOrganizerError(HackathonError):
     detail = "Hackathon owner cannot also be a co-organizer."
 
 
+class CoOrganizerSearchRateLimitExceededError(HackathonError):
+    status_code = 429
+    error_code = "CO_ORGANIZER_SEARCH_RATE_LIMIT_EXCEEDED"
+    detail = "Too many co-organizer searches. Try again later."
+
+
 class InvalidDateRangeError(HackathonError):
     status_code = 422
     error_code = "INVALID_DATE_RANGE"

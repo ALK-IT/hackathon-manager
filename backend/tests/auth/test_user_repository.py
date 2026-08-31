@@ -51,7 +51,7 @@ async def test_user_repository_searches_by_name_and_excludes_selected_users(
         await repository.create(user)
     await repository.commit()
 
-    result = await repository.search_by_name("jAn", {excluded.id})
+    result = await repository.search_by_name("jAn", {excluded.id}, limit=7)
 
     assert result == [matching_users[1], matching_users[0]]
 

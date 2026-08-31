@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from src.auth.models import User, UserRole
 from src.hackathons.exceptions import (
     CoOrganizerAlreadyAssignedError,
+    CoOrganizerSearchRateLimitExceededError,
     CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
     InvalidConfirmNameError,
@@ -396,6 +397,26 @@ async def test_co_organizer_candidates_endpoint_validates_query(
 
     assert response.status_code == 422
     mock_hackathon_service.get_co_organizer_candidates.assert_not_awaited()
+
+
+async def test_co_organizer_candidates_endpoint_returns_rate_limit_error(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    mock_hackathon_service.get_co_organizer_candidates.side_effect = (
+        CoOrganizerSearchRateLimitExceededError
+    )
+
+    response = await hackathon_client.get(
+        f"/api/hackathons/{uuid.uuid4()}/co-organizer-candidates",
+        params={"query": "Jan"},
+    )
+
+    assert response.status_code == 429
+    assert response.json() == {
+        "error_code": "CO_ORGANIZER_SEARCH_RATE_LIMIT_EXCEEDED",
+        "detail": "Too many co-organizer searches. Try again later.",
+    }
 
 
 async def test_registration_endpoints_return_current_state(
