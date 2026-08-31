@@ -1,7 +1,42 @@
 import pytest
 from pydantic import ValidationError
 
-from src.resources.schemas import ResourceItemsImport
+from src.resources.schemas import (
+    MAX_RESOURCE_METADATA_BYTES,
+    ResourceCreate,
+    ResourceItemsImport,
+)
+
+
+def make_resource_create(metadata: dict) -> ResourceCreate:
+    return ResourceCreate(
+        name="Credits",
+        type="api_key",
+        target="individual",
+        metadata=metadata,
+    )
+
+
+def test_resource_create_accepts_metadata_at_size_limit():
+    metadata = {"value": "x" * (MAX_RESOURCE_METADATA_BYTES - len('{"value":""}'))}
+
+    data = make_resource_create(metadata)
+
+    assert data.metadata == metadata
+
+
+def test_resource_create_rejects_metadata_over_size_limit():
+    metadata = {"value": "x" * (MAX_RESOURCE_METADATA_BYTES - len('{"value":""}') + 1)}
+
+    with pytest.raises(ValidationError, match="Resource metadata cannot exceed"):
+        make_resource_create(metadata)
+
+
+def test_resource_create_counts_metadata_size_in_utf8_bytes():
+    metadata = {"value": "ą" * MAX_RESOURCE_METADATA_BYTES}
+
+    with pytest.raises(ValidationError, match="Resource metadata cannot exceed"):
+        make_resource_create(metadata)
 
 
 def test_resource_items_import_accepts_limit_values():

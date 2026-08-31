@@ -1,13 +1,15 @@
+import json
 import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ResourceType = Literal["api_key"]
 DistributionMode = Literal["manual"]
 ResourceTarget = Literal["team", "individual"]
 ResourceValue = Annotated[str, Field(min_length=1, max_length=4096)]
+MAX_RESOURCE_METADATA_BYTES = 16_384
 
 
 class ResourceCreate(BaseModel):
@@ -18,6 +20,16 @@ class ResourceCreate(BaseModel):
     distribution_mode: DistributionMode = "manual"
     target: ResourceTarget
     metadata: dict = Field(default_factory=dict)
+
+    @field_validator("metadata")
+    @classmethod
+    def validate_metadata_size(cls, value: dict) -> dict:
+        serialized = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+        if len(serialized) > MAX_RESOURCE_METADATA_BYTES:
+            raise ValueError(
+                f"Resource metadata cannot exceed {MAX_RESOURCE_METADATA_BYTES} bytes"
+            )
+        return value
 
 
 class ResourceItemsImport(BaseModel):
