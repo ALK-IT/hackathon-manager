@@ -52,9 +52,11 @@ a brak uprawnień `PERMISSION_DENIED` z kodem 403. Odpowiedź 500 zawsze ma kod
 odpowiedzi, niezależnie od środowiska.
 
 Źródłem prawdy dla kodów jest `ErrorCode` w `backend/src/common/errors.py`. Obejmuje
-on obecne kody domenowe oraz kody przewidziane w issue #43 dla kolejnych funkcji,
-takie jak `CAPACITY_FULL`, `CONSENT_REQUIRED`, `RESOURCE_REVOKED` i
-`INVALID_QR_TOKEN`.
+on obecne kody domenowe, w tym błędy zasobów (`RESOURCE_NOT_FOUND`,
+`RESOURCE_ITEM_NOT_FOUND`, `RESOURCE_RECIPIENT_NOT_FOUND`,
+`RESOURCE_ITEM_UNAVAILABLE` i `RESOURCE_TARGET_MISMATCH`), oraz kody przewidziane
+w issue #43 dla kolejnych funkcji, takie jak `CAPACITY_FULL`, `CONSENT_REQUIRED`,
+`RESOURCE_REVOKED` i `INVALID_QR_TOKEN`.
 
 ## Zakres
 
@@ -62,15 +64,15 @@ takie jak `CAPACITY_FULL`, `CONSENT_REQUIRED`, `RESOURCE_REVOKED` i
 - wspólne modele odpowiedzi błędów i enum `ErrorCode`;
 - bazowy wyjątek `APIError`;
 - globalne handlery błędów domenowych, walidacji, HTTP i błędów 500;
-- migracja istniejących wyjątków auth, hackathonów, zgłoszeń i drużyn;
+- migracja istniejących wyjątków auth, hackathonów, zgłoszeń, drużyn i zasobów;
 - ujednolicenie kodów `ALREADY_REGISTERED`, `TEAM_NAME_TAKEN` i
   `PERMISSION_DENIED` wraz z frontendem;
 - zachowanie nagłówków wymaganych przez HTTP, w tym `WWW-Authenticate`;
 - testy kontraktu dla obsługiwanych kategorii i kodów używanych przez endpointy.
 
 **Poza zakresem:**
-- implementowanie funkcji biznesowych, które w przyszłości użyją kodów zasobów,
-  zgód, QR lub członkostwa w drużynie;
+- implementowanie funkcji biznesowych, które w przyszłości użyją kodów zgód, QR lub
+  członkostwa w drużynie;
 - ręczne dodawanie wszystkich możliwych odpowiedzi i przykładów do każdego endpointu
   OpenAPI; modele kontraktu są współdzielone, a pełny katalog OpenAPI może powstać
   osobno;
@@ -81,7 +83,7 @@ takie jak `CAPACITY_FULL`, `CONSENT_REQUIRED`, `RESOURCE_REVOKED` i
 - Frontend: mapowanie błędów używa nowych stabilnych kodów `ALREADY_REGISTERED` oraz
   `TEAM_NAME_TAKEN`; struktura walidacji pozostaje zgodna z obecnym klientem.
 - Backend: handlery zostają przeniesione z `main.py` do modułu wspólnego, a wyjątki
-  domenowe dziedziczą po `APIError`.
+  domenowe, w tym wyjątki modułu `resources`, dziedziczą po `APIError`.
 - Baza danych / API: bez zmian w bazie i migracji; zmienia się kontrakt błędów auth,
   domyślnych 404/405 i błędów nieoczekiwanych oraz nazwy dwóch kodów domenowych.
 
@@ -95,6 +97,7 @@ takie jak `CAPACITY_FULL`, `CONSENT_REQUIRED`, `RESOURCE_REVOKED` i
 | Niedozwolona metoda | 405 | `METHOD_NOT_ALLOWED` |
 | Walidacja FastAPI/Pydantic | 422 | `VALIDATION_ERROR` |
 | Konflikt biznesowy | 409 | kod domenowy, np. `TEAM_FULL` |
+| Błąd operacji na zasobie | 400/403/404/409 | kod domenowy `RESOURCE_*` lub `PERMISSION_DENIED` |
 | Nieoczekiwany błąd serwera | 500 | `INTERNAL_ERROR` |
 
 ## Logowanie
@@ -118,3 +121,4 @@ nie zawiera tracebacka, zapytania SQL, sekretów ani tekstu surowego wyjątku 50
 
 - 2026-08-24 — utworzono i zaakceptowano spec dla issue #43.
 - 2026-08-24 — wdrożono wspólny kontrakt, globalne handlery i testy.
+- 2026-08-31 — połączono wyjątki modułu `resources` ze wspólnym kontraktem.
