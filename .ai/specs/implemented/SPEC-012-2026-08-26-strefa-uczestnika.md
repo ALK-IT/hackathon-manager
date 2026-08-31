@@ -24,6 +24,8 @@ zgłoszenia pole ma wartość `null`.
 Frontend wyświetla na kafelku status `pending`, `accepted` albo `rejected`. Przycisk zapisania
 jest dostępny tylko wtedy, gdy użytkownik nie ma jeszcze zgłoszenia i rejestracja jest otwarta.
 Po akceptacji kafelek udostępnia przycisk prowadzący do strefy uczestnika.
+Odrzucone zgłoszenie jest traktowane jako zakończone: kafelek pokazuje jego status, ale nie
+udostępnia przycisku ponownej rejestracji.
 
 Strefa uczestnika korzysta z chronionego endpointu, który sprawdza zgłoszenie bieżącego
 użytkownika. Dostęp otrzymuje wyłącznie osoba ze statusem `accepted`. Odpowiedź zawiera
