@@ -2,6 +2,7 @@ import uuid
 from dataclasses import dataclass
 
 from src.auth.models import User
+from src.hackathons.access import can_manage_hackathon
 from src.resources.crypto import encrypt_value
 from src.resources.exceptions import (
     ResourceItemNotFoundError,
@@ -33,10 +34,7 @@ class ResourceService:
         hackathon = await self.repository.get_hackathon(hackathon_public_id)
         if hackathon is None:
             raise ResourceNotFoundError()
-        is_co_organizer = any(
-            co_organizer.id == current_user.id for co_organizer in hackathon.co_organizers
-        )
-        if hackathon.organizer_id != current_user.id and not is_co_organizer:
+        if not can_manage_hackathon(hackathon, current_user):
             raise ResourcePermissionError()
         return hackathon
 
