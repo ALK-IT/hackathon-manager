@@ -3,8 +3,9 @@ from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
-from src.auth.models import User, UserRole
+from src.auth.models import User
 from src.common.sqlalchemy import get_integrity_error_constraint
+from src.hackathons.access import can_manage_hackathon
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
@@ -31,14 +32,6 @@ from src.registration.schema import (
     RegistrationQuestionCreate,
 )
 from src.teams.service import TeamService
-
-
-def _can_manage_hackathon(hackathon: Hackathon, current_user: User) -> bool:
-    return (
-        current_user.role == UserRole.ADMIN
-        or current_user.id == hackathon.organizer_id
-        or any(user.id == current_user.id for user in hackathon.co_organizers)
-    )
 
 
 def _ensure_questions_editable(hackathon: Hackathon) -> None:
@@ -76,7 +69,7 @@ class RegistrationQuestionService:
         if question is None:
             raise QuestionNotFoundError()
 
-        if not _can_manage_hackathon(question.hackathon, current_user):
+        if not can_manage_hackathon(question.hackathon, current_user):
             raise InvalidPermission()
 
         _ensure_questions_editable(question.hackathon)
@@ -99,7 +92,7 @@ class RegistrationQuestionService:
         if hackathon is None:
             raise HackathonNotFoundError()
 
-        if not _can_manage_hackathon(hackathon, current_user):
+        if not can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
         _ensure_questions_editable(hackathon)
@@ -129,7 +122,7 @@ class RegistrationQuestionService:
         if hackathon is None:
             raise HackathonNotFoundError()
 
-        if not _can_manage_hackathon(hackathon, current_user):
+        if not can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
         _ensure_questions_editable(hackathon)
@@ -144,10 +137,9 @@ class RegistrationQuestionService:
         ]
 
         try:
-            created_questions = await self.question_repository.create_many(questions)
-
+            questions = await self.question_repository.create_many(questions)
             await self.question_repository.commit()
-            return created_questions
+            return questions
         except Exception:
             await self.question_repository.rollback()
             raise
@@ -178,7 +170,7 @@ class RegistrationService:
         if hackathon is None:
             raise HackathonNotFoundError()
 
-        if not _can_manage_hackathon(hackathon, current_user):
+        if not can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
         return await self.registration_repository.get_by_hackathon(
@@ -284,7 +276,7 @@ class RegistrationService:
 
         is_owner = current_user.id == registration.user_id
 
-        if not (_can_manage_hackathon(hackathon, current_user) or is_owner):
+        if not (can_manage_hackathon(hackathon, current_user) or is_owner):
             raise InvalidPermission()
 
         team_id = registration.team_id
@@ -312,7 +304,7 @@ class RegistrationService:
 
         hackathon = registration.hackathon
 
-        if not _can_manage_hackathon(hackathon, current_user):
+        if not can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
 
         try:

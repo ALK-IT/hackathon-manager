@@ -13,6 +13,7 @@ from src.models import Base
 if TYPE_CHECKING:
     from src.auth.models import User
     from src.hackathons.models import Hackathon
+    from src.resources.models import ResourceAssignment
     from src.teams.models import Team
 
 
@@ -94,6 +95,12 @@ class Registration(Base):
         foreign_keys=[status_changed_by_id],
     )
 
+    answers: Mapped[list["RegistrationAnswer"]] = relationship(
+        back_populates="registration",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     team_id: Mapped[int | None] = mapped_column(
         ForeignKey("teams.id", ondelete="RESTRICT"),
         index=True,
@@ -103,10 +110,8 @@ class Registration(Base):
     team: Mapped["Team | None"] = relationship(
         back_populates="registrations",
     )
-
-    answers: Mapped[list["RegistrationAnswer"]] = relationship(
+    resource_assignments: Mapped[list["ResourceAssignment"]] = relationship(
         back_populates="registration",
-        cascade="all, delete-orphan",
         passive_deletes=True,
     )
 

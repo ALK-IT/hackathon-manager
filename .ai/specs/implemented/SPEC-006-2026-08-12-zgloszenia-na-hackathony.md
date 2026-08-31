@@ -97,7 +97,9 @@ błędzie.
   Pydantic, wyjątki domenowe oraz rejestracja globalnej obsługi błędów.
 - **Baza danych:** tabele `questions`, `registrations` i `answers`, enum statusu, klucze obce z
   usuwaniem kaskadowym oraz ograniczenia unikalności. Wspólna migracja scalająca łączy gałęzie
-  zgłoszeń, drużyn i zaplanowanego okna rejestracji.
+  zgłoszeń, drużyn i zaplanowanego okna rejestracji. Migracja `0008` dodaje nullable pola
+  `status_changed_at` i `status_changed_by_id`; usunięcie użytkownika zeruje wskazanie autora
+  decyzji przez `ON DELETE SET NULL`.
 - **API:** nowe chronione endpointy pod `/api/hackathons/...` i `/api/registrations/...`.
 
 ## Alternatywy rozważane

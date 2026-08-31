@@ -13,6 +13,7 @@ from src.models import Base
 if TYPE_CHECKING:
     from src.hackathons.models import Hackathon
     from src.registration.models import Registration
+    from src.resources.models import ResourceAssignment, ResourceAuditLog
 
 
 class UserRole(str, Enum):
@@ -59,3 +60,7 @@ class User(Base):
         secondary="hackathon_co_organizers",
         back_populates="co_organizers",
     )
+    resource_assignments_created: Mapped[list["ResourceAssignment"]] = relationship(
+        back_populates="assigned_by"
+    )
+    resource_audit_logs: Mapped[list["ResourceAuditLog"]] = relationship(back_populates="user")
