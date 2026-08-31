@@ -434,6 +434,7 @@ def test_assignment_model_enforces_exactly_one_recipient():
     constraint_names = {constraint.name for constraint in ResourceAssignment.__table__.constraints}
 
     assert "ck_resource_assignments_exactly_one_recipient" in constraint_names
+    assert "uq_resource_assignment_item" in constraint_names
 
 
 async def test_assignment_database_rejects_missing_recipient(session: AsyncSession):

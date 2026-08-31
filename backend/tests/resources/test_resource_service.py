@@ -2,6 +2,7 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.auth.models import User
 from src.registration.models import Registration
@@ -18,6 +19,12 @@ from src.resources.models import Resource, ResourceItem
 from src.resources.schemas import ResourceAssignmentCreate, ResourceCreate
 from src.resources.service import ResourceService
 from src.teams.models import Team
+
+
+class ConstraintViolation(Exception):
+    def __init__(self, constraint_name: str):
+        self.constraint_name = constraint_name
+        super().__init__(constraint_name)
 
 
 def make_user(user_id: int = 1) -> User:
@@ -152,9 +159,9 @@ async def test_write_failures_are_rolled_back(service, repository, method):
     item = ResourceItem(id=30, resource_id=20, encrypted_value="secret")
     repository.get_item_for_update.return_value = item
     repository.get_registration.return_value = Registration(id=40)
-    getattr(repository, method).side_effect = RuntimeError("database failed")
+    getattr(repository, method).side_effect = SQLAlchemyError("database failed")
 
-    with pytest.raises(RuntimeError, match="database failed"):
+    with pytest.raises(SQLAlchemyError, match="database failed"):
         if method == "create_resource":
             await service.create_resource(
                 uuid.uuid4(),
@@ -281,3 +288,34 @@ async def test_assign_item_creates_assignment_and_marks_item_assigned(service, r
     assert item.is_assigned is True
     repository.create_assignment.assert_awaited_once_with(result)
     repository.commit.assert_awaited_once_with()
+
+
+async def test_assign_item_maps_unique_item_violation_to_unavailable(service, repository):
+    repository.get_hackathon.return_value = make_hackathon()
+    resource = make_resource()
+    repository.get_resource.return_value = resource
+    repository.get_item_for_update.return_value = ResourceItem(
+        id=30,
+        resource_id=resource.id,
+        encrypted_value="secret",
+    )
+    repository.get_registration.return_value = Registration(id=40)
+    repository.create_assignment.side_effect = IntegrityError(
+        "insert",
+        {},
+        ConstraintViolation("uq_resource_assignment_item"),
+    )
+
+    with pytest.raises(ResourceItemUnavailableError):
+        await service.assign_item(
+            uuid.uuid4(),
+            resource.public_id,
+            ResourceAssignmentCreate(
+                resource_item_public_id=uuid.uuid4(),
+                registration_public_id=uuid.uuid4(),
+            ),
+            make_user(),
+        )
+
+    repository.rollback.assert_awaited_once_with()
+    repository.commit.assert_not_awaited()

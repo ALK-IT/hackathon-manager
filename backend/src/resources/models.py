@@ -2,7 +2,17 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
@@ -77,6 +87,7 @@ class ResourceAssignment(Base):
             "(registration_id IS NULL AND team_id IS NOT NULL)",
             name="ck_resource_assignments_exactly_one_recipient",
         ),
+        UniqueConstraint("resource_item_id", name="uq_resource_assignment_item"),
         Index("ix_resource_assignments_public_id", "public_id", unique=True),
     )
 

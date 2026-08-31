@@ -1,7 +1,10 @@
 import uuid
 from dataclasses import dataclass
 
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
 from src.auth.models import User
+from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.access import can_manage_hackathon
 from src.resources.crypto import encrypt_value
 from src.resources.exceptions import (
@@ -24,6 +27,9 @@ from src.resources.schemas import (
 class ResourceImportResult:
     resource: Resource
     imported_count: int
+
+
+RESOURCE_ITEM_ASSIGNMENT_CONSTRAINT = "uq_resource_assignment_item"
 
 
 class ResourceService:
@@ -57,7 +63,7 @@ class ResourceService:
         try:
             await self.repository.create_resource(resource)
             await self.repository.commit()
-        except Exception:
+        except SQLAlchemyError:
             await self.repository.rollback()
             raise
         return resource
@@ -80,7 +86,7 @@ class ResourceService:
         try:
             await self.repository.create_items(items)
             await self.repository.commit()
-        except Exception:
+        except SQLAlchemyError:
             await self.repository.rollback()
             raise
         resource.item_count += len(items)
@@ -140,7 +146,12 @@ class ResourceService:
         try:
             await self.repository.create_assignment(assignment)
             await self.repository.commit()
-        except Exception:
+        except IntegrityError as error:
+            await self.repository.rollback()
+            if get_integrity_error_constraint(error) == RESOURCE_ITEM_ASSIGNMENT_CONSTRAINT:
+                raise ResourceItemUnavailableError() from error
+            raise
+        except SQLAlchemyError:
             await self.repository.rollback()
             raise
 
