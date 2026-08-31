@@ -26,9 +26,7 @@ class ResourceCreate(BaseModel):
     def validate_metadata_size(cls, value: dict) -> dict:
         serialized = json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         if len(serialized) > MAX_RESOURCE_METADATA_BYTES:
-            raise ValueError(
-                f"Resource metadata cannot exceed {MAX_RESOURCE_METADATA_BYTES} bytes"
-            )
+            raise ValueError(f"Resource metadata cannot exceed {MAX_RESOURCE_METADATA_BYTES} bytes")
         return value
 
 

@@ -122,8 +122,7 @@ async def test_list_items_is_scoped_ordered_and_paginated(session: AsyncSession)
     resource = make_resource(hackathon)
     other_resource = make_resource(hackathon, name="Other keys")
     items = [
-        ResourceItem(resource=resource, encrypted_value=f"secret-{index}")
-        for index in range(3)
+        ResourceItem(resource=resource, encrypted_value=f"secret-{index}") for index in range(3)
     ]
     other_item = ResourceItem(resource=other_resource, encrypted_value="other-secret")
     session.add_all([*items, other_item])

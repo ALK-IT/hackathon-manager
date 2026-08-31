@@ -206,9 +206,7 @@ async def test_organizer_imports_lists_and_assigns_item_using_only_public_api(
     resource = await create_resource(session, hackathon, target="individual")
     await session.commit()
     force_authenticate(organizer)
-    items_url = (
-        f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/items"
-    )
+    items_url = f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/items"
 
     import_response = await api_client.post(items_url, json={"values": ["secret-api-key"]})
     list_response = await api_client.get(items_url)
@@ -229,8 +227,7 @@ async def test_organizer_imports_lists_and_assigns_item_using_only_public_api(
     assert items[0]["is_revoked"] is False
 
     assignment_response = await api_client.post(
-        f"/api/hackathons/{hackathon.public_id}/resources/"
-        f"{resource.public_id}/assignments",
+        f"/api/hackathons/{hackathon.public_id}/resources/" f"{resource.public_id}/assignments",
         json={
             "resource_item_public_id": items[0]["public_id"],
             "registration_public_id": str(registration.public_id),
