@@ -20,13 +20,13 @@ describe('Countdown', () => {
 
     expect(screen.getByText('Do rozpoczęcia')).toBeInTheDocument()
     expect(screen.getByRole('timer')).toHaveAccessibleName(
-      'Do rozpoczęcia: 1 dni, 1 godzin, 2 minut, 4 sekund',
+      'Do rozpoczęcia: 1 dzień, 1 godzina, 2 minuty, 4 sekundy',
     )
 
     act(() => vi.advanceTimersByTime(1000))
 
     expect(screen.getByRole('timer')).toHaveAccessibleName(
-      'Do rozpoczęcia: 1 dni, 1 godzin, 2 minut, 3 sekund',
+      'Do rozpoczęcia: 1 dzień, 1 godzina, 2 minuty, 3 sekundy',
     )
   })
 
@@ -42,8 +42,47 @@ describe('Countdown', () => {
 
     expect(screen.getByText('Do zakończenia')).toBeInTheDocument()
     expect(screen.getByRole('timer')).toHaveAccessibleName(
-      'Do zakończenia: 1 dni, 6 godzin, 0 minut, 0 sekund',
+      'Do zakończenia: 1 dzień, 6 godzin, 0 minut, 0 sekund',
     )
+  })
+
+  it('switches from counting down to the start to counting down to the end', () => {
+    vi.setSystemTime(new Date('2026-09-01T09:59:59Z'))
+
+    render(
+      <Countdown
+        startDate="2026-09-01T10:00:00Z"
+        endDate="2026-09-01T10:00:10Z"
+      />,
+    )
+
+    expect(screen.getByText('Do rozpoczęcia')).toBeInTheDocument()
+
+    act(() => vi.advanceTimersByTime(1000))
+
+    expect(screen.getByText('Do zakończenia')).toBeInTheDocument()
+    expect(screen.getByRole('timer')).toHaveAccessibleName(
+      'Do zakończenia: 0 dni, 0 godzin, 0 minut, 10 sekund',
+    )
+  })
+
+  it('stops ticking after switching to the completed state', () => {
+    vi.setSystemTime(new Date('2026-09-01T10:00:09Z'))
+
+    render(
+      <Countdown
+        startDate="2026-09-01T09:00:00Z"
+        endDate="2026-09-01T10:00:10Z"
+      />,
+    )
+
+    expect(vi.getTimerCount()).toBe(1)
+
+    act(() => vi.advanceTimersByTime(1000))
+
+    expect(screen.getByText('Hackathon zakończony')).toBeInTheDocument()
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument()
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('shows a completed state after the end date', () => {
