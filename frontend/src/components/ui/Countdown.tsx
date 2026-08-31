@@ -13,6 +13,20 @@ interface RemainingTime {
   seconds: number
 }
 
+type PolishUnitForms = readonly [singular: string, paucal: string, plural: string]
+
+function inflectPolishUnit(value: number, [singular, paucal, plural]: PolishUnitForms): string {
+  if (value === 1) return singular
+
+  const lastDigit = value % 10
+  const lastTwoDigits = value % 100
+  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
+    return paucal
+  }
+
+  return plural
+}
+
 function parseTimestamp(value: string | null | undefined): number | null {
   if (!value) return null
 
@@ -37,11 +51,17 @@ export function Countdown({ startDate, endDate, style, ...props }: CountdownProp
   const endTimestamp = parseTimestamp(endDate)
 
   useEffect(() => {
-    setNow(Date.now())
-
     if (endTimestamp === null || endTimestamp <= Date.now()) return
 
-    const intervalId = window.setInterval(() => setNow(Date.now()), 1000)
+    const intervalId = window.setInterval(() => {
+      const currentTime = Date.now()
+      setNow(currentTime)
+
+      if (currentTime >= endTimestamp) {
+        window.clearInterval(intervalId)
+      }
+    }, 1000)
+
     return () => window.clearInterval(intervalId)
   }, [endTimestamp])
 
@@ -68,11 +88,26 @@ export function Countdown({ startDate, endDate, style, ...props }: CountdownProp
   const label = isBeforeStart ? 'Do rozpoczęcia' : 'Do zakończenia'
   const remaining = getRemainingTime(targetTimestamp, now)
   const units = [
-    ['dni', remaining.days],
-    ['godz.', remaining.hours],
-    ['min', remaining.minutes],
-    ['sek.', remaining.seconds],
+    ['days', remaining.days, inflectPolishUnit(remaining.days, ['dzień', 'dni', 'dni'])],
+    [
+      'hours',
+      remaining.hours,
+      inflectPolishUnit(remaining.hours, ['godzina', 'godziny', 'godzin']),
+    ],
+    [
+      'minutes',
+      remaining.minutes,
+      inflectPolishUnit(remaining.minutes, ['minuta', 'minuty', 'minut']),
+    ],
+    [
+      'seconds',
+      remaining.seconds,
+      inflectPolishUnit(remaining.seconds, ['sekunda', 'sekundy', 'sekund']),
+    ],
   ] as const
+  const accessibleRemainingTime = units
+    .map(([, value, unit]) => `${value} ${unit}`)
+    .join(', ')
 
   return (
     <section
@@ -89,12 +124,12 @@ export function Countdown({ startDate, endDate, style, ...props }: CountdownProp
       <span style={{ color: colors.textMuted }}>{label}</span>
       <div
         role="timer"
-        aria-label={`${label}: ${remaining.days} dni, ${remaining.hours} godzin, ${remaining.minutes} minut, ${remaining.seconds} sekund`}
+        aria-label={`${label}: ${accessibleRemainingTime}`}
         style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}
       >
-        {units.map(([unit, value]) => (
+        {units.map(([key, value, unit]) => (
           <span
-            key={unit}
+            key={key}
             style={{
               minWidth: '56px',
               border: `1px solid ${colors.border}`,
