@@ -5,10 +5,13 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
+from src.common.rate_limit import FixedWindowRateLimiter
 from src.common.sqlalchemy import get_integrity_error_constraint
+from src.hackathons.constants import CO_ORGANIZER_SEARCH_RESULT_LIMIT
 from src.hackathons.exceptions import (
     AdminRequiredError,
     CoOrganizerAlreadyAssignedError,
+    CoOrganizerSearchRateLimitExceededError,
     CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
     InvalidConfirmNameError,
@@ -27,9 +30,15 @@ from src.hackathons.schemas import CoOrganizerAddRequest, HackathonCreate, Hacka
 
 
 class HackathonService:
-    def __init__(self, hackathon_repository: HackathonRepository, user_repository: UserRepository):
+    def __init__(
+        self,
+        hackathon_repository: HackathonRepository,
+        user_repository: UserRepository,
+        co_organizer_search_rate_limiter: FixedWindowRateLimiter,
+    ):
         self.hackathon_repository = hackathon_repository
         self.user_repository = user_repository
+        self.co_organizer_search_rate_limiter = co_organizer_search_rate_limiter
 
     async def list_hackathons(
         self,
@@ -167,9 +176,13 @@ class HackathonService:
         if len(normalized_query) < 2:
             return []
 
+        if not await self.co_organizer_search_rate_limiter.consume(str(user.public_id)):
+            raise CoOrganizerSearchRateLimitExceededError
+
         candidates = await self.user_repository.search_by_name(
             normalized_query,
             excluded_user_ids,
+            limit=CO_ORGANIZER_SEARCH_RESULT_LIMIT,
         )
         return candidates
 
