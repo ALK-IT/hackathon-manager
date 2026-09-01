@@ -5,6 +5,7 @@ import type {
   Hackathon,
   HackathonDetails,
   HackathonFilters,
+  UpdateHackathonPayload,
 } from '../types'
 
 interface GetHackathonsOptions extends HackathonFilters {
@@ -26,7 +27,7 @@ export function getHackathons(options: GetHackathonsOptions = {}) {
 }
 
 export function createHackathon(payload: CreateHackathonPayload) {
-  return apiRequest<void>('/api/hackathons', {
+  return apiRequest<Hackathon>('/api/hackathons', {
     method: 'POST',
     body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' },
@@ -48,4 +49,12 @@ export function addCoOrganizer(publicId: string, payload: AddCoOrganizerPayload)
       headers: { 'Content-Type': 'application/json' },
     },
   )
+}
+
+export function updateHackathon(publicId: string, payload: UpdateHackathonPayload) {
+  return apiRequest<HackathonDetails>(`/api/hackathons/${encodeURIComponent(publicId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+  })
 }

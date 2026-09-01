@@ -29,6 +29,14 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
             Zarejestruj się
           </Button>
         )}
+        {hackathon.access_level !== 'viewer' && (
+          <Button
+            type="button"
+            onClick={() => navigate(`/hackathons/${hackathon.public_id}/settings`)}
+          >
+            Ustawienia
+          </Button>
+        )}
       </Card>
     </li>
   )

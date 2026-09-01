@@ -40,6 +40,14 @@ export interface CreateHackathonPayload {
   max_team_size: number
 }
 
+export interface UpdateHackathonPayload extends Omit<
+  CreateHackathonPayload,
+  'registration_deadline' | 'capacity'
+> {
+  registration_deadline: string
+  capacity: number | null
+}
+
 export interface AddCoOrganizerPayload {
   user_public_id: string
 }
