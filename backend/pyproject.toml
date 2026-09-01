@@ -1,6 +1,7 @@
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extend-exclude = ["alembic/versions/0012_create_resources.py"]
 
 [tool.ruff.lint]
 # B008: wzorzec FastAPI Depends(...) w domyślnych argumentach jest tu zamierzony i standardowy.
@@ -9,6 +10,7 @@ ignore = ["B008"]
 [tool.black]
 line-length = 100
 target-version = ["py312"]
+extend-exclude = "alembic/versions/0012_create_resources.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

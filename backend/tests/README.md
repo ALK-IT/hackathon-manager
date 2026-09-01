@@ -77,7 +77,8 @@ wyjątek oraz rollback, gdy operacja rozpoczęła transakcję.
 | Jedna drużyna użytkownika na hackathon | tak, przez unique zgłoszenia użytkownika | tak | obecny model używa `Registration.team_id` |
 | `unique(user_id, hackathon_id)` | tak | mapowanie błędu w service | zaimplementowane |
 | `unique(hackathon_id, normalized_name)` | nie | nie | model ma tylko `unique(hackathon_id, name)` |
-| Zasób: add/import/assign/revoke/reveal/permission | nie | nie | brak modułu zasobów |
+| Zasób: add/import/assign/permission | tak | tak | zaimplementowane |
+| Zasób: revoke/reveal | nie | nie | brak tych operacji w API |
 
 Po dodaniu brakującej funkcji jej PR powinien jednocześnie zmienić odpowiedni wiersz na
 „zaimplementowane” i dodać test głównej ścieżki, błędów oraz constraintów. Testy nie powinny

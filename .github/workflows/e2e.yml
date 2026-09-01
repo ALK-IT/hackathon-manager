@@ -11,6 +11,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Wygeneruj klucz szyfrowania dla E2E
+        run: echo "RESOURCE_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')" >> "$GITHUB_ENV"
+
+      - name: Uruchom caly stack (docker compose)
+        run: docker compose up -d --build
+
+      - name: Czekaj az backend i frontend odpowiadaja
+        run: |
+          curl --retry 30 --retry-delay 2 --retry-connrefused --retry-all-errors --fail --silent --show-error http://localhost:8000/health
+          curl --retry 30 --retry-delay 2 --retry-connrefused --retry-all-errors --fail --silent --show-error http://localhost:5173 > /dev/null
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
