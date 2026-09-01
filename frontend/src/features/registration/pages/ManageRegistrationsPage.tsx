@@ -7,6 +7,13 @@ import {
   type ManagedRegistration,
   type ManagedStatus,
 } from '../managementApi'
+import {
+  getManagedRegistrationsErrorMessage,
+  getManagedRegistrationStatusErrorMessage,
+  isRegistrationStatusChangeLockedError,
+} from '../utils/registrationMessages'
+
+const PAGE_SIZE = 50
 
 const labels: Record<ManagedStatus, string> = {
   pending: 'oczekujące',
@@ -20,21 +27,46 @@ export function ManageRegistrationsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
+  const [hasNextPage, setHasNextPage] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [statusChangesLocked, setStatusChangesLocked] = useState(false)
   const selected = registrations.find(({ public_id }) => public_id === selectedId)
 
   useEffect(() => {
     if (!hackathonPublicId) return
-    getManagedRegistrations(hackathonPublicId)
-      .then(setRegistrations)
-      .catch(() => setError('Nie udało się pobrać zgłoszeń.'))
-      .finally(() => setLoading(false))
-  }, [hackathonPublicId])
+    const controller = new AbortController()
+    setLoading(true)
+    setLoadError(null)
+    setRegistrations([])
+    setHasNextPage(false)
+    setSelectedId(null)
+    getManagedRegistrations(hackathonPublicId, {
+      limit: PAGE_SIZE + 1,
+      offset: page * PAGE_SIZE,
+      signal: controller.signal,
+    })
+      .then((result) => {
+        setRegistrations(result.slice(0, PAGE_SIZE))
+        setHasNextPage(result.length > PAGE_SIZE)
+      })
+      .catch((requestError: unknown) => {
+        if (!(requestError instanceof Error && requestError.name === 'AbortError')) {
+          setLoadError(getManagedRegistrationsErrorMessage(requestError))
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [hackathonPublicId, page, reloadKey])
 
   async function changeStatus(status: 'accepted' | 'rejected') {
     if (!selected) return
     setUpdating(true)
-    setError(null)
+    setActionError(null)
     try {
       const updated = await updateManagedRegistration(selected.public_id, status)
       setRegistrations((current) =>
@@ -44,8 +76,12 @@ export function ManageRegistrationsPage() {
             : registration,
         ),
       )
-    } catch {
-      setError('Nie udało się zmienić statusu zgłoszenia.')
+    } catch (requestError) {
+      setActionError(getManagedRegistrationStatusErrorMessage(requestError))
+      if (isRegistrationStatusChangeLockedError(requestError)) {
+        setStatusChangesLocked(true)
+      }
+      setReloadKey((current) => current + 1)
     } finally {
       setUpdating(false)
     }
@@ -56,7 +92,8 @@ export function ManageRegistrationsPage() {
       <Link to="/hackathons">Wróć do hackathonów</Link>
       <h1>Zgłoszenia</h1>
       {loading && <Spinner label="Ładowanie zgłoszeń…" />}
-      {error && <Alert variant="error">{error}</Alert>}
+      {loadError && <Alert variant="error">{loadError}</Alert>}
+      {actionError && <Alert variant="error">{actionError}</Alert>}
       {!loading && registrations.length === 0 && <p>Brak zgłoszeń.</p>}
       <div className="hackathon-details-stack">
         {registrations.length > 0 && (
@@ -75,6 +112,25 @@ export function ManageRegistrationsPage() {
                 </li>
               ))}
             </ul>
+            <nav aria-label="Stronicowanie zgłoszeń">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={loading || page === 0}
+                onClick={() => setPage((current) => current - 1)}
+              >
+                Poprzednia strona
+              </Button>
+              <span aria-live="polite">Strona {page + 1}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={loading || !hasNextPage}
+                onClick={() => setPage((current) => current + 1)}
+              >
+                Następna strona
+              </Button>
+            </nav>
           </Card>
         )}
         {selected && (
@@ -93,7 +149,9 @@ export function ManageRegistrationsPage() {
             ))}
             <Button
               type="button"
-              disabled={updating || selected.status === 'accepted'}
+              disabled={
+                updating || statusChangesLocked || selected.status === 'accepted'
+              }
               onClick={() => changeStatus('accepted')}
             >
               Akceptuj
@@ -101,7 +159,9 @@ export function ManageRegistrationsPage() {
             <Button
               type="button"
               variant="ghost"
-              disabled={updating || selected.status === 'rejected'}
+              disabled={
+                updating || statusChangesLocked || selected.status === 'rejected'
+              }
               onClick={() => changeStatus('rejected')}
             >
               Odrzuć

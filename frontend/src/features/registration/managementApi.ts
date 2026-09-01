@@ -13,15 +13,32 @@ export interface ManagedRegistration {
   }>
 }
 
-export const getManagedRegistrations = (hackathonId: string) =>
-  apiRequest<ManagedRegistration[]>(`/api/hackathons/${hackathonId}/registrations`)
+interface GetManagedRegistrationsOptions {
+  limit: number
+  offset: number
+  signal?: AbortSignal
+}
+
+export const getManagedRegistrations = (
+  hackathonId: string,
+  { limit, offset, signal }: GetManagedRegistrationsOptions,
+) => {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  })
+  return apiRequest<ManagedRegistration[]>(
+    `/api/hackathons/${encodeURIComponent(hackathonId)}/registrations?${params}`,
+    { signal },
+  )
+}
 
 export const updateManagedRegistration = (
   registrationId: string,
   status: Exclude<ManagedStatus, 'pending'>,
 ) =>
   apiRequest<Pick<ManagedRegistration, 'public_id' | 'status' | 'team'>>(
-    `/api/registrations/${registrationId}/status`,
+    `/api/registrations/${encodeURIComponent(registrationId)}/status`,
     {
       method: 'PATCH',
       body: JSON.stringify({ status }),

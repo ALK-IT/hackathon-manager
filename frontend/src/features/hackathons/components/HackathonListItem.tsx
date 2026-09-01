@@ -29,7 +29,8 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
             Zarejestruj się
           </Button>
         )}
-        {hackathon.access_level !== 'viewer' && (
+        {(hackathon.access_level === 'owner' ||
+          hackathon.access_level === 'co_organizer') && (
           <Button
             type="button"
             onClick={() => navigate(`/hackathons/${hackathon.public_id}/registrations`)}

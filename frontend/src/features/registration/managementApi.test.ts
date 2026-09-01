@@ -8,8 +8,16 @@ describe('managementApi', () => {
   beforeEach(() => vi.mocked(apiRequest).mockReset())
 
   it('gets registrations', () => {
-    getManagedRegistrations('hackathon-id')
-    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id/registrations')
+    const controller = new AbortController()
+    getManagedRegistrations('hackathon-id', {
+      limit: 51,
+      offset: 50,
+      signal: controller.signal,
+    })
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon-id/registrations?limit=51&offset=50',
+      { signal: controller.signal },
+    )
   })
 
   it('updates status', () => {

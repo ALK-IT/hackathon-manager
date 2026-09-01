@@ -60,4 +60,27 @@ describe('HackathonListItem', () => {
     expect(screen.getByText('Rejestracja: zamknięta')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Zarejestruj się' })).not.toBeInTheDocument()
   })
+
+  it.each(['owner', 'co_organizer'] as const)(
+    'shows registrations only for the explicit %s access level',
+    (accessLevel) => {
+      render(
+        <MemoryRouter>
+          <HackathonListItem hackathon={{ ...hackathon, access_level: accessLevel }} />
+        </MemoryRouter>,
+      )
+
+      expect(screen.getByRole('button', { name: 'Zgłoszenia' })).toBeInTheDocument()
+    },
+  )
+
+  it('hides registrations from viewers', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem hackathon={hackathon} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Zgłoszenia' })).not.toBeInTheDocument()
+  })
 })
