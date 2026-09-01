@@ -28,5 +28,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-009 | Frontend uwierzytelniania i routing | Zaimplementowany | [implemented/SPEC-009-2026-08-11-frontend-auth-routing.md](implemented/SPEC-009-2026-08-11-frontend-auth-routing.md) |
 | SPEC-010 | Zasoby hackathonu i ręczny przydział | Zaimplementowany | [implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md](implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md) |
 | SPEC-011 | Frontend pytań rejestracyjnych i ustawień hackathonu | Zaimplementowany | [implemented/SPEC-011-2026-08-22-frontend-pytan-i-ustawien-hackathonu.md](implemented/SPEC-011-2026-08-22-frontend-pytan-i-ustawien-hackathonu.md) |
+| SPEC-013 | Spójny kontrakt błędów API | Zaimplementowany | [implemented/SPEC-013-2026-08-24-spojny-kontrakt-bledow-api.md](implemented/SPEC-013-2026-08-24-spojny-kontrakt-bledow-api.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

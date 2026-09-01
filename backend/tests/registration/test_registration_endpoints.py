@@ -871,7 +871,7 @@ async def test_duplicate_team_name_returns_conflict(
 
     assert response.status_code == 409
     assert response.json() == {
-        "error_code": "TEAM_NAME_ALREADY_EXISTS",
+        "error_code": "TEAM_NAME_TAKEN",
         "detail": "A team with this name already exists for this hackathon.",
     }
 
@@ -1240,7 +1240,7 @@ async def test_regular_user_cannot_list_hackathon_registrations(
     response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/registrations")
 
     assert response.status_code == 403
-    assert response.json()["error_code"] == "REGISTRATION_PERMISSION_DENIED"
+    assert response.json()["error_code"] == "PERMISSION_DENIED"
 
 
 async def test_participant_gets_own_registration_with_answers(
@@ -1447,7 +1447,7 @@ async def test_regular_user_cannot_update_registration_status(
     )
 
     assert response.status_code == 403
-    assert response.json()["error_code"] == "REGISTRATION_PERMISSION_DENIED"
+    assert response.json()["error_code"] == "PERMISSION_DENIED"
     await session.refresh(registration)
     assert registration.status is RegistrationStatus.PENDING
 
