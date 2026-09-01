@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from src.main import app
+from src.main import app, lifespan
 
 client = TestClient(app)
 
@@ -30,3 +30,17 @@ def test_expected_routes_are_registered() -> None:
         "/api/auth/logout",
         "/api/auth/me",
     }.issubset(paths)
+
+
+async def test_lifespan_validates_resource_configuration(monkeypatch) -> None:
+    validation_calls = []
+    monkeypatch.setattr("src.main.validate_configuration", lambda: None)
+    monkeypatch.setattr(
+        "src.main.validate_resource_configuration",
+        lambda: validation_calls.append(True),
+    )
+
+    async with lifespan(app):
+        pass
+
+    assert validation_calls == [True]
