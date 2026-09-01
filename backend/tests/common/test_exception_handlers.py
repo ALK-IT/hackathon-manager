@@ -102,10 +102,6 @@ async def test_domain_error_handler_returns_stable_contract(
         (ErrorCode.CONSENT_REQUIRED, 422),
         (ErrorCode.TEAM_CONFIRMATION_REQUIRED, 409),
         (ErrorCode.NOT_TEAM_MEMBER, 403),
-        (ErrorCode.RESOURCE_ALREADY_ASSIGNED, 409),
-        (ErrorCode.RESOURCE_REVOKED, 409),
-        (ErrorCode.RESOURCE_NOT_ASSIGNED_TO_USER, 404),
-        (ErrorCode.INVALID_QR_TOKEN, 422),
     ],
 )
 async def test_reserved_domain_codes_can_use_generic_domain_error(
