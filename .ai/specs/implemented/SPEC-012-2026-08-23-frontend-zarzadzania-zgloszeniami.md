@@ -1,4 +1,4 @@
-# SPEC-011: Frontend zarządzania zgłoszeniami
+# SPEC-012: Frontend zarządzania zgłoszeniami
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-23
