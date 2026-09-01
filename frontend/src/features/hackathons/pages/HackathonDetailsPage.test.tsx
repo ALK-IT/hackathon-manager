@@ -74,6 +74,7 @@ describe('HackathonDetailsPage', () => {
     expect(await screen.findByRole('heading', { name: 'Test Hackathon' })).toBeInTheDocument()
     expect(screen.getByText('Opis hackathonu')).toBeInTheDocument()
     expect(screen.getByText('Organizator: Admin')).toBeInTheDocument()
+    expect(screen.getByLabelText('Odliczanie czasu hackathonu')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Zarejestruj się' })).toBeInTheDocument()
   })
 
