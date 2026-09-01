@@ -4,6 +4,11 @@ export interface RegistrationQuestion {
   is_required: boolean
 }
 
+export type RegistrationQuestionPayload = Pick<
+  RegistrationQuestion,
+  'content' | 'is_required'
+>
+
 export type TeamSelection =
   | { action: 'create'; name: string }
   | { action: 'join'; join_code: string }

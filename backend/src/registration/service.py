@@ -18,6 +18,7 @@ from src.registration.exceptions import (
     RegistrationClosedError,
     RegistrationNotFoundError,
     RegistrationQuestionsLockedError,
+    RegistrationStatusChangeLockedError,
 )
 from src.registration.models import (
     Registration,
@@ -300,6 +301,8 @@ class RegistrationService:
         registration_public_id: uuid.UUID,
         new_status: RegistrationStatus,
         current_user: User,
+        *,
+        moment: datetime | None = None,
     ) -> Registration:
         registration = await self.registration_repository.get_active_by_public_id(
             registration_public_id
@@ -312,6 +315,9 @@ class RegistrationService:
 
         if not can_manage_hackathon(hackathon, current_user):
             raise InvalidPermission()
+
+        if not hackathon.allows_registration_status_changes_at(moment):
+            raise RegistrationStatusChangeLockedError()
 
         try:
             if (

@@ -12,11 +12,25 @@ export function getCreateHackathonErrorMessage(error: unknown): string {
 
 export function getHackathonDetailsErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.status === 403) return 'Nie masz uprawnień do wyświetlenia tego hackathonu.'
     if (error.status === 404) return 'Nie znaleziono tego hackathonu.'
     return error.message
   }
 
   return 'Nie udało się pobrać szczegółów hackathonu. Spróbuj ponownie.'
+}
+
+export function getUpdateHackathonErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 403) return 'Nie masz uprawnień do edycji tego hackathonu.'
+    if (error.status === 404) return 'Ten hackathon nie istnieje lub został usunięty.'
+    if (error.errorCode === 'VALIDATION_ERROR') {
+      return 'Sprawdź poprawność danych hackathonu.'
+    }
+    return error.message
+  }
+
+  return 'Nie udało się zapisać ustawień hackathonu. Spróbuj ponownie.'
 }
 
 export function getAddCoOrganizerErrorMessage(error: unknown): string {
