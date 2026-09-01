@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 import src.all_models  # noqa: F401
 from src.api import api_router
+from src.attendance.exceptions import AttendanceError
 from src.auth.config import get_frontend_origins, validate_configuration
 from src.hackathons.exceptions import HackathonError
 from src.registration.exceptions import RegistrationError
@@ -24,6 +25,14 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="hackathon-manager API", lifespan=lifespan)
 app.include_router(api_router)
+
+
+@app.exception_handler(AttendanceError)
+async def handle_attendance_error(_request: Request, exc: AttendanceError) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error_code": exc.error_code, "detail": exc.detail},
+    )
 
 
 @app.exception_handler(HackathonError)
