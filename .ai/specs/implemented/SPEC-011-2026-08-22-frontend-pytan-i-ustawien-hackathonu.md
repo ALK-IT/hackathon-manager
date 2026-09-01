@@ -1,4 +1,4 @@
-# SPEC-010: Frontend pytań rejestracyjnych i ustawień hackathonu
+# SPEC-011: Frontend pytań rejestracyjnych i ustawień hackathonu
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-22
