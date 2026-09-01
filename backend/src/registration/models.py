@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models import Base
 
 if TYPE_CHECKING:
+    from src.attendance.models import CheckIn
     from src.auth.models import User
     from src.hackathons.models import Hackathon
     from src.resources.models import ResourceAssignment
@@ -112,6 +113,11 @@ class Registration(Base):
     )
     resource_assignments: Mapped[list["ResourceAssignment"]] = relationship(
         back_populates="registration",
+        passive_deletes=True,
+    )
+    check_in: Mapped["CheckIn | None"] = relationship(
+        back_populates="registration",
+        uselist=False,
         passive_deletes=True,
     )
 
