@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from src.auth.models import User, UserRole
 from src.hackathons.exceptions import (
     CoOrganizerAlreadyAssignedError,
+    CoOrganizerSearchRateLimitExceededError,
     CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
     InvalidConfirmNameError,
@@ -355,6 +356,69 @@ async def test_add_co_organizer_endpoint_rejects_invalid_payload(
     mock_hackathon_service.add_co_organizer.assert_not_awaited()
 
 
+async def test_co_organizer_candidates_endpoint_returns_user_summaries(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+    admin_user: User,
+    user_factory: UserFactory,
+):
+    public_id = uuid.uuid4()
+    candidate = user_factory(user_id=2)
+    candidate.name = "Jan Kowalski"
+    mock_hackathon_service.get_co_organizer_candidates.return_value = [candidate]
+
+    response = await hackathon_client.get(
+        f"/api/hackathons/{public_id}/co-organizer-candidates",
+        params={"query": "Jan"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "public_id": str(candidate.public_id),
+            "name": "Jan Kowalski",
+        }
+    ]
+    mock_hackathon_service.get_co_organizer_candidates.assert_awaited_once_with(
+        public_id,
+        admin_user,
+        "Jan",
+    )
+
+
+async def test_co_organizer_candidates_endpoint_validates_query(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    response = await hackathon_client.get(
+        f"/api/hackathons/{uuid.uuid4()}/co-organizer-candidates",
+        params={"query": "J"},
+    )
+
+    assert response.status_code == 422
+    mock_hackathon_service.get_co_organizer_candidates.assert_not_awaited()
+
+
+async def test_co_organizer_candidates_endpoint_returns_rate_limit_error(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    mock_hackathon_service.get_co_organizer_candidates.side_effect = (
+        CoOrganizerSearchRateLimitExceededError
+    )
+
+    response = await hackathon_client.get(
+        f"/api/hackathons/{uuid.uuid4()}/co-organizer-candidates",
+        params={"query": "Jan"},
+    )
+
+    assert response.status_code == 429
+    assert response.json() == {
+        "error_code": "CO_ORGANIZER_SEARCH_RATE_LIMIT_EXCEEDED",
+        "detail": "Too many co-organizer searches. Try again later.",
+    }
+
+
 async def test_registration_endpoints_return_current_state(
     hackathon_client: AsyncClient,
     mock_hackathon_service: HackathonService,
@@ -418,6 +482,10 @@ async def test_management_endpoints_require_access_token(
             f"/api/hackathons/{public_id}/co-organizers",
             json={"user_public_id": str(uuid.uuid4())},
         ),
+        await hackathon_client.get(
+            f"/api/hackathons/{public_id}/co-organizer-candidates",
+            params={"query": "Jan"},
+        ),
         await hackathon_client.post(f"/api/hackathons/{public_id}/open-registration"),
         await hackathon_client.post(f"/api/hackathons/{public_id}/close-registration"),
     ]
@@ -428,6 +496,7 @@ async def test_management_endpoints_require_access_token(
     mock_hackathon_service.update_hackathon.assert_not_awaited()
     mock_hackathon_service.delete_hackathon.assert_not_awaited()
     mock_hackathon_service.add_co_organizer.assert_not_awaited()
+    mock_hackathon_service.get_co_organizer_candidates.assert_not_awaited()
     mock_hackathon_service.open_registration.assert_not_awaited()
     mock_hackathon_service.close_registration.assert_not_awaited()
 

@@ -45,6 +45,7 @@ def mock_hackathon_service(mocker) -> HackathonService:
     service.update_hackathon = mocker.AsyncMock()
     service.delete_hackathon = mocker.AsyncMock()
     service.add_co_organizer = mocker.AsyncMock()
+    service.get_co_organizer_candidates = mocker.AsyncMock(return_value=[])
     service.open_registration = mocker.AsyncMock()
     service.close_registration = mocker.AsyncMock()
     return service

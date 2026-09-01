@@ -2,13 +2,18 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../../auth'
-import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
+import {
+  addCoOrganizer,
+  getHackathon,
+  searchCoOrganizerCandidates,
+} from '../api/hackathonsApi'
 import type { HackathonDetails } from '../types'
 import { HackathonDetailsPage } from './HackathonDetailsPage'
 
 vi.mock('../api/hackathonsApi', () => ({
   addCoOrganizer: vi.fn(),
   getHackathon: vi.fn(),
+  searchCoOrganizerCandidates: vi.fn(),
 }))
 
 const ownerId = '1021c94e-1a20-4db0-a4a4-718202f41e1a'
@@ -65,7 +70,9 @@ describe('HackathonDetailsPage', () => {
   beforeEach(() => {
     vi.mocked(getHackathon).mockReset()
     vi.mocked(addCoOrganizer).mockReset()
+    vi.mocked(searchCoOrganizerCandidates).mockReset()
     vi.mocked(getHackathon).mockResolvedValue(hackathon)
+    vi.mocked(searchCoOrganizerCandidates).mockResolvedValue([])
   })
 
   it('shows public hackathon details', async () => {
@@ -82,11 +89,15 @@ describe('HackathonDetailsPage', () => {
       ...hackathon,
       co_organizers: [{ public_id: coOrganizerId, name: 'Jan Kowalski' }],
     })
+    vi.mocked(searchCoOrganizerCandidates).mockResolvedValue([
+      { public_id: coOrganizerId, name: 'Jan Kowalski' },
+    ])
     renderPage()
 
-    fireEvent.change(await screen.findByLabelText('Public ID użytkownika'), {
-      target: { value: coOrganizerId },
+    fireEvent.change(await screen.findByLabelText('Nazwa użytkownika'), {
+      target: { value: 'Jan' },
     })
+    fireEvent.click(await screen.findByRole('option', { name: 'Jan Kowalski' }))
     fireEvent.click(screen.getByRole('button', { name: 'Dodaj współorganizatora' }))
 
     await waitFor(() =>
@@ -103,18 +114,18 @@ describe('HackathonDetailsPage', () => {
     renderPage()
 
     expect(await screen.findByRole('heading', { name: 'Współorganizatorzy' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Public ID użytkownika')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Nazwa użytkownika')).not.toBeInTheDocument()
   })
 
-  it('validates the public id before sending the request', async () => {
+  it('requires selecting a user from the suggestions', async () => {
     renderPage()
 
-    fireEvent.change(await screen.findByLabelText('Public ID użytkownika'), {
-      target: { value: 'not-a-uuid' },
+    fireEvent.change(await screen.findByLabelText('Nazwa użytkownika'), {
+      target: { value: 'Nieznany użytkownik' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Dodaj współorganizatora' }))
 
-    expect(screen.getByText('Podaj poprawne public_id użytkownika.')).toBeInTheDocument()
+    expect(screen.getByText('Wybierz użytkownika z listy podpowiedzi.')).toBeInTheDocument()
     expect(addCoOrganizer).not.toHaveBeenCalled()
   })
 })

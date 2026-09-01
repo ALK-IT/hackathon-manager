@@ -2,16 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { useAuth } from '../../auth'
-import { FormField } from '../../auth/components/FormField'
 import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
-import type { HackathonDetails } from '../types'
+import { CoOrganizerAutocomplete } from '../components/CoOrganizerAutocomplete'
+import type { HackathonDetails, UserSummary } from '../types'
 import {
   getAddCoOrganizerErrorMessage,
   getHackathonDetailsErrorMessage,
 } from '../utils/hackathonMessages'
-
-const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function HackathonDetailsPage() {
   const navigate = useNavigate()
@@ -20,7 +17,8 @@ export function HackathonDetailsPage() {
   const [hackathon, setHackathon] = useState<HackathonDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [coOrganizerPublicId, setCoOrganizerPublicId] = useState('')
+  const [coOrganizerName, setCoOrganizerName] = useState('')
+  const [selectedCandidate, setSelectedCandidate] = useState<UserSummary | null>(null)
   const [fieldError, setFieldError] = useState<string | undefined>()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -56,9 +54,8 @@ export function HackathonDetailsPage() {
     event.preventDefault()
     if (!hackathonPublicId || !hackathon || hackathon.access_level !== 'owner') return
 
-    const normalizedPublicId = coOrganizerPublicId.trim()
-    if (!uuidPattern.test(normalizedPublicId)) {
-      setFieldError('Podaj poprawne public_id użytkownika.')
+    if (!selectedCandidate) {
+      setFieldError('Wybierz użytkownika z listy podpowiedzi.')
       return
     }
 
@@ -69,13 +66,14 @@ export function HackathonDetailsPage() {
 
     try {
       const updatedHackathon = await addCoOrganizer(hackathonPublicId, {
-        user_public_id: normalizedPublicId,
+        user_public_id: selectedCandidate.public_id,
       })
       const addedCoOrganizer = updatedHackathon.co_organizers.find(
-        (user) => user.public_id === normalizedPublicId,
+        (user) => user.public_id === selectedCandidate.public_id,
       )
       setHackathon(updatedHackathon)
-      setCoOrganizerPublicId('')
+      setCoOrganizerName('')
+      setSelectedCandidate(null)
       setSuccessMessage(
         addedCoOrganizer
           ? `Dodano współorganizatora: ${addedCoOrganizer.name}.`
@@ -137,14 +135,22 @@ export function HackathonDetailsPage() {
 
             {hackathon.access_level === 'owner' && (
               <form className="co-organizer-form" onSubmit={handleAddCoOrganizer} noValidate>
-                <FormField
-                  id="co-organizer-public-id"
-                  label="Public ID użytkownika"
-                  value={coOrganizerPublicId}
+                <CoOrganizerAutocomplete
+                  hackathonPublicId={hackathon.public_id}
+                  query={coOrganizerName}
+                  selectedCandidate={selectedCandidate}
                   error={fieldError}
-                  placeholder="00000000-0000-0000-0000-000000000000"
-                  required
-                  onChange={(event) => setCoOrganizerPublicId(event.target.value)}
+                  onQueryChange={(query) => {
+                    setCoOrganizerName(query)
+                    setSelectedCandidate(null)
+                    setFieldError(undefined)
+                    setSuccessMessage(null)
+                  }}
+                  onCandidateSelect={(candidate) => {
+                    setSelectedCandidate(candidate)
+                    setCoOrganizerName(candidate.name)
+                    setFieldError(undefined)
+                  }}
                 />
                 {submitError && <Alert variant="error">{submitError}</Alert>}
                 {successMessage && <Alert>{successMessage}</Alert>}

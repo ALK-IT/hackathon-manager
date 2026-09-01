@@ -1,6 +1,6 @@
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from pydantic import ValidationError
@@ -8,9 +8,12 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
+from src.common.rate_limit import FixedWindowRateLimiter
+from src.hackathons.constants import CO_ORGANIZER_SEARCH_RESULT_LIMIT
 from src.hackathons.exceptions import (
     AdminRequiredError,
     CoOrganizerAlreadyAssignedError,
+    CoOrganizerSearchRateLimitExceededError,
     CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
     InvalidConfirmNameError,
@@ -66,16 +69,22 @@ def repository(mocker) -> HackathonRepository:
 def user_repository(mocker) -> UserRepository:
     repository = mocker.Mock(spec=UserRepository)
     repository.get_by_public_id = mocker.AsyncMock()
+    repository.search_by_name = mocker.AsyncMock(return_value=[])
     return repository
 
 
 def make_service(
     repository: HackathonRepository,
     user_repository: UserRepository | None = None,
+    rate_limiter: FixedWindowRateLimiter | None = None,
 ) -> HackathonService:
+    if rate_limiter is None:
+        rate_limiter = Mock(spec=FixedWindowRateLimiter)
+        rate_limiter.consume = AsyncMock(return_value=True)
     return HackathonService(
         repository,
         user_repository or Mock(spec=UserRepository),
+        rate_limiter,
     )
 
 
@@ -603,6 +612,87 @@ async def test_add_co_organizer_rolls_back_database_error(
         )
 
     repository.rollback.assert_awaited_once_with()
+
+
+async def test_owner_can_search_for_co_organizer_candidates(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    admin_user: User,
+    user_factory: UserFactory,
+    hackathon_factory: HackathonFactory,
+):
+    existing_co_organizer = user_factory(user_id=2)
+    candidate = user_factory(user_id=3)
+    candidate.name = "Jan Kowalski"
+    hackathon = hackathon_factory(
+        organizer=admin_user,
+        co_organizers=[existing_co_organizer],
+    )
+    repository.get_owned_by_public_id.return_value = hackathon
+    user_repository.search_by_name.return_value = [candidate]
+    service = make_service(repository, user_repository)
+
+    result = await service.get_co_organizer_candidates(
+        hackathon.public_id,
+        admin_user,
+        "  jan  ",
+    )
+
+    assert result == [candidate]
+    service.co_organizer_search_rate_limiter.consume.assert_awaited_once_with(
+        str(admin_user.public_id)
+    )
+    user_repository.search_by_name.assert_awaited_once_with(
+        "jan",
+        {admin_user.id, existing_co_organizer.id},
+        limit=CO_ORGANIZER_SEARCH_RESULT_LIMIT,
+    )
+
+
+async def test_candidate_search_rejects_request_after_rate_limit_is_exceeded(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    admin_user: User,
+    hackathon_factory: HackathonFactory,
+    mocker,
+):
+    hackathon = hackathon_factory(organizer=admin_user)
+    repository.get_owned_by_public_id.return_value = hackathon
+    rate_limiter = mocker.Mock(spec=FixedWindowRateLimiter)
+    rate_limiter.consume = mocker.AsyncMock(return_value=False)
+    service = make_service(repository, user_repository, rate_limiter)
+
+    with pytest.raises(CoOrganizerSearchRateLimitExceededError):
+        await service.get_co_organizer_candidates(
+            hackathon.public_id,
+            admin_user,
+            "Jan",
+        )
+
+    rate_limiter.consume.assert_awaited_once_with(str(admin_user.public_id))
+    user_repository.search_by_name.assert_not_awaited()
+
+
+async def test_candidate_search_hides_unowned_hackathon_before_user_lookup(
+    repository: HackathonRepository,
+    user_repository: UserRepository,
+    regular_user: User,
+    mocker,
+):
+    repository.get_owned_by_public_id.return_value = None
+    rate_limiter = mocker.Mock(spec=FixedWindowRateLimiter)
+    rate_limiter.consume = mocker.AsyncMock(return_value=True)
+    service = make_service(repository, user_repository, rate_limiter)
+
+    with pytest.raises(HackathonNotFoundError):
+        await service.get_co_organizer_candidates(
+            uuid.uuid4(),
+            regular_user,
+            "Jan",
+        )
+
+    rate_limiter.consume.assert_not_awaited()
+    user_repository.search_by_name.assert_not_awaited()
 
 
 async def test_owner_can_open_and_close_registration(
