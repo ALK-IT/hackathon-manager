@@ -2,6 +2,7 @@ import { apiRequest } from '../../../lib/api/client'
 import type {
   RegistrationPayload,
   RegistrationQuestion,
+  RegistrationQuestionPayload,
   RegistrationResponse,
 } from '../types'
 
@@ -12,6 +13,20 @@ export function getRegistrationQuestions(
   return apiRequest<RegistrationQuestion[]>(
     `/api/hackathons/${hackathonPublicId}/questions`,
     { signal },
+  )
+}
+
+export function createRegistrationQuestions(
+  hackathonPublicId: string,
+  questions: RegistrationQuestionPayload[],
+) {
+  return apiRequest<RegistrationQuestion[]>(
+    `/api/hackathons/${hackathonPublicId}/questions/bulk`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ questions }),
+      headers: { 'Content-Type': 'application/json' },
+    },
   )
 }
 

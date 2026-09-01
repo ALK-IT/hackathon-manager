@@ -31,12 +31,20 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
         )}
         {(hackathon.access_level === 'owner' ||
           hackathon.access_level === 'co_organizer') && (
-          <Button
-            type="button"
-            onClick={() => navigate(`/hackathons/${hackathon.public_id}/registrations`)}
-          >
-            Zgłoszenia
-          </Button>
+          <>
+            <Button
+              type="button"
+              onClick={() => navigate(`/hackathons/${hackathon.public_id}/registrations`)}
+            >
+              Zgłoszenia
+            </Button>
+            <Button
+              type="button"
+              onClick={() => navigate(`/hackathons/${hackathon.public_id}/settings`)}
+            >
+              Ustawienia
+            </Button>
+          </>
         )}
       </Card>
     </li>

@@ -51,6 +51,12 @@ class RegistrationClosedError(RegistrationError):
     detail = "Registration for this hackathon is closed."
 
 
+class RegistrationStatusChangeLockedError(RegistrationError):
+    status_code = 409
+    error_code = "REGISTRATION_STATUS_CHANGE_LOCKED"
+    detail = "Registration statuses cannot be changed after the hackathon has ended."
+
+
 class RegistrationNotFoundError(RegistrationError):
     status_code = 404
     error_code = "REGISTRATION_NOT_FOUND"

@@ -12,6 +12,27 @@ export function getQuestionsErrorMessage(error: unknown): string {
   return 'Nie udało się pobrać formularza zgłoszeniowego. Spróbuj ponownie.'
 }
 
+export function getSaveQuestionsErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    return 'Nie udało się zapisać pytań. Spróbuj ponownie.'
+  }
+
+  if (error.errorCode === 'REGISTRATION_QUESTIONS_LOCKED') {
+    return 'Nie można zmieniać pytań po otwarciu rejestracji.'
+  }
+  if (error.errorCode === 'REGISTRATION_PERMISSION_DENIED' || error.status === 403) {
+    return 'Nie masz uprawnień do zmiany pytań rejestracyjnych.'
+  }
+  if (error.errorCode === 'HACKATHON_NOT_FOUND' || error.status === 404) {
+    return 'Ten hackathon nie istnieje lub został usunięty.'
+  }
+  if (error.errorCode === 'VALIDATION_ERROR') {
+    return 'Formularz może zawierać od 1 do 50 poprawnie uzupełnionych pytań.'
+  }
+
+  return error.message
+}
+
 export function getRegistrationErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) {
     return 'Nie udało się wysłać zgłoszenia. Spróbuj ponownie.'

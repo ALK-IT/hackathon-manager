@@ -1357,6 +1357,38 @@ async def test_authorized_user_updates_registration_status(
     assert registration.status_changed_by_id == current_user.id
 
 
+async def test_update_registration_status_rejects_changes_after_hackathon_end(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    now = datetime.now(UTC)
+    hackathon.registration_opens_at = now - timedelta(days=4)
+    hackathon.registration_deadline = now - timedelta(days=3)
+    hackathon.start_date = now - timedelta(days=2)
+    hackathon.end_date = now - timedelta(days=1)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.patch(
+        f"/api/registrations/{registration.public_id}/status",
+        json={"status": "accepted"},
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "error_code": "REGISTRATION_STATUS_CHANGE_LOCKED",
+        "detail": "Registration statuses cannot be changed after the hackathon has ended.",
+    }
+    await session.refresh(registration)
+    assert registration.status is RegistrationStatus.PENDING
+
+
 async def test_status_audit_tracks_the_most_recent_change(
     api_client: AsyncClient,
     session: AsyncSession,

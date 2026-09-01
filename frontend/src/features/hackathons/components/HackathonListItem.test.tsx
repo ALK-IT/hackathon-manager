@@ -62,19 +62,30 @@ describe('HackathonListItem', () => {
   })
 
   it.each(['owner', 'co_organizer'] as const)(
-    'shows registrations only for the explicit %s access level',
+    'shows management actions and navigates there for %s',
     (accessLevel) => {
+      function Location() {
+        return <output>{useLocation().pathname}</output>
+      }
+
       render(
         <MemoryRouter>
           <HackathonListItem hackathon={{ ...hackathon, access_level: accessLevel }} />
+          <Location />
         </MemoryRouter>,
       )
 
-      expect(screen.getByRole('button', { name: 'Zgłoszenia' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Zgłoszenia' }))
+      expect(
+        screen.getByText(`/hackathons/${hackathon.public_id}/registrations`),
+      ).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ustawienia' }))
+      expect(screen.getByText(`/hackathons/${hackathon.public_id}/settings`)).toBeInTheDocument()
     },
   )
 
-  it('hides registrations from viewers', () => {
+  it('hides management actions from viewers', () => {
     render(
       <MemoryRouter>
         <HackathonListItem hackathon={hackathon} />
@@ -82,5 +93,6 @@ describe('HackathonListItem', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Zgłoszenia' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ustawienia' })).not.toBeInTheDocument()
   })
 })

@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiRequest } from '../../../lib/api/client'
-import { addCoOrganizer, getHackathon, getHackathons } from './hackathonsApi'
+import {
+  addCoOrganizer,
+  getHackathon,
+  getHackathons,
+  updateHackathon,
+} from './hackathonsApi'
 
 vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
 
@@ -47,5 +52,26 @@ describe('getHackathons', () => {
         headers: { 'Content-Type': 'application/json' },
       },
     )
+  })
+
+  it('updates hackathon settings', () => {
+    const payload = {
+      name: 'Nowa nazwa',
+      description: '',
+      start_date: '2026-09-10T08:00:00Z',
+      end_date: '2026-09-11T08:00:00Z',
+      registration_opens_at: '2026-08-20T08:00:00Z',
+      registration_deadline: '2026-09-09T08:00:00Z',
+      capacity: null,
+      max_team_size: 4,
+    }
+
+    updateHackathon('hackathon-id', payload)
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    })
   })
 })
