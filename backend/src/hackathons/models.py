@@ -22,6 +22,7 @@ from src.models import Base
 if TYPE_CHECKING:
     from src.auth.models import User
     from src.registration.models import Registration, RegistrationQuestion
+    from src.resources.models import Resource
     from src.teams.models import Team
 
 
@@ -129,6 +130,11 @@ class Hackathon(Base):
     )
     teams: Mapped[list["Team"]] = relationship(
         back_populates="hackathon",
+        passive_deletes=True,
+    )
+    resources: Mapped[list["Resource"]] = relationship(
+        back_populates="hackathon",
+        cascade="all, delete-orphan",
         passive_deletes=True,
     )
 

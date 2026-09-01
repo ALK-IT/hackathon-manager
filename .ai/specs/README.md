@@ -26,5 +26,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-007 | Audyt ostatniej zmiany statusu zgłoszenia | Zaimplementowany | [implemented/SPEC-007-2026-08-15-audyt-zmiany-statusu-zgloszenia.md](implemented/SPEC-007-2026-08-15-audyt-zmiany-statusu-zgloszenia.md) |
 | SPEC-008 | Strategia testów backendu i przepływy E2E | Zaimplementowany | [implemented/SPEC-008-2026-08-16-strategia-testow-backendu-e2e.md](implemented/SPEC-008-2026-08-16-strategia-testow-backendu-e2e.md) |
 | SPEC-009 | Frontend uwierzytelniania i routing | Zaimplementowany | [implemented/SPEC-009-2026-08-11-frontend-auth-routing.md](implemented/SPEC-009-2026-08-11-frontend-auth-routing.md) |
+| SPEC-010 | Zasoby hackathonu i ręczny przydział | Zaimplementowany | [implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md](implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).
