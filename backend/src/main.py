@@ -10,12 +10,15 @@ from src.api import api_router
 from src.auth.config import get_frontend_origins, validate_configuration
 from src.hackathons.exceptions import HackathonError
 from src.registration.exceptions import RegistrationError
+from src.resources.config import validate_resource_configuration
+from src.resources.exceptions import ResourceError
 from src.teams.exceptions import TeamError
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     validate_configuration()
+    validate_resource_configuration()
     yield
 
 
@@ -44,6 +47,14 @@ async def handle_registration_error(
 
 @app.exception_handler(TeamError)
 async def handle_team_error(_request: Request, exc: TeamError) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error_code": exc.error_code, "detail": exc.detail},
+    )
+
+
+@app.exception_handler(ResourceError)
+async def handle_resource_error(_request: Request, exc: ResourceError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={"error_code": exc.error_code, "detail": exc.detail},
