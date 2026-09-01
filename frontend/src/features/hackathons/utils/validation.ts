@@ -1,4 +1,4 @@
-export interface CreateHackathonErrors {
+export interface HackathonFormErrors {
   name?: string
   description?: string
   startDate?: string
@@ -9,7 +9,7 @@ export interface CreateHackathonErrors {
   maxTeamSize?: string
 }
 
-export interface CreateHackathonValues {
+export interface HackathonFormValues {
   name: string
   description: string
   startDate: string
@@ -31,10 +31,15 @@ function parsePositiveInteger(value: string): number | null {
   return Number.isInteger(number) && number >= 1 ? number : null
 }
 
-export function validateCreateHackathon(
-  values: CreateHackathonValues,
-): CreateHackathonErrors {
-  const errors: CreateHackathonErrors = {}
+interface ValidateHackathonOptions {
+  registrationDeadlineRequired?: boolean
+}
+
+export function validateHackathon(
+  values: HackathonFormValues,
+  options: ValidateHackathonOptions = {},
+): HackathonFormErrors {
+  const errors: HackathonFormErrors = {}
   const startDate = parseDate(values.startDate)
   const endDate = parseDate(values.endDate)
   const registrationOpensAt = parseDate(values.registrationOpensAt)
@@ -55,7 +60,9 @@ export function validateCreateHackathon(
   if (!registrationOpensAt) {
     errors.registrationOpensAt = 'Podaj datę otwarcia zapisów.'
   }
-  if (values.registrationDeadline && !registrationDeadline) {
+  if (options.registrationDeadlineRequired && !values.registrationDeadline) {
+    errors.registrationDeadline = 'Podaj datę zamknięcia zapisów.'
+  } else if (values.registrationDeadline && !registrationDeadline) {
     errors.registrationDeadline = 'Podaj poprawną datę zamknięcia zapisów.'
   }
   if (startDate && registrationDeadline && registrationDeadline >= startDate) {
@@ -83,3 +90,7 @@ export function validateCreateHackathon(
 
   return errors
 }
+
+export type CreateHackathonErrors = HackathonFormErrors
+export type CreateHackathonValues = HackathonFormValues
+export const validateCreateHackathon = validateHackathon

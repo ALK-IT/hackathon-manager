@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiRequest } from '../../../lib/api/client'
 import {
   createRegistration,
+  createRegistrationQuestions,
   getMyRegistration,
   getRegistrationQuestions,
 } from './registrationApi'
@@ -17,6 +18,21 @@ describe('registrationApi', () => {
     expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id/questions', {
       signal: undefined,
     })
+  })
+
+  it('creates questions in one request', () => {
+    const questions = [{ content: 'Dlaczego?', is_required: true }]
+
+    createRegistrationQuestions('hackathon-id', questions)
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon-id/questions/bulk',
+      {
+        method: 'POST',
+        body: JSON.stringify({ questions }),
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
   })
 
   it('gets the current user registration for the selected hackathon', () => {
