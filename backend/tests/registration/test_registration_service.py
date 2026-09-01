@@ -17,6 +17,7 @@ from src.registration.exceptions import (
     RegistrationClosedError,
     RegistrationNotFoundError,
     RegistrationQuestionsLockedError,
+    RegistrationStatusChangeLockedError,
 )
 from src.registration.models import Registration, RegistrationQuestion, RegistrationStatus
 from src.registration.schema import (
@@ -948,27 +949,58 @@ async def test_update_status_rejects_user_without_access(
     registration_repository.update_status.assert_not_awaited()
 
 
-async def test_update_status_rejects_changes_after_hackathon_end(
+async def test_update_status_rejects_changes_exactly_at_hackathon_end(
     registration_service,
     registration_repository,
 ):
+    boundary = datetime(2026, 9, 1, 12, tzinfo=UTC)
+    hackathon = make_hackathon()
+    hackathon.organizer_id = 10
+    hackathon.end_date = boundary
     registration_repository.get_active_by_public_id.return_value = SimpleNamespace(
-        hackathon=SimpleNamespace(
-            organizer_id=10,
-            co_organizers=[],
-            end_date=datetime.now(UTC) - timedelta(seconds=1),
-        ),
+        hackathon=hackathon,
     )
 
-    with pytest.raises(RegistrationClosedError):
+    with pytest.raises(RegistrationStatusChangeLockedError):
         await registration_service.update_status(
             uuid.uuid4(),
             RegistrationStatus.ACCEPTED,
             make_user(user_id=10),
+            moment=boundary,
         )
 
     registration_repository.update_status.assert_not_awaited()
     registration_repository.commit.assert_not_awaited()
+
+
+async def test_update_status_allows_changes_just_before_hackathon_end(
+    registration_service,
+    registration_repository,
+):
+    boundary = datetime(2026, 9, 1, 12, tzinfo=UTC)
+    hackathon = make_hackathon()
+    hackathon.organizer_id = 10
+    hackathon.end_date = boundary
+    registration = SimpleNamespace(
+        status=RegistrationStatus.PENDING,
+        team_id=None,
+        hackathon=hackathon,
+    )
+    registration_repository.get_active_by_public_id.return_value = registration
+    registration_repository.update_status.side_effect = (
+        lambda item, status, _changed_by: setattr(item, "status", status) or item
+    )
+
+    result = await registration_service.update_status(
+        uuid.uuid4(),
+        RegistrationStatus.ACCEPTED,
+        make_user(user_id=10),
+        moment=boundary - timedelta(microseconds=1),
+    )
+
+    assert result.status is RegistrationStatus.ACCEPTED
+    registration_repository.update_status.assert_awaited_once()
+    registration_repository.commit.assert_awaited_once_with()
 
 
 @pytest.mark.parametrize("access_kind", ["admin", "organizer", "co_organizer"])
@@ -995,6 +1027,7 @@ async def test_authorized_user_can_update_status(
             organizer_id=organizer_id,
             co_organizers=[SimpleNamespace(id=co_organizer_id)],
             end_date=datetime.max.replace(tzinfo=UTC),
+            allows_registration_status_changes_at=lambda _moment=None: True,
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
@@ -1032,6 +1065,7 @@ async def test_reactivating_rejected_team_member_checks_available_place(
             co_organizers=[],
             max_team_size=4,
             end_date=datetime.max.replace(tzinfo=UTC),
+            allows_registration_status_changes_at=lambda _moment=None: True,
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
@@ -1063,6 +1097,7 @@ async def test_reactivating_rejected_team_member_rolls_back_when_team_is_full(
             co_organizers=[],
             max_team_size=4,
             end_date=datetime.max.replace(tzinfo=UTC),
+            allows_registration_status_changes_at=lambda _moment=None: True,
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
@@ -1091,6 +1126,7 @@ async def test_update_status_rolls_back_repository_error(
             organizer_id=10,
             co_organizers=[],
             end_date=datetime.max.replace(tzinfo=UTC),
+            allows_registration_status_changes_at=lambda _moment=None: True,
         ),
     )
     registration_repository.update_status.side_effect = RuntimeError("update failed")
