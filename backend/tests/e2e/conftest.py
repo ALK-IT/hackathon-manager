@@ -1,10 +1,12 @@
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime
 from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from redis.asyncio import from_url
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.auth.models import User, UserRole
@@ -87,7 +89,7 @@ async def _login(
 
 
 @pytest.fixture
-def account_factory(e2e_client: AsyncClient) -> AccountFactory:
+def account_factory(e2e_client: AsyncClient, session: AsyncSession) -> AccountFactory:
     async def create_account(
         *,
         name: str,
@@ -99,6 +101,10 @@ def account_factory(e2e_client: AsyncClient) -> AccountFactory:
             json={"name": name, "email": email, "password": password},
         )
         assert register_response.status_code == 201
+        user = await session.scalar(select(User).where(User.email == email))
+        assert user is not None
+        user.email_verified_at = datetime.now(UTC)
+        await session.commit()
         return await _login(
             e2e_client,
             public_id=register_response.json()["public_id"],
@@ -120,6 +126,7 @@ async def admin_account(
         name="E2E Admin",
         email="e2e-admin@example.com",
         password_hash=hash_password(password),
+        email_verified_at=datetime.now(UTC),
         role=UserRole.ADMIN,
     )
     session.add(admin)

@@ -7,7 +7,12 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from src.auth.dependencies import get_current_user
-from src.auth.exceptions import EmailAlreadyRegisteredError, InvalidAccessTokenError
+from src.auth.exceptions import (
+    EmailAlreadyRegisteredError,
+    InvalidAccessTokenError,
+    InvalidActionTokenError,
+    RateLimitError,
+)
 from src.auth.schemas import UserCreate
 from src.auth.service import TokenService, UserService
 from src.auth.utils import (
@@ -112,6 +117,19 @@ async def test_revoked_token_is_rejected_by_current_user_dependency(mocker):
     user_service.get_by_public_id.assert_not_awaited()
 
 
+async def test_old_access_token_is_rejected_after_password_reset(mocker):
+    token = create_access_token(uuid.uuid4(), auth_version=2)
+    token_service = mocker.Mock()
+    token_service.is_revoked = mocker.AsyncMock(return_value=False)
+    user_service = mocker.Mock()
+    user_service.get_by_public_id = mocker.AsyncMock(return_value=SimpleNamespace(auth_version=3))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user(token, user_service, token_service)
+
+    assert exc_info.value.status_code == 401
+
+
 async def test_token_pair_is_issued_and_refresh_session_is_stored(mocker):
     cache = mocker.Mock()
     cache.set = mocker.AsyncMock()
@@ -145,7 +163,7 @@ async def test_refresh_token_is_rotated_only_once(mocker):
     cache.getdel = mocker.AsyncMock(side_effect=["1", None])
     service = TokenService(cache)
 
-    assert await service.consume_refresh_token(token) == public_id
+    assert (await service.consume_refresh_token(token)).subject == public_id
 
     with pytest.raises(InvalidAccessTokenError):
         await service.consume_refresh_token(token)
@@ -164,6 +182,57 @@ async def test_refresh_token_can_be_revoked_on_logout(mocker):
     await service.revoke_refresh_token(token)
 
     cache.delete.assert_awaited_once_with(refresh_session_key(session_id))
+
+
+async def test_action_token_is_hashed_and_can_only_be_consumed_once(mocker):
+    public_id = uuid.uuid4()
+    cache = mocker.Mock()
+    cache.get = mocker.AsyncMock(return_value=None)
+    cache.set = mocker.AsyncMock()
+    cache.delete = mocker.AsyncMock()
+    cache.getdel = mocker.AsyncMock(side_effect=[str(public_id), None])
+    service = TokenService(cache)
+
+    token = await service.issue_action_token(public_id, "password-reset", 1800)
+
+    assert len(token) >= 32
+    action_key = cache.set.await_args_list[0].args[0]
+    assert token not in action_key
+    assert await service.consume_action_token(token, "password-reset") == public_id
+    with pytest.raises(InvalidActionTokenError):
+        await service.consume_action_token(token, "password-reset")
+
+
+async def test_rate_limit_hashes_identifier_and_returns_retry_time(mocker):
+    cache = mocker.Mock()
+    cache.eval = mocker.AsyncMock(return_value=[4, 120])
+    service = TokenService(cache)
+
+    with pytest.raises(RateLimitError) as exc_info:
+        await service.enforce_rate_limit("forgot-password:email", "Jan@Example.com", 3, 900)
+
+    assert exc_info.value.retry_after == 120
+    await_args = cache.eval.await_args
+    key = await_args.args[2]
+    assert "Jan@Example.com" not in key
+    assert await_args.args[3] == 900
+
+
+async def test_reset_password_rehashes_password_and_invalidates_sessions(mocker):
+    user = SimpleNamespace(password_hash=hash_password("old-password"), auth_version=3)
+    repository = mocker.Mock()
+    repository.get_by_public_id = mocker.AsyncMock(return_value=user)
+    repository.update = mocker.AsyncMock()
+    repository.commit = mocker.AsyncMock()
+    service = UserService(repository)
+
+    result = await service.reset_password(uuid.uuid4(), "new-password123")
+
+    assert result is user
+    assert verify_password("new-password123", user.password_hash)
+    assert user.auth_version == 4
+    repository.update.assert_awaited_once_with(user)
+    repository.commit.assert_awaited_once_with()
 
 
 async def test_register_hashes_password_and_commits(mocker):
