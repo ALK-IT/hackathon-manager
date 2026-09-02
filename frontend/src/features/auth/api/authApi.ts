@@ -34,3 +34,47 @@ export function logoutRequest() {
     skipRefresh: true,
   })
 }
+
+export function verifyEmailRequest(token: string) {
+  return apiRequest<{ message: string }>('/api/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+    headers: { 'Content-Type': 'application/json' },
+    skipAuth: true,
+    skipRefresh: true,
+  })
+}
+
+export function resendVerificationRequest(email: string) {
+  return apiRequest<{ message: string }>('/api/auth/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+    headers: { 'Content-Type': 'application/json' },
+    skipAuth: true,
+    skipRefresh: true,
+  })
+}
+
+export function forgotPasswordRequest(email: string) {
+  return apiRequest<{ message: string }>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+    headers: { 'Content-Type': 'application/json' },
+    skipAuth: true,
+    skipRefresh: true,
+  })
+}
+
+export function resetPasswordRequest(
+  token: string,
+  password: string,
+  confirmPassword: string,
+) {
+  return apiRequest<{ message: string }>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password, confirm_password: confirmPassword }),
+    headers: { 'Content-Type': 'application/json' },
+    skipAuth: true,
+    skipRefresh: true,
+  })
+}

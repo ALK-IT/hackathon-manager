@@ -5,11 +5,12 @@ from fastapi.security import OAuth2PasswordBearer
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.auth.email import EmailService
 from src.auth.exceptions import InvalidAccessTokenError
 from src.auth.models import User
 from src.auth.repository import UserRepository
 from src.auth.service import TokenService, UserService
-from src.auth.utils import decode_access_token
+from src.auth.utils import decode_access_token_payload
 from src.cache import get_cache
 from src.database import get_session
 
@@ -25,6 +26,10 @@ def get_token_service(
     cache: Annotated[Redis, Depends(get_cache)],
 ) -> TokenService:
     return TokenService(cache)
+
+
+def get_email_service() -> EmailService:
+    return EmailService()
 
 
 def unauthorized_exception() -> HTTPException:
@@ -62,11 +67,11 @@ async def _get_authenticated_user(
         raise unauthorized_exception()
 
     try:
-        public_id = decode_access_token(token)
+        payload = decode_access_token_payload(token)
     except InvalidAccessTokenError as exc:
         raise unauthorized_exception() from exc
 
-    user = await service.get_by_public_id(public_id)
-    if user is None:
+    user = await service.get_by_public_id(payload.subject)
+    if user is None or user.auth_version != payload.auth_version:
         raise unauthorized_exception()
     return user

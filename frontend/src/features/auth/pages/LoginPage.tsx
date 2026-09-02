@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Alert, Button } from '../../../components/ui'
 import { useAuth } from '../hooks/useAuth'
 import { getLoginErrorMessage } from '../utils/authMessages'
@@ -44,7 +44,7 @@ export function LoginPage() {
       footerLinkTo="/register"
     >
       {(location.state as { registered?: boolean } | null)?.registered && (
-        <Alert>Konto zostało utworzone. Możesz się zalogować.</Alert>
+        <Alert>Konto zostało utworzone. Sprawdź e-mail i potwierdź konto.</Alert>
       )}
       {submitError && <Alert variant="error">{submitError}</Alert>}
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
@@ -69,6 +69,8 @@ export function LoginPage() {
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Logowanie…' : 'Zaloguj się'}
         </Button>
+        <Link to="/forgot-password">Nie pamiętasz hasła?</Link>
+        <Link to="/verify-email">Wyślij ponownie link aktywacyjny</Link>
       </form>
     </AuthPageLayout>
   )

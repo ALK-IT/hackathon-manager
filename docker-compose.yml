@@ -36,6 +36,13 @@ services:
       timeout: 5s
       retries: 10
 
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    platform: linux/amd64
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   backend:
     build: ./backend
     command: >-
@@ -51,6 +58,13 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-hackathon-manager-local-development-jwt-secret-key-2026}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - SMTP_HOST=${SMTP_HOST:-mailhog}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_STARTTLS=${SMTP_STARTTLS:-false}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - EMAIL_FROM=${EMAIL_FROM:-no-reply@hackathon-manager.local}
       # Local development fallback only; override this key in deployed environments.
       - RESOURCE_ENCRYPTION_KEY=${RESOURCE_ENCRYPTION_KEY:-9pCSQ_fFpSdZmaSE0l3uR4vNc-KJ9gNJp0stKVSHQX8=} # gitleaks:allow
     volumes:
@@ -62,6 +76,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailhog:
+        condition: service_started
 
 
   frontend:

@@ -61,7 +61,35 @@ def get_frontend_origins() -> list[str]:
     return origins
 
 
+def get_frontend_url() -> str:
+    return os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+
+
+def get_smtp_host() -> str:
+    return os.environ.get("SMTP_HOST", "localhost")
+
+
+def get_smtp_port() -> int:
+    try:
+        return int(os.environ.get("SMTP_PORT", "1025"))
+    except ValueError as exc:
+        raise RuntimeError("SMTP_PORT must be an integer") from exc
+
+
+def get_smtp_credentials() -> tuple[str | None, str | None]:
+    return os.environ.get("SMTP_USERNAME") or None, os.environ.get("SMTP_PASSWORD") or None
+
+
+def get_smtp_starttls() -> bool:
+    return os.environ.get("SMTP_STARTTLS", "false").lower() in {"1", "true", "yes"}
+
+
+def get_email_from() -> str:
+    return os.environ.get("EMAIL_FROM", "no-reply@hackathon-manager.local")
+
+
 def validate_configuration() -> None:
     get_jwt_secret_key()
     get_auth_cookie_samesite()
     get_frontend_origins()
+    get_smtp_port()
