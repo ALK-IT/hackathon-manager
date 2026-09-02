@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from src.hackathon_tasks.schemas import ParticipantTaskResponse
 from src.registration.models import RegistrationStatus
 from src.teams.schemas import TeamResponse, TeamSelection
 
@@ -68,7 +69,12 @@ class ParticipantAreaResponse(BaseModel):
 
     public_id: uuid.UUID
     name: str
+    description: str
+    start_date: datetime
+    end_date: datetime
+    tasks_released_at: datetime
     team: ParticipantTeamResponse | None
+    tasks: list[ParticipantTaskResponse]
 
 
 class RegistrationStatusChangedByResponse(BaseModel):

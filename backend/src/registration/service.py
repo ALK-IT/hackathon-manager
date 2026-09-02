@@ -5,6 +5,8 @@ from sqlalchemy.exc import IntegrityError
 
 from src.auth.models import User
 from src.common.sqlalchemy import get_integrity_error_constraint
+from src.hackathon_tasks.repository import TaskRepository
+from src.hackathon_tasks.schemas import ParticipantTaskResponse
 from src.hackathons.access import can_manage_hackathon
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
@@ -157,11 +159,13 @@ class RegistrationService:
         question_repository: RegistrationQuestionRepository,
         hackathon_repository: HackathonRepository,
         team_service: TeamService,
+        task_repository: TaskRepository,
     ):
         self.registration_repository = registration_repository
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
         self.team_service = team_service
+        self.task_repository = task_repository
 
     async def list_registrations(
         self,
@@ -279,11 +283,26 @@ class RegistrationService:
             raise RegistrationNotAcceptedError()
         team = registration.team
         hackathon = registration.hackathon
+        tasks = []
+        if hackathon.are_tasks_released_at():
+            task_rows = await self.task_repository.list_with_team_submission(
+                hackathon.id,
+                registration.team_id,
+            )
+            tasks = [
+                ParticipantTaskResponse.from_entities(task, submission)
+                for task, submission in task_rows
+            ]
         if registration.team_id is None:
             return ParticipantAreaResponse(
                 public_id=hackathon.public_id,
                 name=hackathon.name,
+                description=hackathon.description,
+                start_date=hackathon.start_date,
+                end_date=hackathon.end_date,
+                tasks_released_at=hackathon.tasks_released_at or hackathon.start_date,
                 team=None,
+                tasks=tasks,
             )
         users = await self.team_service.list_accepted_users(registration.team_id)
 
@@ -298,7 +317,12 @@ class RegistrationService:
         return ParticipantAreaResponse(
             public_id=hackathon.public_id,
             name=hackathon.name,
+            description=hackathon.description,
+            start_date=hackathon.start_date,
+            end_date=hackathon.end_date,
+            tasks_released_at=hackathon.tasks_released_at or hackathon.start_date,
             team=team_response,
+            tasks=tasks,
         )
 
     async def delete_registration(
