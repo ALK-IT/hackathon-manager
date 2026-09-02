@@ -39,7 +39,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 EMAIL_VERIFICATION_TTL = 24 * 60 * 60
 PASSWORD_RESET_TTL = 30 * 60
-RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_WINDOW = 5 * 60
 
 
 async def deliver_email(send_operation: Awaitable[None]) -> bool:
