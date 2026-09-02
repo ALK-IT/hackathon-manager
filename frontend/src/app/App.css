@@ -76,6 +76,31 @@ button:disabled {
   padding-left: 20px;
 }
 
+.participant-area-stack,
+.participant-task-list,
+.task-submission-form {
+  display: grid;
+  gap: 16px;
+}
+
+.participant-task-card {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.task-submission-form {
+  gap: 8px;
+}
+
+.task-submission-form input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.task-submission-form button {
+  justify-self: start;
+}
+
 .registration-questions,
 .team-options {
   display: grid;
