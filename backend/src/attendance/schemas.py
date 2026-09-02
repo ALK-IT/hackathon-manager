@@ -3,6 +3,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.attendance.models import CheckIn
+from src.auth.schemas import UserRead
+
 
 class SessionCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -30,3 +33,19 @@ class SessionCreateResponse(BaseModel):
     token: str
     expires_at: datetime
     is_active: bool
+
+
+class CheckInListItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    check_in: CheckInResponse
+    participant: UserRead
+    registration_public_id: uuid.UUID
+
+    @classmethod
+    def from_check_in(cls, check_in: CheckIn) -> "CheckInListItemResponse":
+        return cls(
+            check_in=CheckInResponse.model_validate(check_in),
+            participant=UserRead.model_validate(check_in.registration.user),
+            registration_public_id=check_in.registration.public_id,
+        )

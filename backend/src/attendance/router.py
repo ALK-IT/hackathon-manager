@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, status
 
 from src.attendance.dependencies import get_attendance_service
 from src.attendance.schemas import (
+    CheckInListItemResponse,
     CheckInRequest,
     CheckInResponse,
     SessionCreateRequest,
@@ -28,7 +29,7 @@ async def create_check_in_session(
     service: Annotated[AttendanceService, Depends(get_attendance_service)],
     data: SessionCreateRequest,
 ):
-    result = await service.create_session(hackathon_public_id, current_user, data)
+    result = await service.create_check_in_session(hackathon_public_id, current_user, data)
     return SessionCreateResponse(
         public_id=result.session.public_id,
         token=result.token,
@@ -37,18 +38,32 @@ async def create_check_in_session(
     )
 
 
+@router.get(
+    "/hackathons/{hackathon_public_id}/check-ins",
+    response_model=list[CheckInListItemResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_check_ins(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AttendanceService, Depends(get_attendance_service)],
+) -> list[CheckInListItemResponse]:
+    check_ins = await service.list_check_ins(hackathon_public_id, current_user)
+    return [CheckInListItemResponse.from_check_in(check_in) for check_in in check_ins]
+
+
 @router.put(
     "/hackathons/{hackathon_public_id}/check-ins/me",
     response_model=CheckInResponse,
     status_code=status.HTTP_200_OK,
 )
-async def update_check_in_session(
+async def check_in_current_user(
     hackathon_public_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AttendanceService, Depends(get_attendance_service)],
     data: CheckInRequest,
 ) -> CheckInResponse:
-    result = await service.join_session(hackathon_public_id, current_user, data)
+    result = await service.check_in_current_user(hackathon_public_id, current_user, data)
     return CheckInResponse(
         public_id=result.public_id,
         checked_in_at=result.checked_in_at,
