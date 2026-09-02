@@ -29,5 +29,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-010 | Zasoby hackathonu i ręczny przydział | Zaimplementowany | [implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md](implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md) |
 | SPEC-011 | Frontend pytań rejestracyjnych i ustawień hackathonu | Zaimplementowany | [implemented/SPEC-011-2026-08-22-frontend-pytan-i-ustawien-hackathonu.md](implemented/SPEC-011-2026-08-22-frontend-pytan-i-ustawien-hackathonu.md) |
 | SPEC-012 | Strefa uczestnika i status zgłoszenia na liście hackathonów | Zaimplementowany | [implemented/SPEC-012-2026-08-26-strefa-uczestnika.md](implemented/SPEC-012-2026-08-26-strefa-uczestnika.md) |
+| SPEC-013 | Zadania hackathonu i rozwiązania drużyn | Zaakceptowany | [SPEC-013-2026-09-03-zadania-i-rozwiazania-druzyn.md](SPEC-013-2026-09-03-zadania-i-rozwiazania-druzyn.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).
