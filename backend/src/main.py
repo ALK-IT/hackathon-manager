@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import src.all_models  # noqa: F401
 from src.api import api_router
 from src.auth.config import get_frontend_origins, validate_configuration
+from src.hackathon_tasks.exceptions import TaskError
 from src.hackathons.exceptions import HackathonError
 from src.registration.exceptions import RegistrationError
 from src.resources.config import validate_resource_configuration
@@ -39,6 +40,14 @@ async def handle_registration_error(
     _request: Request,
     exc: RegistrationError,
 ) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error_code": exc.error_code, "detail": exc.detail},
+    )
+
+
+@app.exception_handler(TaskError)
+async def handle_task_error(_request: Request, exc: TaskError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={"error_code": exc.error_code, "detail": exc.detail},
