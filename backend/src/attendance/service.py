@@ -36,7 +36,7 @@ class AttendanceService:
         self.hackathon_repository = hackathon_repository
         self.registration_repository = registration_repository
 
-    async def create_session(
+    async def create_check_in_session(
         self,
         hackathon_public_id: uuid.UUID,
         user: User,
@@ -58,7 +58,7 @@ class AttendanceService:
         )
         try:
             await self.attendance_repository.deactivate_active_session(hackathon.id)
-            await self.attendance_repository.create_session(check_in_session)
+            await self.attendance_repository.create_check_in_session(check_in_session)
             await self.attendance_repository.commit()
         except Exception:
             await self.attendance_repository.rollback()
@@ -68,7 +68,7 @@ class AttendanceService:
             token=token,
         )
 
-    async def join_session(
+    async def check_in_current_user(
         self,
         hackathon_public_id: uuid.UUID,
         user: User,
@@ -99,9 +99,17 @@ class AttendanceService:
             session=check_in_session,
         )
         try:
-            await self.attendance_repository.join_session(check_in)
+            await self.attendance_repository.create_check_in(check_in)
             await self.attendance_repository.commit()
         except Exception:
             await self.attendance_repository.rollback()
             raise
         return check_in
+
+    async def list_check_ins(self, hackathon_public_id: uuid.UUID, user: User) -> list[CheckIn]:
+        hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
+        if hackathon is None:
+            raise HackathonNotFoundError()
+        if not can_manage_hackathon(hackathon, user):
+            raise AttendancePermissionError()
+        return await self.attendance_repository.get_check_ins_by_hackathon(hackathon.id)
