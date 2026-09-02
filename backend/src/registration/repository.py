@@ -150,6 +150,23 @@ class RegistrationRepository:
 
         return result.scalar_one_or_none()
 
+    async def get_accepted_by_hackathon_and_user_for_update(
+        self,
+        hackathon_id: int,
+        user_id: int,
+    ) -> Registration | None:
+        result = await self.session.execute(
+            select(Registration)
+            .where(
+                Registration.hackathon_id == hackathon_id,
+                Registration.user_id == user_id,
+                Registration.status == RegistrationStatus.ACCEPTED,
+            )
+            .with_for_update()
+        )
+
+        return result.scalar_one_or_none()
+
     async def update_status(
         self,
         registration: Registration,

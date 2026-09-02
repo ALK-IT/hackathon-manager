@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.attendance.models import CheckInSession
+from src.attendance.models import CheckIn, CheckInSession
 
 
 class AttendanceRepository:
@@ -23,6 +23,11 @@ class AttendanceRepository:
         await self.session.flush()
         return check_in_session
 
+    async def join_session(self, check_in: CheckIn) -> CheckIn:
+        self.session.add(check_in)
+        await self.session.flush()
+        return check_in
+
     async def get_valid_session_for_update(
         self, hackathon_id: int, token_hash: str, checked_at: datetime
     ) -> CheckInSession | None:
@@ -36,6 +41,10 @@ class AttendanceRepository:
             )
             .with_for_update()
         )
+        return await self.session.scalar(statement)
+
+    async def get_check_in_by_registration_id(self, registration_id: int) -> CheckIn | None:
+        statement = select(CheckIn).where(CheckIn.registration_id == registration_id)
         return await self.session.scalar(statement)
 
     async def commit(self) -> None:
