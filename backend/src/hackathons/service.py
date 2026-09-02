@@ -18,6 +18,7 @@ from src.hackathons.exceptions import (
     InvalidDateRangeError,
     InvalidRegistrationDeadlineError,
     InvalidRegistrationWindowError,
+    InvalidTasksReleaseDateError,
     InvalidTeamSizeError,
     OrganizerCannotBeCoOrganizerError,
     RegistrationAlreadyClosedError,
@@ -102,6 +103,10 @@ class HackathonService:
             "registration_opens_at",
             hackathon.registration_opens_at,
         )
+        tasks_released_at = changes.get(
+            "tasks_released_at",
+            hackathon.tasks_released_at or hackathon.start_date,
+        )
         self._validate_ranges(
             start_date,
             end_date,
@@ -109,6 +114,7 @@ class HackathonService:
             registration_deadline,
             capacity,
             max_team_size,
+            tasks_released_at,
         )
 
         for field, value in changes.items():
@@ -225,6 +231,7 @@ class HackathonService:
         registration_deadline: datetime,
         capacity: int | None,
         max_team_size: int,
+        tasks_released_at: datetime,
     ) -> None:
         if end_date <= start_date:
             raise InvalidDateRangeError
@@ -234,3 +241,5 @@ class HackathonService:
             raise InvalidRegistrationWindowError
         if capacity is not None and max_team_size > capacity:
             raise InvalidTeamSizeError
+        if tasks_released_at >= end_date:
+            raise InvalidTasksReleaseDateError
