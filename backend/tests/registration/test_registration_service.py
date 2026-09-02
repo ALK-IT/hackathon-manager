@@ -162,17 +162,26 @@ def team_service(mocker):
 
 
 @pytest.fixture
+def task_repository(mocker):
+    repository = mocker.Mock()
+    repository.list_with_team_submission = mocker.AsyncMock(return_value=[])
+    return repository
+
+
+@pytest.fixture
 def registration_service(
     registration_repository,
     question_repository,
     hackathon_repository,
     team_service,
+    task_repository,
 ):
     return RegistrationService(
         registration_repository=registration_repository,
         question_repository=question_repository,
         hackathon_repository=hackathon_repository,
         team_service=team_service,
+        task_repository=task_repository,
     )
 
 
@@ -989,8 +998,8 @@ async def test_update_status_allows_changes_just_before_hackathon_end(
         hackathon=hackathon,
     )
     registration_repository.get_active_by_public_id.return_value = registration
-    registration_repository.update_status.side_effect = (
-        lambda item, status, _changed_by: setattr(item, "status", status) or item
+    registration_repository.update_status.side_effect = lambda item, status, _changed_by: (
+        setattr(item, "status", status) or item
     )
 
     result = await registration_service.update_status(
@@ -1033,8 +1042,8 @@ async def test_authorized_user_can_update_status(
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
-    registration_repository.update_status.side_effect = (
-        lambda item, status, _changed_by: setattr(item, "status", status) or item
+    registration_repository.update_status.side_effect = lambda item, status, _changed_by: (
+        setattr(item, "status", status) or item
     )
 
     result = await registration_service.update_status(
@@ -1071,8 +1080,8 @@ async def test_reactivating_rejected_team_member_checks_available_place(
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
-    registration_repository.update_status.side_effect = (
-        lambda item, status, _changed_by: setattr(item, "status", status) or item
+    registration_repository.update_status.side_effect = lambda item, status, _changed_by: (
+        setattr(item, "status", status) or item
     )
 
     result = await registration_service.update_status(
@@ -1202,7 +1211,17 @@ async def test_participant_area_returns_accepted_team_members(
     team_service,
 ):
     current_user = make_user()
-    hackathon = SimpleNamespace(public_id=uuid.uuid4(), name="AI Hackathon")
+    now = datetime.now(UTC)
+    hackathon = SimpleNamespace(
+        id=10,
+        public_id=uuid.uuid4(),
+        name="AI Hackathon",
+        description="Build something useful",
+        start_date=now - timedelta(hours=1),
+        end_date=now + timedelta(days=1),
+        tasks_released_at=now - timedelta(hours=1),
+        are_tasks_released_at=lambda: True,
+    )
     team = SimpleNamespace(id=20, public_id=uuid.uuid4(), name="Byte Buccaneers")
     members = [
         SimpleNamespace(public_id=uuid.uuid4(), name="Jan Kowalski"),
@@ -1238,7 +1257,17 @@ async def test_participant_area_returns_null_team_for_accepted_individual(
     team_service,
 ):
     current_user = make_user()
-    hackathon = SimpleNamespace(public_id=uuid.uuid4(), name="AI Hackathon")
+    now = datetime.now(UTC)
+    hackathon = SimpleNamespace(
+        id=10,
+        public_id=uuid.uuid4(),
+        name="AI Hackathon",
+        description="Build something useful",
+        start_date=now - timedelta(hours=1),
+        end_date=now + timedelta(days=1),
+        tasks_released_at=now - timedelta(hours=1),
+        are_tasks_released_at=lambda: True,
+    )
     registration_repository.get_by_hackathon_and_user.return_value = SimpleNamespace(
         status=RegistrationStatus.ACCEPTED,
         team_id=None,
