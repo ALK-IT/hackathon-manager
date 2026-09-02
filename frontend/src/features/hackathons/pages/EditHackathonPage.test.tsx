@@ -20,6 +20,7 @@ const hackathon: HackathonDetails = {
   capacity: 100,
   max_team_size: 4,
   access_level: 'owner',
+  my_registration_status: null,
   organizer: { public_id: 'admin-id', name: 'Admin' },
   co_organizers: [],
   created_at: '2026-08-13T10:00:00Z',
