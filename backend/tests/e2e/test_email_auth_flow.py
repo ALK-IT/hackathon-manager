@@ -20,7 +20,9 @@ class CapturingEmailService:
 
 
 @pytest.fixture
-async def captured_email_service() -> AsyncIterator[CapturingEmailService]:
+async def captured_email_service(
+    e2e_client: AsyncClient,
+) -> AsyncIterator[CapturingEmailService]:
     service = CapturingEmailService()
     app.dependency_overrides[get_email_service] = lambda: service
     try:
