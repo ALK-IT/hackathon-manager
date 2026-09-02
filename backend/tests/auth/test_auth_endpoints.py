@@ -7,7 +7,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.dependencies import get_optional_current_user
-from src.auth.exceptions import InvalidAccessTokenError
+from src.auth.email import EmailDeliveryError
+from src.auth.exceptions import InvalidAccessTokenError, RateLimitError
 from src.auth.models import User
 from src.auth.repository import UserRepository
 from src.auth.service import IssuedTokenPair
@@ -77,14 +78,15 @@ async def test_refresh_endpoint_rotates_token_pair(
     mocker,
 ):
     public_id = uuid.uuid4()
-    user = SimpleNamespace(public_id=public_id)
+    user = SimpleNamespace(public_id=public_id, auth_version=2)
     tokens = IssuedTokenPair(
         access_token="new-access-token",
         refresh_token="new-refresh-token",
         access_expires_in=1800,
         refresh_expires_in=604800,
     )
-    mock_token_service.consume_refresh_token = mocker.AsyncMock(return_value=public_id)
+    payload = SimpleNamespace(subject=public_id, auth_version=2)
+    mock_token_service.consume_refresh_token = mocker.AsyncMock(return_value=payload)
     mock_token_service.issue_token_pair = mocker.AsyncMock(return_value=tokens)
     mock_user_service.get_by_public_id.return_value = user
 
@@ -104,7 +106,7 @@ async def test_refresh_endpoint_rotates_token_pair(
     assert "refresh_token=new-refresh-token" in response.headers["set-cookie"]
     assert "HttpOnly" in response.headers["set-cookie"]
     mock_token_service.consume_refresh_token.assert_awaited_once_with("old-refresh-token")
-    mock_token_service.issue_token_pair.assert_awaited_once_with(public_id)
+    mock_token_service.issue_token_pair.assert_awaited_once_with(public_id, 2)
 
 
 async def test_refresh_endpoint_requires_cookie(auth_client_with_user_service):
@@ -113,7 +115,10 @@ async def test_refresh_endpoint_requires_cookie(auth_client_with_user_service):
     assert response.status_code == 401
 
 
-async def test_register_login_and_me_use_database(auth_client: AsyncClient):
+async def test_register_verify_login_and_me_use_database(
+    auth_client: AsyncClient,
+    mock_token_service,
+):
     register_response = await auth_client.post(
         "/api/auth/register",
         json={
@@ -125,6 +130,19 @@ async def test_register_login_and_me_use_database(auth_client: AsyncClient):
 
     assert register_response.status_code == 201
     public_id = uuid.UUID(register_response.json()["public_id"])
+
+    blocked_login_response = await auth_client.post(
+        "/api/auth/login",
+        data={"username": "jan@example.com", "password": "password123"},
+    )
+    assert blocked_login_response.status_code == 403
+
+    mock_token_service.consume_action_token.return_value = public_id
+    verify_response = await auth_client.post(
+        "/api/auth/verify-email",
+        json={"token": "a" * 43},
+    )
+    assert verify_response.status_code == 200
 
     login_response = await auth_client.post(
         "/api/auth/login",
@@ -148,6 +166,94 @@ async def test_register_login_and_me_use_database(auth_client: AsyncClient):
     assert me_response.json()["role"] == "user"
 
 
+async def test_forgot_password_does_not_disclose_missing_account(
+    auth_client_with_user_service,
+    mock_user_service,
+    mock_email_service,
+    mocker,
+):
+    mock_user_service.get_by_email = mocker.AsyncMock(return_value=None)
+
+    response = await auth_client_with_user_service.post(
+        "/api/auth/forgot-password",
+        json={"email": "missing@example.com"},
+    )
+
+    assert response.status_code == 202
+    mock_email_service.send_password_reset.assert_not_awaited()
+
+
+async def test_rate_limited_password_reset_returns_retry_after(
+    auth_client,
+    mock_token_service,
+):
+    mock_token_service.enforce_rate_limit.side_effect = RateLimitError(60)
+
+    response = await auth_client.post(
+        "/api/auth/forgot-password",
+        json={"email": "jan@example.com"},
+    )
+
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "60"
+
+
+async def test_resend_verification_sends_a_new_link(
+    auth_client_with_user_service,
+    mock_user_service,
+    mock_token_service,
+    mock_email_service,
+    mocker,
+):
+    public_id = uuid.uuid4()
+    user = SimpleNamespace(
+        public_id=public_id,
+        email="jan@example.com",
+        email_verified_at=None,
+    )
+    mock_user_service.get_by_email = mocker.AsyncMock(return_value=user)
+
+    response = await auth_client_with_user_service.post(
+        "/api/auth/resend-verification",
+        json={"email": "jan@example.com"},
+    )
+
+    assert response.status_code == 202
+    mock_token_service.issue_action_token.assert_awaited_once_with(
+        public_id,
+        "email-verification",
+        86400,
+    )
+    mock_email_service.send_verification.assert_awaited_once()
+
+
+async def test_reset_password_consumes_token_and_changes_password(
+    auth_client_with_user_service,
+    mock_user_service,
+    mock_token_service,
+    mocker,
+):
+    public_id = uuid.uuid4()
+    mock_token_service.consume_action_token.return_value = public_id
+    mock_user_service.reset_password = mocker.AsyncMock(return_value=SimpleNamespace())
+
+    response = await auth_client_with_user_service.post(
+        "/api/auth/reset-password",
+        json={
+            "token": "a" * 43,
+            "password": "new-password123",
+            "confirm_password": "new-password123",
+        },
+    )
+
+    assert response.status_code == 200
+    mock_token_service.consume_action_token.assert_awaited_once_with(
+        "a" * 43,
+        "password-reset",
+    )
+    mock_user_service.reset_password.assert_awaited_once_with(public_id, "new-password123")
+
+
 async def test_register_endpoint_rejects_duplicate_email(auth_client: AsyncClient):
     payload = {
         "name": "Jan Kowalski",
@@ -160,6 +266,24 @@ async def test_register_endpoint_rejects_duplicate_email(auth_client: AsyncClien
 
     assert first_response.status_code == 201
     assert duplicate_response.status_code == 409
+
+
+async def test_register_reports_verification_email_delivery_failure(
+    auth_client: AsyncClient,
+    mock_email_service,
+):
+    mock_email_service.send_verification.side_effect = EmailDeliveryError
+
+    response = await auth_client.post(
+        "/api/auth/register",
+        json={
+            "name": "Mail Failure",
+            "email": "mail-failure@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert response.status_code == 503
 
 
 async def test_user_me_information(

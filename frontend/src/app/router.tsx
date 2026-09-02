@@ -1,5 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { LoginPage, RegisterPage } from '../features/auth'
+import {
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+} from '../features/auth'
 import {
   CreateHackathonPage,
   EditHackathonPage,
@@ -34,6 +40,16 @@ export function AppRouter() {
           </PublicOnlyRoute>
         }
       />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicOnlyRoute>
+            <ForgotPasswordPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/hackathons" element={<HackathonsPage />} />
       <Route
         path="/hackathons/create"
