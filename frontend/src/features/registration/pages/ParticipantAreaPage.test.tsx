@@ -6,6 +6,7 @@ import { ParticipantAreaPage } from './ParticipantAreaPage'
 
 vi.mock('../api/registrationApi', () => ({
   getParticipantArea: vi.fn(),
+  saveTaskSubmission: vi.fn(),
 }))
 
 function renderPage() {
@@ -28,6 +29,11 @@ describe('ParticipantAreaPage', () => {
     vi.mocked(getParticipantArea).mockResolvedValue({
       public_id: 'hackathon-id',
       name: 'Hackathon AI',
+      description: 'Zbuduj użyteczne rozwiązanie.',
+      start_date: '2026-09-03T08:00:00Z',
+      end_date: '2099-09-05T18:00:00Z',
+      tasks_released_at: '2026-09-03T08:00:00Z',
+      tasks: [],
       team: {
         public_id: 'team-id',
         name: 'Byte Buccaneers',
@@ -50,6 +56,11 @@ describe('ParticipantAreaPage', () => {
     vi.mocked(getParticipantArea).mockResolvedValue({
       public_id: 'hackathon-id',
       name: 'Hackathon AI',
+      description: 'Zbuduj użyteczne rozwiązanie.',
+      start_date: '2026-09-03T08:00:00Z',
+      end_date: '2099-09-05T18:00:00Z',
+      tasks_released_at: '2026-09-03T08:00:00Z',
+      tasks: [],
       team: null,
     })
 
