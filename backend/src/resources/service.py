@@ -6,16 +6,18 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from src.auth.models import User
 from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.access import can_manage_hackathon
-from src.resources.crypto import encrypt_value
+from src.resources.crypto import decrypt_value, encrypt_value
 from src.resources.exceptions import (
     ResourceItemNotFoundError,
     ResourceItemUnavailableError,
+    ResourceNotAssignedToUserError,
     ResourceNotFoundError,
     ResourcePermissionError,
     ResourceRecipientNotFoundError,
+    ResourceRevokedError,
     ResourceTargetMismatchError,
 )
-from src.resources.models import Resource, ResourceAssignment, ResourceItem
+from src.resources.models import Resource, ResourceAssignment, ResourceAuditLog, ResourceItem
 from src.resources.repository import ResourceRepository
 from src.resources.schemas import (
     ResourceAssignmentCreate,
@@ -170,3 +172,33 @@ class ResourceService:
             raise
 
         return assignment
+
+    async def list_my_resources(self, current_user: User) -> list[ResourceAssignment]:
+        return await self.repository.list_assignments_for_user(current_user.id)
+
+    async def reveal_item(self, item_public_id: uuid.UUID, current_user: User) -> str:
+        assignment = await self.repository.get_assignment_for_user(
+            item_public_id,
+            current_user.id,
+        )
+        if assignment is None:
+            raise ResourceNotAssignedToUserError()
+
+        item = assignment.resource_item
+        if item.is_revoked or assignment.revoked_at is not None:
+            raise ResourceRevokedError()
+
+        value = decrypt_value(item.encrypted_value)
+        audit_log = ResourceAuditLog(
+            resource_id=item.resource_id,
+            user_id=current_user.id,
+            action="viewed",
+            details=f"resource_item_public_id={item.public_id}",
+        )
+        try:
+            await self.repository.create_audit_log(audit_log)
+            await self.repository.commit()
+        except SQLAlchemyError:
+            await self.repository.rollback()
+            raise
+        return value
