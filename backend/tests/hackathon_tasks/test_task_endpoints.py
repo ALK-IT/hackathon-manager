@@ -36,7 +36,6 @@ async def create_hackathon(
     session: AsyncSession,
     organizer: User,
     *,
-    tasks_released: bool = True,
     ended: bool = False,
 ) -> Hackathon:
     now = datetime.now(UTC)
@@ -55,9 +54,6 @@ async def create_hackathon(
         capacity=50,
         max_team_size=4,
         teams_enabled=True,
-        tasks_released_at=(
-            now - timedelta(minutes=1) if tasks_released else now + timedelta(hours=1)
-        ),
     )
     session.add(hackathon)
     await session.flush()
@@ -113,9 +109,14 @@ async def test_manager_creates_updates_and_deletes_task(
 
     create_response = await api_client.post(
         f"/api/hackathons/{hackathon.public_id}/tasks",
-        json={"title": "API", "description": "Build a REST API."},
+        json={
+            "title": "API",
+            "description": "Build a REST API.",
+            "visible_from": (datetime.now(UTC) + timedelta(hours=2)).isoformat(),
+        },
     )
     assert create_response.status_code == 201
+    assert create_response.json()["visible_from"] is not None
     task_public_id = create_response.json()["public_id"]
 
     update_response = await api_client.patch(
@@ -151,23 +152,53 @@ async def test_regular_user_cannot_create_task(
     assert response.json()["error_code"] == "TASK_PERMISSION_DENIED"
 
 
-async def test_accepted_participant_sees_tasks_only_after_release(
+async def test_task_visibility_must_be_before_hackathon_end(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    hackathon = await create_hackathon(session, admin)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/tasks",
+        json={
+            "title": "API",
+            "description": "Build a REST API.",
+            "visible_from": hackathon.end_date.isoformat(),
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "INVALID_TASK_VISIBILITY_DATE"
+
+
+async def test_accepted_participant_sees_only_released_tasks(
     api_client: AsyncClient,
     session: AsyncSession,
     force_authenticate: ForceAuthenticate,
 ):
     admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
     participant = await create_user(session, "participant@example.com")
-    hackathon = await create_hackathon(session, admin, tasks_released=False)
+    hackathon = await create_hackathon(session, admin)
     await create_team_with_participants(session, hackathon, participant)
-    session.add(HackathonTask(hackathon=hackathon, title="API", description="Build it."))
+    session.add(
+        HackathonTask(
+            hackathon=hackathon,
+            title="API",
+            description="Build it.",
+            visible_from=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
     await session.commit()
     force_authenticate(participant)
 
     response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/tasks")
 
-    assert response.status_code == 403
-    assert response.json()["error_code"] == "TASKS_NOT_RELEASED"
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 async def test_team_members_share_one_submission_and_manager_can_list_it(
@@ -180,7 +211,12 @@ async def test_team_members_share_one_submission_and_manager_can_list_it(
     second_member = await create_user(session, "second@example.com")
     hackathon = await create_hackathon(session, admin)
     team = await create_team_with_participants(session, hackathon, first_member, second_member)
-    task = HackathonTask(hackathon=hackathon, title="API", description="Build it.")
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
     session.add(task)
     await session.commit()
 
@@ -220,7 +256,12 @@ async def test_participant_area_contains_description_tasks_and_team_submission(
     participant = await create_user(session, "participant@example.com")
     hackathon = await create_hackathon(session, admin)
     await create_team_with_participants(session, hackathon, participant)
-    task = HackathonTask(hackathon=hackathon, title="API", description="Build it.")
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
     session.add(task)
     await session.commit()
     force_authenticate(participant)
@@ -246,7 +287,12 @@ async def test_accepted_participant_without_team_cannot_submit(
     admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
     participant = await create_user(session, "participant@example.com")
     hackathon = await create_hackathon(session, admin)
-    task = HackathonTask(hackathon=hackathon, title="API", description="Build it.")
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
     session.add_all(
         [
             task,
@@ -278,7 +324,12 @@ async def test_submission_rejects_invalid_github_url(
     participant = await create_user(session, "participant@example.com")
     hackathon = await create_hackathon(session, admin)
     await create_team_with_participants(session, hackathon, participant)
-    task = HackathonTask(hackathon=hackathon, title="API", description="Build it.")
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
     session.add(task)
     await session.commit()
     force_authenticate(participant)
