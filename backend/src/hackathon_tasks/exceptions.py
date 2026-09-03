@@ -22,6 +22,12 @@ class TasksNotReleasedError(TaskError):
     detail = "Tasks have not been released yet."
 
 
+class InvalidTaskVisibilityDateError(TaskError):
+    status_code = 422
+    error_code = "INVALID_TASK_VISIBILITY_DATE"
+    detail = "visible_from must be earlier than the hackathon end date."
+
+
 class TeamRequiredForSubmissionError(TaskError):
     status_code = 409
     error_code = "TEAM_REQUIRED_FOR_SUBMISSION"

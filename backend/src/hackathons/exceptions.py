@@ -58,12 +58,6 @@ class InvalidTeamSizeError(HackathonError):
     detail = "max_team_size cannot be greater than capacity."
 
 
-class InvalidTasksReleaseDateError(HackathonError):
-    status_code = 422
-    error_code = "INVALID_TASKS_RELEASE_DATE"
-    detail = "tasks_released_at must be earlier than end_date."
-
-
 class InvalidConfirmNameError(HackathonError):
     status_code = 400
     error_code = "INVALID_CONFIRM_NAME"

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from sqlalchemy import false, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,11 +13,19 @@ class TaskRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def list_by_hackathon_id(self, hackathon_id: int) -> list[HackathonTask]:
+    async def list_by_hackathon_id(
+        self,
+        hackathon_id: int,
+        *,
+        visible_before: datetime | None = None,
+    ) -> list[HackathonTask]:
+        statement = select(HackathonTask).where(HackathonTask.hackathon_id == hackathon_id)
+        if visible_before is not None:
+            statement = statement.where(HackathonTask.visible_from <= visible_before)
         result = await self.session.scalars(
-            select(HackathonTask)
-            .where(HackathonTask.hackathon_id == hackathon_id)
-            .order_by(HackathonTask.created_at, HackathonTask.id)
+            statement.order_by(
+                HackathonTask.visible_from, HackathonTask.created_at, HackathonTask.id
+            )
         )
         return list(result.all())
 
@@ -24,6 +33,8 @@ class TaskRepository:
         self,
         hackathon_id: int,
         team_id: int | None,
+        *,
+        visible_before: datetime,
     ) -> list[tuple[HackathonTask, TaskSubmission | None]]:
         submission_join = (
             (TaskSubmission.task_id == HackathonTask.id) & (TaskSubmission.team_id == team_id)
@@ -33,12 +44,15 @@ class TaskRepository:
         result = await self.session.execute(
             select(HackathonTask, TaskSubmission)
             .outerjoin(TaskSubmission, submission_join)
-            .where(HackathonTask.hackathon_id == hackathon_id)
+            .where(
+                HackathonTask.hackathon_id == hackathon_id,
+                HackathonTask.visible_from <= visible_before,
+            )
             .options(
                 selectinload(TaskSubmission.team),
                 selectinload(TaskSubmission.submitted_by),
             )
-            .order_by(HackathonTask.created_at, HackathonTask.id)
+            .order_by(HackathonTask.visible_from, HackathonTask.created_at, HackathonTask.id)
         )
         return list(result.tuples().all())
 

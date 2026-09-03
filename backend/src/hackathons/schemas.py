@@ -28,7 +28,6 @@ class HackathonCreate(BaseModel):
     capacity: int | None = Field(default=None, ge=1)
     max_team_size: int = Field(ge=1)
     teams_enabled: bool = True
-    tasks_released_at: datetime | None = None
 
     @field_validator("name", mode="before")
     @classmethod
@@ -49,7 +48,6 @@ class HackathonCreate(BaseModel):
         "end_date",
         "registration_opens_at",
         "registration_deadline",
-        "tasks_released_at",
     )
     @classmethod
     def validate_timezone(cls, value: datetime | None) -> datetime | None:
@@ -69,10 +67,6 @@ class HackathonCreate(BaseModel):
             raise ValueError("registration_opens_at must be earlier than registration_deadline")
         if self.capacity is not None and self.max_team_size > self.capacity:
             raise ValueError("max_team_size cannot be greater than capacity")
-        if self.tasks_released_at is None:
-            self.tasks_released_at = self.start_date
-        elif self.tasks_released_at >= self.end_date:
-            raise ValueError("tasks_released_at must be earlier than end_date")
         return self
 
 
@@ -88,7 +82,6 @@ class HackathonUpdate(BaseModel):
     capacity: int | None = Field(default=None, ge=1)
     max_team_size: int | None = Field(default=None, ge=1)
     teams_enabled: bool | None = None
-    tasks_released_at: datetime | None = None
 
     @field_validator("name", mode="before")
     @classmethod
@@ -109,7 +102,6 @@ class HackathonUpdate(BaseModel):
         "end_date",
         "registration_opens_at",
         "registration_deadline",
-        "tasks_released_at",
     )
     @classmethod
     def validate_timezone(cls, value: datetime | None) -> datetime | None:
@@ -131,7 +123,6 @@ class HackathonUpdate(BaseModel):
             "registration_deadline",
             "max_team_size",
             "teams_enabled",
-            "tasks_released_at",
         }
         if any(
             field in self.model_fields_set and getattr(self, field) is None
@@ -163,12 +154,6 @@ class HackathonUpdate(BaseModel):
             and self.max_team_size > self.capacity
         ):
             raise ValueError("max_team_size cannot be greater than capacity")
-        if (
-            self.tasks_released_at is not None
-            and self.end_date is not None
-            and self.tasks_released_at >= self.end_date
-        ):
-            raise ValueError("tasks_released_at must be earlier than end_date")
         return self
 
 
@@ -241,7 +226,6 @@ class HackathonRead(HackathonListItem):
     co_organizers: list[UserSummary]
     created_at: datetime
     updated_at: datetime
-    tasks_released_at: datetime
 
     @classmethod
     def from_hackathon(cls, hackathon: Hackathon, user_id: int | None) -> "HackathonRead":
@@ -264,7 +248,6 @@ class HackathonRead(HackathonListItem):
             access_level=get_hackathon_access_level(hackathon, user_id),
             created_at=hackathon.created_at,
             updated_at=hackathon.updated_at,
-            tasks_released_at=hackathon.tasks_released_at or hackathon.start_date,
         )
 
 

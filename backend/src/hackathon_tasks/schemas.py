@@ -18,9 +18,17 @@ class TaskCreate(BaseModel):
 
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1, max_length=10_000)
+    visible_from: datetime | None = None
 
     _normalize_title = field_validator("title", mode="before")(_normalize_text)
     _normalize_description = field_validator("description", mode="before")(_normalize_text)
+
+    @field_validator("visible_from")
+    @classmethod
+    def validate_visible_from(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("visible_from must include a timezone")
+        return value
 
 
 class TaskUpdate(BaseModel):
@@ -28,9 +36,17 @@ class TaskUpdate(BaseModel):
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, min_length=1, max_length=10_000)
+    visible_from: datetime | None = None
 
     _normalize_title = field_validator("title", mode="before")(_normalize_text)
     _normalize_description = field_validator("description", mode="before")(_normalize_text)
+
+    @field_validator("visible_from")
+    @classmethod
+    def validate_visible_from(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("visible_from must include a timezone")
+        return value
 
     @model_validator(mode="after")
     def validate_update(self) -> "TaskUpdate":
@@ -47,6 +63,7 @@ class TaskResponse(BaseModel):
     public_id: uuid.UUID
     title: str
     description: str
+    visible_from: datetime
     created_at: datetime
     updated_at: datetime
 
@@ -112,6 +129,7 @@ class ParticipantTaskResponse(TaskResponse):
             public_id=task.public_id,
             title=task.title,
             description=task.description,
+            visible_from=task.visible_from,
             created_at=task.created_at,
             updated_at=task.updated_at,
             submission=(

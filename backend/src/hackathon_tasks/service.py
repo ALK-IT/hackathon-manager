@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.auth.models import User
 from src.hackathon_tasks.exceptions import (
+    InvalidTaskVisibilityDateError,
     TaskNotFoundError,
     TaskPermissionDeniedError,
     TasksNotReleasedError,
@@ -45,8 +46,10 @@ class TaskService:
         hackathon = await self._get_hackathon(hackathon_public_id)
         if not can_manage_hackathon(hackathon, current_user):
             await self._get_accepted_registration(hackathon_public_id, current_user)
-            if not hackathon.are_tasks_released_at():
-                raise TasksNotReleasedError()
+            return await self.repository.list_by_hackathon_id(
+                hackathon.id,
+                visible_before=datetime.now(UTC),
+            )
         return await self.repository.list_by_hackathon_id(hackathon.id)
 
     async def create_task(
@@ -56,7 +59,13 @@ class TaskService:
         current_user: User,
     ) -> HackathonTask:
         hackathon = await self._get_managed_hackathon(hackathon_public_id, current_user)
-        task = HackathonTask(hackathon_id=hackathon.id, **data.model_dump())
+        visible_from = data.visible_from or hackathon.start_date
+        self._validate_visible_from(visible_from, hackathon)
+        task = HackathonTask(
+            hackathon_id=hackathon.id,
+            **data.model_dump(exclude={"visible_from"}),
+            visible_from=visible_from,
+        )
         try:
             await self.repository.add_task(task)
             await self.repository.commit()
@@ -72,8 +81,10 @@ class TaskService:
         data: TaskUpdate,
         current_user: User,
     ) -> HackathonTask:
-        await self._get_managed_hackathon(hackathon_public_id, current_user)
+        hackathon = await self._get_managed_hackathon(hackathon_public_id, current_user)
         task = await self._get_task(task_public_id, hackathon_public_id)
+        if data.visible_from is not None:
+            self._validate_visible_from(data.visible_from, hackathon)
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(task, field, value)
         try:
@@ -108,8 +119,6 @@ class TaskService:
     ) -> TaskSubmission:
         registration = await self._get_accepted_registration(hackathon_public_id, current_user)
         hackathon = registration.hackathon
-        if not hackathon.are_tasks_released_at():
-            raise TasksNotReleasedError()
         if datetime.now(UTC) >= hackathon.end_date:
             raise TaskSubmissionClosedError()
         if registration.team_id is None:
@@ -117,6 +126,8 @@ class TaskService:
 
         try:
             task = await self._get_task(task_public_id, hackathon_public_id)
+            if datetime.now(UTC) < task.visible_from:
+                raise TasksNotReleasedError()
             await self.team_repository.get_by_id_for_update(registration.team_id)
             submission = await self.repository.get_submission(task.id, registration.team_id)
             if submission is None:
@@ -188,3 +199,8 @@ class TaskService:
         if registration is None or registration.status is not RegistrationStatus.ACCEPTED:
             raise RegistrationNotAcceptedError()
         return registration
+
+    @staticmethod
+    def _validate_visible_from(visible_from: datetime, hackathon: Hackathon) -> None:
+        if visible_from >= hackathon.end_date:
+            raise InvalidTaskVisibilityDateError()
