@@ -38,3 +38,15 @@ class ResourceTargetMismatchError(ResourceError):
     status_code = 409
     error_code = "RESOURCE_TARGET_MISMATCH"
     detail = "The selected recipient does not match the resource target."
+
+
+class ResourceNotAssignedToUserError(ResourceError):
+    status_code = 403
+    error_code = "RESOURCE_NOT_ASSIGNED_TO_USER"
+    detail = "This resource is not assigned to the current user."
+
+
+class ResourceRevokedError(ResourceError):
+    status_code = 409
+    error_code = "RESOURCE_REVOKED"
+    detail = "This resource has been revoked."

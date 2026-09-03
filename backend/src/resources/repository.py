@@ -1,12 +1,12 @@
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, with_expression
+from sqlalchemy.orm import aliased, joinedload, selectinload, with_expression
 
 from src.hackathons.models import Hackathon
 from src.registration.models import Registration, RegistrationStatus
-from src.resources.models import Resource, ResourceAssignment, ResourceItem
+from src.resources.models import Resource, ResourceAssignment, ResourceAuditLog, ResourceItem
 from src.teams.models import Team
 
 
@@ -95,6 +95,70 @@ class ResourceRepository:
             )
         )
 
+    @staticmethod
+    def _is_assigned_to_user(user_id: int):
+        individual_registration = aliased(Registration)
+        team_registration = aliased(Registration)
+        return or_(
+            exists(
+                select(individual_registration.id).where(
+                    individual_registration.id == ResourceAssignment.registration_id,
+                    individual_registration.user_id == user_id,
+                    individual_registration.status == RegistrationStatus.ACCEPTED,
+                    individual_registration.hackathon_id == Resource.hackathon_id,
+                )
+            ),
+            exists(
+                select(team_registration.id).where(
+                    team_registration.team_id == ResourceAssignment.team_id,
+                    team_registration.user_id == user_id,
+                    team_registration.status == RegistrationStatus.ACCEPTED,
+                    team_registration.hackathon_id == Resource.hackathon_id,
+                )
+            ),
+        )
+
+    @staticmethod
+    def _with_resource_context():
+        return (
+            joinedload(ResourceAssignment.resource_item)
+            .joinedload(ResourceItem.resource)
+            .joinedload(Resource.hackathon)
+        )
+
+    async def list_assignments_for_user(self, user_id: int) -> list[ResourceAssignment]:
+        result = await self.session.scalars(
+            select(ResourceAssignment)
+            .join(ResourceAssignment.resource_item)
+            .join(ResourceItem.resource)
+            .join(Resource.hackathon)
+            .options(self._with_resource_context())
+            .where(
+                Hackathon.is_deleted.is_(False),
+                self._is_assigned_to_user(user_id),
+            )
+            .order_by(ResourceAssignment.assigned_at, ResourceAssignment.id)
+        )
+        return list(result.all())
+
+    async def get_assignment_for_user(
+        self,
+        item_public_id: uuid.UUID,
+        user_id: int,
+    ) -> ResourceAssignment | None:
+        return await self.session.scalar(
+            select(ResourceAssignment)
+            .join(ResourceAssignment.resource_item)
+            .join(ResourceItem.resource)
+            .join(Resource.hackathon)
+            .options(self._with_resource_context())
+            .where(
+                ResourceItem.public_id == item_public_id,
+                Hackathon.is_deleted.is_(False),
+                self._is_assigned_to_user(user_id),
+            )
+        )
+
     async def create_resource(self, resource: Resource) -> Resource:
         self.session.add(resource)
         await self.session.flush()
@@ -112,6 +176,11 @@ class ResourceRepository:
         self.session.add(assignment)
         await self.session.flush()
         return assignment
+
+    async def create_audit_log(self, audit_log: ResourceAuditLog) -> ResourceAuditLog:
+        self.session.add(audit_log)
+        await self.session.flush()
+        return audit_log
 
     async def commit(self) -> None:
         await self.session.commit()
