@@ -9,7 +9,7 @@ Zaakceptowany uczestnik może wejść do strefy hackathonu i zobaczyć swoją dr
 
 ## Rozwiązanie
 
-- Hackathon otrzymuje `tasks_released_at`. Zadania są widoczne dla uczestników od tej chwili; domyślnie jest to `start_date`.
+- Każde zadanie otrzymuje własne `visible_from`. Zadanie jest widoczne dla uczestników od tej chwili; przy pominięciu pola API używa `start_date` hackathonu.
 - Organizator, współorganizator lub administrator może tworzyć, edytować i usuwać zadania hackathonu.
 - Wszystkie zadania są niezależne i mogą być rozwiązywane w dowolnej kolejności.
 - Każda drużyna może posiadać jedno rozwiązanie dla danego zadania.
@@ -41,7 +41,7 @@ Zaakceptowany uczestnik może wejść do strefy hackathonu i zobaczyć swoją dr
 
 ## Kontrakt API
 
-- `GET /api/hackathons/{hackathon_public_id}/tasks` — lista zadań; zarządzający widzą ją zawsze, zaakceptowani uczestnicy po publikacji.
+- `GET /api/hackathons/{hackathon_public_id}/tasks` — lista zadań; zarządzający widzą wszystkie, a zaakceptowani uczestnicy tylko już opublikowane.
 - `POST /api/hackathons/{hackathon_public_id}/tasks` — utworzenie zadania.
 - `PATCH /api/hackathons/{hackathon_public_id}/tasks/{task_public_id}` — edycja zadania.
 - `DELETE /api/hackathons/{hackathon_public_id}/tasks/{task_public_id}` — usunięcie zadania.
@@ -53,13 +53,14 @@ Zaakceptowany uczestnik może wejść do strefy hackathonu i zobaczyć swoją dr
 
 - nowe tabele, relacje ORM i migracja Alembic;
 - nowe schematy, repozytorium, serwis, zależność i router dla zadań;
-- rozszerzenie modelu i schematów hackathonu o `tasks_released_at`;
+- termin publikacji `visible_from` w modelu i schematach zadania;
 - rozszerzenie strefy uczestnika;
 - zapis rozwiązania jest wykonywany transakcyjnie, z blokadą drużyny i ograniczeniem unikalności w bazie jako zabezpieczeniem przed race condition.
 
 ## Wpływ na frontend
 
 - strefa uczestnika wyświetla opis hackathonu i opublikowane zadania;
+- widok zarządzania hackathonem pozwala dodać zadanie wraz z terminem publikacji;
 - przy każdym zadaniu członek drużyny widzi aktualny link oraz może go utworzyć albo zmienić;
 - uczestnik bez drużyny widzi zadania, ale nie formularz wysyłki.
 
@@ -68,4 +69,3 @@ Zaakceptowany uczestnik może wejść do strefy hackathonu i zobaczyć swoją dr
 - Jedno wspólne repozytorium na cały hackathon — odrzucone, ponieważ osobny link dla każdego zadania jest czytelniejszy.
 - Rozwiązanie per uczestnik — odrzucone, ponieważ rozwiązanie należy do drużyny.
 - Wymaganie aktywnego check-inu — odrzucone; obecność służy do potwierdzania fizycznego udziału i wydawania zasobów.
-
