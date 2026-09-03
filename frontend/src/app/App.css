@@ -176,6 +176,34 @@ button:disabled {
   justify-self: start;
 }
 
+.hackathon-task-list {
+  display: grid;
+  gap: 12px;
+  padding-left: 20px;
+}
+
+.hackathon-task-list p {
+  margin: 4px 0;
+}
+
+.hackathon-task-form {
+  display: grid;
+  max-width: 640px;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.hackathon-task-form button {
+  justify-self: start;
+}
+
+.task-visibility-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px;
+}
+
 @media (max-width: 560px) {
   .page-header {
     align-items: flex-start;

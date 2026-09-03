@@ -4,6 +4,7 @@ import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { useAuth } from '../../auth'
 import { FormField } from '../../auth/components/FormField'
 import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
+import { HackathonTaskManager } from '../components/HackathonTaskManager'
 import type { HackathonDetails } from '../types'
 import {
   getAddCoOrganizerErrorMessage,
@@ -154,6 +155,17 @@ export function HackathonDetailsPage() {
               </form>
             )}
           </Card>
+
+          {(hackathon.access_level === 'owner' ||
+            hackathon.access_level === 'co_organizer') && (
+            <Card>
+              <HackathonTaskManager
+                hackathonPublicId={hackathon.public_id}
+                hackathonStartDate={hackathon.start_date}
+                hackathonEndDate={hackathon.end_date}
+              />
+            </Card>
+          )}
         </div>
       )}
     </main>
