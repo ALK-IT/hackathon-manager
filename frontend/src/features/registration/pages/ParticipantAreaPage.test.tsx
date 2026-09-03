@@ -32,7 +32,6 @@ describe('ParticipantAreaPage', () => {
       description: 'Zbuduj użyteczne rozwiązanie.',
       start_date: '2026-09-03T08:00:00Z',
       end_date: '2099-09-05T18:00:00Z',
-      tasks_released_at: '2026-09-03T08:00:00Z',
       tasks: [],
       team: {
         public_id: 'team-id',
@@ -59,7 +58,6 @@ describe('ParticipantAreaPage', () => {
       description: 'Zbuduj użyteczne rozwiązanie.',
       start_date: '2026-09-03T08:00:00Z',
       end_date: '2099-09-05T18:00:00Z',
-      tasks_released_at: '2026-09-03T08:00:00Z',
       tasks: [],
       team: null,
     })
