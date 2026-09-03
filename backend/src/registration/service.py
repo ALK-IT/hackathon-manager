@@ -289,16 +289,15 @@ class RegistrationService:
             raise RegistrationNotAcceptedError()
         team = registration.team
         hackathon = registration.hackathon
-        tasks = []
-        if hackathon.are_tasks_released_at():
-            task_rows = await self.task_repository.list_with_team_submission(
-                hackathon.id,
-                registration.team_id,
-            )
-            tasks = [
-                ParticipantTaskResponse.from_entities(task, submission)
-                for task, submission in task_rows
-            ]
+        task_rows = await self.task_repository.list_with_team_submission(
+            hackathon.id,
+            registration.team_id,
+            visible_before=datetime.now(UTC),
+        )
+        tasks = [
+            ParticipantTaskResponse.from_entities(task, submission)
+            for task, submission in task_rows
+        ]
         if registration.team_id is None:
             return ParticipantAreaResponse(
                 public_id=hackathon.public_id,
@@ -306,7 +305,6 @@ class RegistrationService:
                 description=hackathon.description,
                 start_date=hackathon.start_date,
                 end_date=hackathon.end_date,
-                tasks_released_at=hackathon.tasks_released_at or hackathon.start_date,
                 team=None,
                 tasks=tasks,
             )
@@ -326,7 +324,6 @@ class RegistrationService:
             description=hackathon.description,
             start_date=hackathon.start_date,
             end_date=hackathon.end_date,
-            tasks_released_at=hackathon.tasks_released_at or hackathon.start_date,
             team=team_response,
             tasks=tasks,
         )

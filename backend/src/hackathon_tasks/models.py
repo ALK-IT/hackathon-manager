@@ -16,7 +16,10 @@ if TYPE_CHECKING:
 
 class HackathonTask(Base):
     __tablename__ = "hackathon_tasks"
-    __table_args__ = (Index("ix_hackathon_tasks_public_id", "public_id", unique=True),)
+    __table_args__ = (
+        Index("ix_hackathon_tasks_public_id", "public_id", unique=True),
+        Index("ix_hackathon_tasks_hackathon_visible_from", "hackathon_id", "visible_from"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     public_id: Mapped[uuid.UUID] = mapped_column(
@@ -32,6 +35,10 @@ class HackathonTask(Base):
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    visible_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

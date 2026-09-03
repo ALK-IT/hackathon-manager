@@ -72,7 +72,6 @@ class ParticipantAreaResponse(BaseModel):
     description: str
     start_date: datetime
     end_date: datetime
-    tasks_released_at: datetime
     team: ParticipantTeamResponse | None
     tasks: list[ParticipantTaskResponse]
 

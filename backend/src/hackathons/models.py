@@ -67,10 +67,6 @@ class Hackathon(Base):
             "capacity IS NULL OR max_team_size <= capacity",
             name="ck_hackathons_team_size_within_capacity",
         ),
-        CheckConstraint(
-            "tasks_released_at IS NULL OR tasks_released_at < end_date",
-            name="ck_hackathons_tasks_release_before_end",
-        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -102,10 +98,6 @@ class Hackathon(Base):
     capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_team_size: Mapped[int] = mapped_column(Integer, nullable=False)
     teams_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    tasks_released_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -162,8 +154,3 @@ class Hackathon(Base):
     def allows_registration_status_changes_at(self, moment: datetime | None = None) -> bool:
         checked_at = moment or datetime.now(UTC)
         return checked_at < self.end_date
-
-    def are_tasks_released_at(self, moment: datetime | None = None) -> bool:
-        checked_at = moment or datetime.now(UTC)
-        release_at = self.tasks_released_at or self.start_date
-        return checked_at >= release_at
