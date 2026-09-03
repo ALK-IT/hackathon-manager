@@ -1219,8 +1219,6 @@ async def test_participant_area_returns_accepted_team_members(
         description="Build something useful",
         start_date=now - timedelta(hours=1),
         end_date=now + timedelta(days=1),
-        tasks_released_at=now - timedelta(hours=1),
-        are_tasks_released_at=lambda: True,
     )
     team = SimpleNamespace(id=20, public_id=uuid.uuid4(), name="Byte Buccaneers")
     members = [
@@ -1265,8 +1263,6 @@ async def test_participant_area_returns_null_team_for_accepted_individual(
         description="Build something useful",
         start_date=now - timedelta(hours=1),
         end_date=now + timedelta(days=1),
-        tasks_released_at=now - timedelta(hours=1),
-        are_tasks_released_at=lambda: True,
     )
     registration_repository.get_by_hackathon_and_user.return_value = SimpleNamespace(
         status=RegistrationStatus.ACCEPTED,
