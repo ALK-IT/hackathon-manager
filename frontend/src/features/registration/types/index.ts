@@ -67,6 +67,7 @@ export interface ParticipantTask {
   public_id: string
   title: string
   description: string
+  visible_from: string
   created_at: string
   updated_at: string
   submission: TaskSubmission | null
@@ -78,7 +79,6 @@ export interface ParticipantArea {
   description: string
   start_date: string
   end_date: string
-  tasks_released_at: string
   team: ParticipantTeam | null
   tasks: ParticipantTask[]
 }
