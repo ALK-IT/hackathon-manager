@@ -29,5 +29,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-010 | Zasoby hackathonu i ręczny przydział | Zaimplementowany | [implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md](implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md) |
 | SPEC-011 | Frontend pytań rejestracyjnych i ustawień hackathonu | Zaimplementowany | [implemented/SPEC-011-2026-08-22-frontend-pytan-i-ustawien-hackathonu.md](implemented/SPEC-011-2026-08-22-frontend-pytan-i-ustawien-hackathonu.md) |
 | SPEC-013 | Frontendowy panel „Moje zasoby” | Zaimplementowany | [implemented/SPEC-013-2026-08-27-panel-moje-zasoby.md](implemented/SPEC-013-2026-08-27-panel-moje-zasoby.md) |
+| SPEC-014 | Odbiór i odsłanianie przypisanych zasobów | Zaimplementowany | [implemented/SPEC-014-2026-09-03-odbior-przypisanych-zasobow.md](implemented/SPEC-014-2026-09-03-odbior-przypisanych-zasobow.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).
