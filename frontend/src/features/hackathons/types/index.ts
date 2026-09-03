@@ -52,3 +52,18 @@ export interface UpdateHackathonPayload extends Omit<
 export interface AddCoOrganizerPayload {
   user_public_id: string
 }
+
+export interface HackathonTask {
+  public_id: string
+  title: string
+  description: string
+  visible_from: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateHackathonTaskPayload {
+  title: string
+  description: string
+  visible_from: string
+}

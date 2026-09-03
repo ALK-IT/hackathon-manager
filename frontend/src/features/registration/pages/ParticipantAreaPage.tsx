@@ -82,10 +82,8 @@ export function ParticipantAreaPage() {
                   />
                 ))}
               </div>
-            ) : loadedAt < Date.parse(participantArea.tasks_released_at) ? (
-              <p>Zadania nie zostały jeszcze opublikowane.</p>
             ) : (
-              <p>Nie dodano jeszcze żadnych zadań.</p>
+              <p>Nie opublikowano jeszcze żadnych zadań.</p>
             )}
           </section>
         </div>
