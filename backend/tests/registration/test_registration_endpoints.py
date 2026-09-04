@@ -111,27 +111,23 @@ async def test_user_lists_all_own_hackathons_with_status(
 ):
     organizer = await create_user(session, "organizer@example.com")
     participant = await create_user(session, "participant@example.com")
-    another_user = await create_user(session, "another@example.com")
     accepted_hackathon = await create_hackathon(session, organizer)
     pending_hackathon = await create_hackathon(session, organizer)
+    accepted_registration = Registration(
+        user=participant,
+        hackathon=accepted_hackathon,
+        status=RegistrationStatus.ACCEPTED,
+        status_changed_at=datetime.now(UTC),
+    )
+    pending_registration = Registration(
+        user=participant,
+        hackathon=pending_hackathon,
+        status=RegistrationStatus.PENDING,
+    )
     session.add_all(
         [
-            Registration(
-                user=participant,
-                hackathon=accepted_hackathon,
-                status=RegistrationStatus.ACCEPTED,
-                status_changed_at=datetime.now(UTC),
-            ),
-            Registration(
-                user=participant,
-                hackathon=pending_hackathon,
-                status=RegistrationStatus.PENDING,
-            ),
-            Registration(
-                user=another_user,
-                hackathon=accepted_hackathon,
-                status=RegistrationStatus.ACCEPTED,
-            ),
+            accepted_registration,
+            pending_registration,
         ]
     )
     await session.commit()
@@ -141,10 +137,51 @@ async def test_user_lists_all_own_hackathons_with_status(
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body) == 2
+    assert {item["registration_public_id"] for item in body} == {
+        str(accepted_registration.public_id),
+        str(pending_registration.public_id),
+    }
     hackathons_by_id = {item["hackathon_public_id"]: item for item in body}
     assert hackathons_by_id[str(accepted_hackathon.public_id)]["status"] == "accepted"
     assert hackathons_by_id[str(pending_hackathon.public_id)]["status"] == "pending"
+
+
+async def test_profile_hackathons_requires_authentication(
+    api_client: AsyncClient,
+):
+    response = await api_client.get("/api/profile/hackathons")
+
+    assert response.status_code == 401
+
+
+async def test_profile_hackathons_does_not_expose_another_users_registration(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    current_user = await create_user(session, "current-user@example.com")
+    another_user = await create_user(session, "another-user@example.com")
+    own_hackathon = await create_hackathon(session, organizer)
+    another_users_hackathon = await create_hackathon(session, organizer)
+    own_registration = Registration(user=current_user, hackathon=own_hackathon)
+    another_users_registration = Registration(
+        user=another_user,
+        hackathon=another_users_hackathon,
+    )
+    session.add_all([own_registration, another_users_registration])
+    await session.commit()
+    force_authenticate(current_user)
+
+    response = await api_client.get("/api/profile/hackathons")
+
+    assert response.status_code == 200
+    returned_registration_ids = {item["registration_public_id"] for item in response.json()}
+    returned_hackathon_ids = {item["hackathon_public_id"] for item in response.json()}
+    assert returned_registration_ids == {str(own_registration.public_id)}
+    assert str(another_users_registration.public_id) not in returned_registration_ids
+    assert returned_hackathon_ids == {str(own_hackathon.public_id)}
+    assert str(another_users_hackathon.public_id) not in returned_hackathon_ids
 
 
 async def test_admin_creates_question(
