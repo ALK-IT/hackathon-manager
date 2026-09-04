@@ -40,7 +40,7 @@ export function HackathonsPage() {
           !isLoading && <Link to="/login">Zaloguj się</Link>
         )}
       </header>
-      <HackathonList />
+      {!isLoading && <HackathonList />}
     </main>
   )
 }

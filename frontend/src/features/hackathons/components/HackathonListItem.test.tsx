@@ -62,7 +62,7 @@ describe('HackathonListItem', () => {
   })
 
   it.each(['owner', 'co_organizer'] as const)(
-    'shows settings and navigates there for %s',
+    'shows management actions and navigates there for %s',
     (accessLevel) => {
       function Location() {
         return <output>{useLocation().pathname}</output>
@@ -75,18 +75,24 @@ describe('HackathonListItem', () => {
         </MemoryRouter>,
       )
 
+      fireEvent.click(screen.getByRole('button', { name: 'Zgłoszenia' }))
+      expect(
+        screen.getByText(`/hackathons/${hackathon.public_id}/registrations`),
+      ).toBeInTheDocument()
+
       fireEvent.click(screen.getByRole('button', { name: 'Ustawienia' }))
       expect(screen.getByText(`/hackathons/${hackathon.public_id}/settings`)).toBeInTheDocument()
     },
   )
 
-  it('hides settings from viewers', () => {
+  it('hides management actions from viewers', () => {
     render(
       <MemoryRouter>
         <HackathonListItem hackathon={hackathon} />
       </MemoryRouter>,
     )
 
+    expect(screen.queryByRole('button', { name: 'Zgłoszenia' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ustawienia' })).not.toBeInTheDocument()
   })
 })
