@@ -23,14 +23,12 @@ def upgrade() -> None:
         "hackathon_tasks",
         sa.Column("visible_from", sa.DateTime(timezone=True), nullable=True),
     )
-    op.execute(
-        """
+    op.execute("""
         UPDATE hackathon_tasks AS task
         SET visible_from = COALESCE(hackathon.tasks_released_at, hackathon.start_date)
         FROM hackathons AS hackathon
         WHERE task.hackathon_id = hackathon.id
-        """
-    )
+        """)
     op.alter_column("hackathon_tasks", "visible_from", nullable=False)
     op.create_index(
         "ix_hackathon_tasks_hackathon_visible_from",
@@ -51,8 +49,7 @@ def downgrade() -> None:
         "hackathons",
         sa.Column("tasks_released_at", sa.DateTime(timezone=True), nullable=True),
     )
-    op.execute(
-        """
+    op.execute("""
         UPDATE hackathons AS hackathon
         SET tasks_released_at = task.first_visible_from
         FROM (
@@ -61,8 +58,7 @@ def downgrade() -> None:
             GROUP BY hackathon_id
         ) AS task
         WHERE hackathon.id = task.hackathon_id
-        """
-    )
+        """)
     op.create_check_constraint(
         "ck_hackathons_tasks_release_before_end",
         "hackathons",
