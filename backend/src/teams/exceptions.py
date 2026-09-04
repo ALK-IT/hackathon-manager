@@ -32,3 +32,9 @@ class TeamJoinCodeGenerationError(TeamError):
     status_code = 503
     error_code = "TEAM_JOIN_CODE_GENERATION_FAILED"
     detail = "A unique team join code could not be generated. Please try again."
+
+
+class TeamPermissionDeniedError(TeamError):
+    status_code = 403
+    error_code = "TEAM_PERMISSION_DENIED"
+    detail = "You do not have permission to view teams for this hackathon."

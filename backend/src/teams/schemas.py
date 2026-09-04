@@ -3,6 +3,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.auth.schemas import SimpleUserRead
+from src.teams.models import Team
+
 
 class TeamCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -41,3 +44,22 @@ class TeamResponse(BaseModel):
     public_id: uuid.UUID
     name: str
     join_code: str
+
+
+class TeamDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+    participants: list[SimpleUserRead]
+
+    @classmethod
+    def from_team(cls, team: Team) -> "TeamDetailResponse":
+        return cls(
+            public_id=team.public_id,
+            name=team.name,
+            participants=[
+                SimpleUserRead.model_validate(registration.user)
+                for registration in team.registrations
+            ],
+        )
