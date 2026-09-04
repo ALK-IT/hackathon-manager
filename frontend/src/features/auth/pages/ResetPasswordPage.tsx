@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Alert, Button } from '../../../components/ui'
 import { resetPasswordRequest } from '../api/authApi'
 import { AuthPageLayout } from '../components/AuthPageLayout'
@@ -11,6 +11,7 @@ export function ResetPasswordPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [tokenRejected, setTokenRejected] = useState(false)
   const [saved, setSaved] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -29,12 +30,14 @@ export function ResetPasswordPage() {
       return
     }
     setError(null)
+    setTokenRejected(false)
     setSubmitting(true)
     try {
       await resetPasswordRequest(token, password, confirmPassword)
       setSaved(true)
     } catch {
       setError('Link jest nieprawidłowy, wygasł albo został już użyty.')
+      setTokenRejected(true)
     } finally {
       setSubmitting(false)
     }
@@ -49,6 +52,7 @@ export function ResetPasswordPage() {
     >
       {saved && <Alert>Hasło zostało zmienione. Możesz się zalogować.</Alert>}
       {error && <Alert variant="error">{error}</Alert>}
+      {tokenRejected && <Link to="/forgot-password">Poproś o nowy link</Link>}
       <form className="auth-form" onSubmit={submit} noValidate>
         <FormField
           id="reset-password"

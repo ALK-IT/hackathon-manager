@@ -187,18 +187,19 @@ async def test_refresh_token_can_be_revoked_on_logout(mocker):
 async def test_action_token_is_hashed_and_can_only_be_consumed_once(mocker):
     public_id = uuid.uuid4()
     cache = mocker.Mock()
-    cache.get = mocker.AsyncMock(return_value=None)
-    cache.set = mocker.AsyncMock()
-    cache.delete = mocker.AsyncMock()
-    cache.getdel = mocker.AsyncMock(side_effect=[str(public_id), None])
+    cache.eval = mocker.AsyncMock(side_effect=[1, str(public_id), None])
     service = TokenService(cache)
 
     token = await service.issue_action_token(public_id, "password-reset", 1800)
 
     assert len(token) >= 32
-    action_key = cache.set.await_args_list[0].args[0]
+    issue_args = cache.eval.await_args_list[0].args
+    action_key = issue_args[3]
     assert token not in action_key
     assert await service.consume_action_token(token, "password-reset") == public_id
+    consume_args = cache.eval.await_args_list[1].args
+    assert consume_args[3] == "auth-action-user:password-reset:"
+    assert consume_args[4] in action_key
     with pytest.raises(InvalidActionTokenError):
         await service.consume_action_token(token, "password-reset")
 

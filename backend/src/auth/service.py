@@ -40,6 +40,26 @@ if current == 1 then
 end
 return {current, redis.call('TTL', KEYS[1])}
 """
+ISSUE_ACTION_TOKEN_SCRIPT = """
+local previous_digest = redis.call('GET', KEYS[1])
+if previous_digest then
+  redis.call('DEL', ARGV[1] .. previous_digest)
+end
+redis.call('SET', KEYS[2], ARGV[2], 'EX', ARGV[3])
+redis.call('SET', KEYS[1], ARGV[4], 'EX', ARGV[3])
+return 1
+"""
+CONSUME_ACTION_TOKEN_SCRIPT = """
+local subject = redis.call('GETDEL', KEYS[1])
+if not subject then
+  return false
+end
+local user_key = ARGV[1] .. subject
+if redis.call('GET', user_key) == ARGV[2] then
+  redis.call('DEL', user_key)
+end
+return subject
+"""
 
 
 class UserService:
@@ -176,12 +196,18 @@ class TokenService:
     ) -> str:
         raw_token = token_urlsafe(32)
         digest = sha256(raw_token.encode()).hexdigest()
+        action_key_prefix = f"auth-action:{kind}:"
         user_key = f"auth-action-user:{kind}:{subject}"
-        previous_digest = await self.cache.get(user_key)
-        if previous_digest:
-            await self.cache.delete(f"auth-action:{kind}:{previous_digest}")
-        await self.cache.set(f"auth-action:{kind}:{digest}", str(subject), ex=expires_in)
-        await self.cache.set(user_key, digest, ex=expires_in)
+        await self.cache.eval(
+            ISSUE_ACTION_TOKEN_SCRIPT,
+            2,
+            user_key,
+            f"{action_key_prefix}{digest}",
+            action_key_prefix,
+            str(subject),
+            expires_in,
+            digest,
+        )
         return raw_token
 
     async def consume_action_token(
@@ -190,14 +216,19 @@ class TokenService:
         kind: ActionTokenKind,
     ) -> uuid.UUID:
         digest = sha256(token.encode()).hexdigest()
-        subject = await self.cache.getdel(f"auth-action:{kind}:{digest}")
+        subject = await self.cache.eval(
+            CONSUME_ACTION_TOKEN_SCRIPT,
+            1,
+            f"auth-action:{kind}:{digest}",
+            f"auth-action-user:{kind}:",
+            digest,
+        )
         if subject is None:
             raise InvalidActionTokenError
         try:
             public_id = uuid.UUID(subject)
         except (TypeError, ValueError) as exc:
             raise InvalidActionTokenError from exc
-        await self.cache.delete(f"auth-action-user:{kind}:{public_id}")
         return public_id
 
     async def enforce_rate_limit(

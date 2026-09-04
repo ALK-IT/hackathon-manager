@@ -1,9 +1,14 @@
+import uuid
 from collections.abc import AsyncIterator
+from hashlib import sha256
 
 import pytest
 from httpx import AsyncClient
+from redis.asyncio import Redis
 
 from src.auth.dependencies import get_email_service
+from src.auth.exceptions import InvalidActionTokenError
+from src.auth.service import TokenService
 from src.main import app
 
 
@@ -17,6 +22,25 @@ class CapturingEmailService:
 
     async def send_password_reset(self, recipient: str, token: str) -> None:
         self.password_reset_tokens.append(token)
+
+
+async def test_action_token_rotation_and_user_key_cleanup(
+    isolated_e2e_cache: Redis,
+):
+    service = TokenService(isolated_e2e_cache)
+    public_id = uuid.uuid4()
+
+    previous_token = await service.issue_action_token(public_id, "password-reset", 1800)
+    current_token = await service.issue_action_token(public_id, "password-reset", 1800)
+    current_digest = sha256(current_token.encode()).hexdigest()
+    user_key = f"auth-action-user:password-reset:{public_id}"
+
+    with pytest.raises(InvalidActionTokenError):
+        await service.consume_action_token(previous_token, "password-reset")
+    assert await isolated_e2e_cache.get(user_key) == current_digest
+
+    assert await service.consume_action_token(current_token, "password-reset") == public_id
+    assert await isolated_e2e_cache.exists(user_key) == 0
 
 
 @pytest.fixture

@@ -19,6 +19,11 @@ Wiadomości są wysyłane przez SMTP. Lokalny Docker Compose uruchamia MailHog, 
 dostępna pod `http://localhost:8025`. Migracja oznacza konta istniejące przed wdrożeniem jako
 potwierdzone, aby nie odciąć obecnych użytkowników.
 
+Limity adresu IP bazują domyślnie na adresie bezpośredniego klienta połączenia. Nagłówek
+`X-Real-IP` jest uwzględniany wyłącznie po świadomym włączeniu `TRUST_PROXY_HEADERS` w środowisku,
+w którym aplikacja jest dostępna tylko przez zaufany reverse proxy. Limit identyfikatora logowania
+zlicza wyłącznie nieudane próby, aby poprawne logowania nie umożliwiały blokowania konta.
+
 ## Zakres
 
 **W zakresie:**
@@ -37,6 +42,14 @@ potwierdzone, aby nie odciąć obecnych użytkowników.
 - zewnętrzna kolejka wiadomości i śledzenie dostarczenia;
 - logowanie bezhasłowe.
 
+Wysyłka SMTP pozostaje synchroniczna, więc czas odpowiedzi może różnić się dla istniejącego konta.
+Pełne wyrównanie czasu wymaga przeniesienia wysyłki do kolejki. Rejestracja zwraca `409` dla
+istniejącego adresu zgodnie z dotychczasowym kontraktem produktu; ukrywanie istnienia kont na tym
+endpointcie również pozostaje poza zakresem. Limity identyfikatora dla resetu hasła i ponownej
+wysyłki pozostają celowo aktywne, aby ograniczać mail bombing; kompromisem jest możliwość
+krótkotrwałego zablokowania wiadomości dla wskazanego adresu. Okno jest ograniczone do pięciu
+minut, a niezależny limit IP utrudnia masowe nadużycie z jednego źródła.
+
 ## Wpływ
 
 - **Backend:** nowe endpointy auth, klient SMTP i jednorazowe tokeny w Redisie.
@@ -53,3 +66,4 @@ migracji.
 ## Changelog
 
 - 2026-09-02 — dodano potwierdzanie konta i reset hasła przez SMTP.
+- 2026-09-04 — utwardzono obsługę adresu klienta, atomową rotację tokenów i limity logowania.

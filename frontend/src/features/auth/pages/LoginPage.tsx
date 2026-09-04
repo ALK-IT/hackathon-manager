@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Alert, Button } from '../../../components/ui'
+import { ApiError } from '../../../lib/api/client'
 import { useAuth } from '../hooks/useAuth'
 import { getLoginErrorMessage } from '../utils/authMessages'
 import { validateLogin, type LoginErrors } from '../utils/validation'
@@ -15,6 +16,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<LoginErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [showResendLink, setShowResendLink] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -24,6 +26,7 @@ export function LoginPage() {
     if (Object.keys(validationErrors).length > 0) return
 
     setSubmitError(null)
+    setShowResendLink(false)
     setIsSubmitting(true)
     try {
       await login(email.trim().toLowerCase(), password)
@@ -31,6 +34,7 @@ export function LoginPage() {
       navigate(destination, { replace: true })
     } catch (error) {
       setSubmitError(getLoginErrorMessage(error))
+      setShowResendLink(error instanceof ApiError && error.status === 403)
     } finally {
       setIsSubmitting(false)
     }
@@ -70,7 +74,9 @@ export function LoginPage() {
           {isSubmitting ? 'Logowanie…' : 'Zaloguj się'}
         </Button>
         <Link to="/forgot-password">Nie pamiętasz hasła?</Link>
-        <Link to="/verify-email">Wyślij ponownie link aktywacyjny</Link>
+        {showResendLink && (
+          <Link to="/verify-email">Wyślij ponownie link aktywacyjny</Link>
+        )}
       </form>
     </AuthPageLayout>
   )

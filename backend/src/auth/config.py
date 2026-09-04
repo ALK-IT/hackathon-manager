@@ -46,6 +46,10 @@ def get_auth_cookie_secure() -> bool:
     return os.environ.get("AUTH_COOKIE_SECURE", "false").lower() in {"1", "true", "yes"}
 
 
+def get_trust_proxy_headers() -> bool:
+    return os.environ.get("TRUST_PROXY_HEADERS", "false").lower() in {"1", "true", "yes"}
+
+
 def get_auth_cookie_samesite() -> Literal["lax", "strict", "none"]:
     value = os.environ.get("AUTH_COOKIE_SAMESITE", "lax").lower()
     if value not in {"lax", "strict", "none"}:

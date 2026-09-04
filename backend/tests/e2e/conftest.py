@@ -5,7 +5,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from redis.asyncio import from_url
+from redis.asyncio import Redis, from_url
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -35,7 +35,7 @@ def _test_redis_url() -> str:
 
 
 @pytest.fixture(autouse=True)
-async def isolated_e2e_cache(monkeypatch) -> AsyncIterator[None]:
+async def isolated_e2e_cache(monkeypatch) -> AsyncIterator[Redis]:
     monkeypatch.setenv(
         "JWT_SECRET_KEY",
         "e2e-secret-key-with-at-least-32-characters",  # gitleaks:allow
@@ -45,7 +45,7 @@ async def isolated_e2e_cache(monkeypatch) -> AsyncIterator[None]:
     app.dependency_overrides[get_cache] = lambda: cache
 
     try:
-        yield
+        yield cache
     finally:
         app.dependency_overrides.pop(get_cache, None)
         await cache.flushdb()

@@ -5,7 +5,11 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from src.auth.config import get_auth_cookie_samesite, get_auth_cookie_secure
+from src.auth.config import (
+    get_auth_cookie_samesite,
+    get_auth_cookie_secure,
+    get_trust_proxy_headers,
+)
 from src.auth.constants import REFRESH_TOKEN_COOKIE_NAME
 from src.auth.dependencies import (
     get_current_user,
@@ -57,19 +61,22 @@ async def enforce_rate_limits(
     scope: str,
     *,
     identifier: str | None = None,
-    ip_limit: int,
+    ip_limit: int | None = None,
     identifier_limit: int | None = None,
 ) -> None:
-    client_ip = request.headers.get("X-Real-IP")
-    if not client_ip:
-        client_ip = request.client.host if request.client else "unknown"
     try:
-        await token_service.enforce_rate_limit(
-            f"{scope}:ip",
-            client_ip,
-            ip_limit,
-            RATE_LIMIT_WINDOW,
-        )
+        if ip_limit is not None:
+            client_ip = request.client.host if request.client else "unknown"
+            if get_trust_proxy_headers():
+                proxy_ip = request.headers.get("X-Real-IP", "").strip()
+                if proxy_ip:
+                    client_ip = proxy_ip
+            await token_service.enforce_rate_limit(
+                f"{scope}:ip",
+                client_ip,
+                ip_limit,
+                RATE_LIMIT_WINDOW,
+            )
         if identifier is not None and identifier_limit is not None:
             await token_service.enforce_rate_limit(
                 f"{scope}:identifier",
@@ -149,12 +156,17 @@ async def login(
         token_service,
         request,
         "login",
-        identifier=form_data.username,
         ip_limit=10,
-        identifier_limit=10,
     )
     user = await service.authenticate(form_data.username, form_data.password)
     if user is None:
+        await enforce_rate_limits(
+            token_service,
+            request,
+            "login",
+            identifier=form_data.username,
+            identifier_limit=10,
+        )
         raise unauthorized_exception()
     if user.email_verified_at is None:
         raise HTTPException(

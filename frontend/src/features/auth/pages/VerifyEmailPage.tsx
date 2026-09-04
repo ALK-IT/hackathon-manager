@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Spinner } from '../../../components/ui'
 import { resendVerificationRequest, verifyEmailRequest } from '../api/authApi'
@@ -9,23 +9,27 @@ import { isValidEmail } from '../utils/validation'
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
-  const [status, setStatus] = useState<'ready' | 'loading' | 'success' | 'error'>(
-    token ? 'ready' : 'error',
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
+    token ? 'loading' : 'error',
   )
   const [email, setEmail] = useState('')
   const [resendMessage, setResendMessage] = useState<string | null>(null)
   const [resending, setResending] = useState(false)
 
-  async function verify() {
+  useEffect(() => {
     if (!token) return
-    setStatus('loading')
-    try {
-      await verifyEmailRequest(token)
-      setStatus('success')
-    } catch {
-      setStatus('error')
+    let active = true
+    verifyEmailRequest(token)
+      .then(() => {
+        if (active) setStatus('success')
+      })
+      .catch(() => {
+        if (active) setStatus('error')
+      })
+    return () => {
+      active = false
     }
-  }
+  }, [token])
 
   async function resend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -52,14 +56,6 @@ export function VerifyEmailPage() {
       footerLinkTo="/login"
     >
       {status === 'loading' && <Spinner label="Potwierdzanie konta…" />}
-      {status === 'ready' && (
-        <>
-          <Alert>Otworzyłeś link aktywacyjny. Potwierdź, że chcesz aktywować konto.</Alert>
-          <Button type="button" onClick={verify}>
-            Potwierdź konto
-          </Button>
-        </>
-      )}
       {status === 'success' && (
         <Alert>
           Konto zostało potwierdzone. <Link to="/login">Przejdź do logowania</Link>.

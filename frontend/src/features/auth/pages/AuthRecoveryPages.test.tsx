@@ -30,8 +30,6 @@ describe('auth recovery pages', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Potwierdź konto' }))
-
     expect(await screen.findByText(/Konto zostało potwierdzone/)).toBeInTheDocument()
     expect(verifyEmailRequest).toHaveBeenCalledWith('verification-token')
   })
@@ -91,6 +89,28 @@ describe('auth recovery pages', () => {
       'reset-token',
       'new-password123',
       'new-password123',
+    )
+  })
+
+  it('offers a new reset link when the token is rejected', async () => {
+    vi.mocked(resetPasswordRequest).mockRejectedValue(new Error('expired token'))
+    render(
+      <MemoryRouter initialEntries={['/reset-password?token=expired-token']}>
+        <ResetPasswordPage />
+      </MemoryRouter>,
+    )
+
+    fireEvent.change(screen.getByLabelText('Nowe hasło'), {
+      target: { value: 'new-password123' },
+    })
+    fireEvent.change(screen.getByLabelText('Powtórz nowe hasło'), {
+      target: { value: 'new-password123' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Zmień hasło' }))
+
+    expect(await screen.findByRole('link', { name: 'Poproś o nowy link' })).toHaveAttribute(
+      'href',
+      '/forgot-password',
     )
   })
 })
