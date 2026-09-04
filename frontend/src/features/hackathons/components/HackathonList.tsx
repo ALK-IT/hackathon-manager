@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Spinner } from '../../../components/ui'
+import { useAuth } from '../../auth'
 import { getHackathons } from '../api/hackathonsApi'
 import type { Hackathon, HackathonFilters as Filters } from '../types'
 import { HackathonFilters } from './HackathonFilters'
 import { HackathonListItem } from './HackathonListItem'
 
 export function HackathonList() {
+  const { user, isLoading: isAuthLoading } = useAuth()
   const [hackathons, setHackathons] = useState<Hackathon[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -13,6 +15,8 @@ export function HackathonList() {
   const [filters, setFilters] = useState<Filters>({})
 
   useEffect(() => {
+    if (isAuthLoading) return
+
     const controller = new AbortController()
 
     async function loadHackathons() {
@@ -35,7 +39,7 @@ export function HackathonList() {
 
     void loadHackathons()
     return () => controller.abort()
-  }, [filters, requestVersion])
+  }, [filters, isAuthLoading, requestVersion, user?.public_id])
 
   return (
     <div className="hackathons-layout">

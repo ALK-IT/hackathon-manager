@@ -13,6 +13,7 @@ const hackathon: Hackathon = {
   capacity: 100,
   max_team_size: 4,
   access_level: 'viewer',
+  my_registration_status: null,
 }
 
 describe('HackathonListItem', () => {
@@ -88,5 +89,63 @@ describe('HackathonListItem', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Ustawienia' })).not.toBeInTheDocument()
+  })
+
+  it('shows an accepted status and navigates to the participant area', () => {
+    function Location() {
+      return <output>{useLocation().pathname}</output>
+    }
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{
+            ...hackathon,
+            registration_open: false,
+            my_registration_status: 'accepted',
+          }}
+        />
+        <Location />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Status zgłoszenia: zaakceptowane')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Przejdź do hackathonu' }))
+
+    expect(
+      screen.getByText(`/hackathons/${hackathon.public_id}/participant-area`),
+    ).toBeInTheDocument()
+  })
+
+  it('shows a pending status without an entry button', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{ ...hackathon, my_registration_status: 'pending' }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Status zgłoszenia: oczekujące')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Zarejestruj się' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Przejdź do hackathonu' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows a rejected status without registration or participant area buttons', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{ ...hackathon, my_registration_status: 'rejected' }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Status zgłoszenia: odrzucone')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Zarejestruj się' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Przejdź do hackathonu' }),
+    ).not.toBeInTheDocument()
   })
 })

@@ -157,6 +157,17 @@ export function RegistrationEntryPage() {
                 </p>
               </div>
             )}
+            {registration.status === 'accepted' && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() =>
+                  navigate(`/hackathons/${hackathonPublicId}/participant-area`)
+                }
+              >
+                Wejdź do hackathonu
+              </Button>
+            )}
             <Button type="button" variant="ghost" onClick={() => navigate('/hackathons')}>
               Wróć do listy
             </Button>

@@ -1,14 +1,19 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from src.auth.models import User, UserRole
+from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
+from src.hackathons.repository import HackathonRepository
 from src.teams.exceptions import (
     TeamFullError,
     TeamJoinCodeGenerationError,
     TeamNameAlreadyExistsError,
     TeamNotFoundError,
+    TeamPermissionDeniedError,
     TeamsDisabledError,
 )
 from src.teams.models import Team
@@ -49,12 +54,20 @@ def team_repository(mocker):
     repository.count_active_members = mocker.AsyncMock()
     repository.count_registrations = mocker.AsyncMock()
     repository.delete = mocker.AsyncMock()
+    repository.get_teams = mocker.AsyncMock()
     return repository
 
 
 @pytest.fixture
-def team_service(team_repository):
-    return TeamService(team_repository)
+def hackathon_repository(mocker):
+    repository = mocker.Mock(spec=HackathonRepository)
+    repository.get_active_by_public_id = mocker.AsyncMock()
+    return repository
+
+
+@pytest.fixture
+def team_service(team_repository, hackathon_repository):
+    return TeamService(team_repository, hackathon_repository)
 
 
 async def test_create_team_builds_and_persists_team(
@@ -338,3 +351,55 @@ async def test_resolve_team_delegates_selection_to_matching_operation(
 
     assert result is team
     operation.assert_awaited_once_with(selection, hackathon)
+
+
+async def test_get_all_teams_returns_teams_for_admin(
+    team_service,
+    team_repository,
+    hackathon_repository,
+):
+    hackathon_public_id = uuid.uuid4()
+    user = User(id=10, name="Admin", email="admin@example.com", role=UserRole.ADMIN)
+    hackathon = make_hackathon(hackathon_id=20)
+    teams = [
+        Team(id=30, hackathon_id=hackathon.id, name="Alpha", join_code="ABCD1234"),
+        Team(id=31, hackathon_id=hackathon.id, name="Beta", join_code="EFGH5678"),
+    ]
+    hackathon_repository.get_active_by_public_id.return_value = hackathon
+    team_repository.get_teams.return_value = teams
+
+    result = await team_service.get_all_teams(hackathon_public_id, user)
+
+    assert result == teams
+    hackathon_repository.get_active_by_public_id.assert_awaited_once_with(hackathon_public_id)
+    team_repository.get_teams.assert_awaited_once_with(hackathon.id)
+
+
+async def test_get_all_teams_rejects_user_without_management_access(
+    team_service,
+    team_repository,
+    hackathon_repository,
+):
+    hackathon_public_id = uuid.uuid4()
+    user = User(id=10, name="User", email="user@example.com", role=UserRole.USER)
+    hackathon_repository.get_active_by_public_id.return_value = make_hackathon(hackathon_id=20)
+
+    with pytest.raises(TeamPermissionDeniedError):
+        await team_service.get_all_teams(hackathon_public_id, user)
+
+    team_repository.get_teams.assert_not_awaited()
+
+
+async def test_get_all_teams_rejects_missing_hackathon(
+    team_service,
+    team_repository,
+    hackathon_repository,
+):
+    hackathon_public_id = uuid.uuid4()
+    user = User(id=10, name="Admin", email="admin@example.com", role=UserRole.ADMIN)
+    hackathon_repository.get_active_by_public_id.return_value = None
+
+    with pytest.raises(HackathonNotFoundError):
+        await team_service.get_all_teams(hackathon_public_id, user)
+
+    team_repository.get_teams.assert_not_awaited()

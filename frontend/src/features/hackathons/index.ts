@@ -4,10 +4,12 @@ export { EditHackathonPage } from './pages/EditHackathonPage'
 export { HackathonsPage } from './pages/HackathonsPage'
 export type {
   AddCoOrganizerPayload,
+  CreateHackathonTaskPayload,
   CreateHackathonPayload,
   Hackathon,
   HackathonDetails,
   HackathonFilters,
+  HackathonTask,
   UpdateHackathonPayload,
   UserSummary,
 } from './types'

@@ -14,6 +14,7 @@ from src.hackathons.exceptions import (
     RegistrationDeadlinePassedError,
 )
 from src.hackathons.service import HackathonService
+from src.registration.models import RegistrationStatus
 from tests.hackathons.factories import HackathonFactory, UserFactory
 
 
@@ -103,9 +104,9 @@ async def test_list_endpoint_returns_all_access_levels(
     viewed_hackathon = hackathon_factory(organizer=other_owner)
     viewed_hackathon.id = 3
     mock_hackathon_service.list_hackathons.return_value = [
-        owned_hackathon,
-        co_organized_hackathon,
-        viewed_hackathon,
+        (owned_hackathon, RegistrationStatus.ACCEPTED),
+        (co_organized_hackathon, None),
+        (viewed_hackathon, RegistrationStatus.PENDING),
     ]
 
     response = await hackathon_client.get("/api/hackathons")
@@ -116,9 +117,15 @@ async def test_list_endpoint_returns_all_access_levels(
         "co_organizer",
         "viewer",
     ]
+    assert [item["my_registration_status"] for item in response.json()] == [
+        "accepted",
+        None,
+        "pending",
+    ]
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=None,
         registration_open=None,
+        user=admin_user,
     )
 
 
@@ -133,7 +140,7 @@ async def test_list_endpoint_is_public(
         organizer=admin_user,
         registration_opens_at=datetime.now(UTC) - timedelta(hours=1),
     )
-    mock_hackathon_service.list_hackathons.return_value = [hackathon]
+    mock_hackathon_service.list_hackathons.return_value = [(hackathon, None)]
     force_authenticate(None)
 
     response = await hackathon_client.get("/api/hackathons")
@@ -144,12 +151,14 @@ async def test_list_endpoint_is_public(
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=None,
         registration_open=None,
+        user=None,
     )
 
 
 async def test_list_endpoint_passes_query_filters_to_service(
     hackathon_client: AsyncClient,
     mock_hackathon_service: HackathonService,
+    admin_user: User,
 ):
     mock_hackathon_service.list_hackathons.return_value = []
 
@@ -160,6 +169,7 @@ async def test_list_endpoint_passes_query_filters_to_service(
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=True,
         registration_open=False,
+        user=admin_user,
     )
 
 
@@ -174,7 +184,7 @@ async def test_list_endpoint_reports_registration_closed_after_deadline(
         registration_open=True,
         registration_deadline=datetime.now(UTC) - timedelta(seconds=1),
     )
-    mock_hackathon_service.list_hackathons.return_value = [hackathon]
+    mock_hackathon_service.list_hackathons.return_value = [(hackathon, None)]
 
     response = await hackathon_client.get("/api/hackathons")
 

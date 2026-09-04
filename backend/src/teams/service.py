@@ -1,12 +1,19 @@
+import uuid
+
 from sqlalchemy.exc import IntegrityError
 
+from src.auth.models import User
 from src.common.sqlalchemy import get_integrity_error_constraint
+from src.hackathons.access import can_manage_hackathon
+from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
+from src.hackathons.repository import HackathonRepository
 from src.teams.exceptions import (
     TeamFullError,
     TeamJoinCodeGenerationError,
     TeamNameAlreadyExistsError,
     TeamNotFoundError,
+    TeamPermissionDeniedError,
     TeamsDisabledError,
 )
 from src.teams.models import Team
@@ -19,8 +26,11 @@ JOIN_CODE_CONSTRAINTS = {"teams_join_code_key", "uq_team_join_code"}
 
 
 class TeamService:
-    def __init__(self, repository: TeamRepository) -> None:
+    def __init__(
+        self, repository: TeamRepository, hackathon_repository: HackathonRepository
+    ) -> None:
         self.repository = repository
+        self.hackathon_repository = hackathon_repository
 
     async def create_team(self, request: TeamCreateRequest, hackathon: Hackathon) -> Team:
         self._ensure_teams_enabled(hackathon)
@@ -85,6 +95,17 @@ class TeamService:
         elif isinstance(selection, TeamJoinRequest):
             return await self.join_team(selection, hackathon)
         return None
+
+    async def list_accepted_users(self, team_id: int) -> list[User]:
+        return await self.repository.get_members(team_id)
+
+    async def get_all_teams(self, hackathon_public_id: uuid.UUID, user: User) -> list[Team]:
+        hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
+        if hackathon is None:
+            raise HackathonNotFoundError()
+        if not can_manage_hackathon(hackathon, user):
+            raise TeamPermissionDeniedError()
+        return await self.repository.get_teams(hackathon.id)
 
     @staticmethod
     def _ensure_teams_enabled(hackathon: Hackathon) -> None:

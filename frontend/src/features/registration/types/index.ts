@@ -33,4 +33,54 @@ export interface RegistrationResponse {
   team: RegistrationTeam | null
 }
 
+export interface Participant {
+  public_id: string
+  name: string
+}
+
+export interface ParticipantTeam {
+  public_id: string
+  name: string
+  members: Participant[]
+}
+
+export interface TaskSubmissionUser {
+  public_id: string
+  name: string
+}
+
+export interface TaskSubmissionTeam {
+  public_id: string
+  name: string
+}
+
+export interface TaskSubmission {
+  public_id: string
+  github_url: string
+  team: TaskSubmissionTeam
+  submitted_by: TaskSubmissionUser | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ParticipantTask {
+  public_id: string
+  title: string
+  description: string
+  visible_from: string
+  created_at: string
+  updated_at: string
+  submission: TaskSubmission | null
+}
+
+export interface ParticipantArea {
+  public_id: string
+  name: string
+  description: string
+  start_date: string
+  end_date: string
+  team: ParticipantTeam | null
+  tasks: ParticipantTask[]
+}
+
 export type TeamMode = 'none' | 'create' | 'join'

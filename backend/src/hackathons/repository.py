@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from src.auth.models import User
 from src.hackathons.models import Hackathon
+from src.registration.models import Registration, RegistrationStatus
 
 
 class HackathonRepository:
@@ -21,10 +22,18 @@ class HackathonRepository:
 
     async def list_active(
         self,
+        user_id: int | None = None,
         upcoming: bool | None = None,
         registration_open: bool | None = None,
-    ) -> list[Hackathon]:
-        statement = select(Hackathon).where(Hackathon.is_deleted.is_(False))
+    ) -> list[tuple[Hackathon, RegistrationStatus | None]]:
+        statement = (
+            select(Hackathon, Registration.status)
+            .outerjoin(
+                Registration,
+                and_(Registration.hackathon_id == Hackathon.id, Registration.user_id == user_id),
+            )
+            .where(Hackathon.is_deleted.is_(False))
+        )
 
         if upcoming is True:
             statement = statement.where(Hackathon.start_date > func.now())
@@ -46,8 +55,8 @@ class HackathonRepository:
             Hackathon.created_at.desc()
         )
 
-        result = await self.session.scalars(statement)
-        return list(result.unique().all())
+        result = await self.session.execute(statement)
+        return list(result.unique().tuples().all())
 
     async def list_managed_by_user(self, user_id: int) -> list[Hackathon]:
         statement = (

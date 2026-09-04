@@ -1,10 +1,12 @@
 import { apiRequest } from '../../../lib/api/client'
 import type {
   AddCoOrganizerPayload,
+  CreateHackathonTaskPayload,
   CreateHackathonPayload,
   Hackathon,
   HackathonDetails,
   HackathonFilters,
+  HackathonTask,
   UpdateHackathonPayload,
 } from '../types'
 
@@ -57,4 +59,25 @@ export function updateHackathon(publicId: string, payload: UpdateHackathonPayloa
     body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+export function getHackathonTasks(publicId: string, signal?: AbortSignal) {
+  return apiRequest<HackathonTask[]>(
+    `/api/hackathons/${encodeURIComponent(publicId)}/tasks`,
+    { signal },
+  )
+}
+
+export function createHackathonTask(
+  publicId: string,
+  payload: CreateHackathonTaskPayload,
+) {
+  return apiRequest<HackathonTask>(
+    `/api/hackathons/${encodeURIComponent(publicId)}/tasks`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    },
+  )
 }

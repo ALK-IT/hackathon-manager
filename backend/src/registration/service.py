@@ -5,6 +5,8 @@ from sqlalchemy.exc import IntegrityError
 
 from src.auth.models import User
 from src.common.sqlalchemy import get_integrity_error_constraint
+from src.hackathon_tasks.repository import TaskRepository
+from src.hackathon_tasks.schemas import ParticipantTaskResponse
 from src.hackathons.access import can_manage_hackathon
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
@@ -16,6 +18,7 @@ from src.registration.exceptions import (
     QuestionNotFoundError,
     RegistrationAlreadyExistsError,
     RegistrationClosedError,
+    RegistrationNotAcceptedError,
     RegistrationNotFoundError,
     RegistrationQuestionsLockedError,
     RegistrationStatusChangeLockedError,
@@ -28,6 +31,9 @@ from src.registration.models import (
 )
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
 from src.registration.schema import (
+    ParticipantAreaResponse,
+    ParticipantResponse,
+    ParticipantTeamResponse,
     RegistrationCreate,
     RegistrationQuestionBulkCreate,
     RegistrationQuestionCreate,
@@ -153,11 +159,13 @@ class RegistrationService:
         question_repository: RegistrationQuestionRepository,
         hackathon_repository: HackathonRepository,
         team_service: TeamService,
+        task_repository: TaskRepository,
     ):
         self.registration_repository = registration_repository
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
         self.team_service = team_service
+        self.task_repository = task_repository
 
     async def list_registrations(
         self,
@@ -260,6 +268,59 @@ class RegistrationService:
         except Exception:
             await self.registration_repository.rollback()
             raise
+
+    async def get_participant_area(
+        self,
+        hackathon_public_id: uuid.UUID,
+        user: User,
+    ) -> ParticipantAreaResponse:
+        registration = await self.registration_repository.get_by_hackathon_and_user(
+            hackathon_public_id, user.public_id
+        )
+        if registration is None:
+            raise RegistrationNotFoundError()
+        if registration.status != RegistrationStatus.ACCEPTED:
+            raise RegistrationNotAcceptedError()
+        team = registration.team
+        hackathon = registration.hackathon
+        task_rows = await self.task_repository.list_with_team_submission(
+            hackathon.id,
+            registration.team_id,
+            visible_before=datetime.now(UTC),
+        )
+        tasks = [
+            ParticipantTaskResponse.from_entities(task, submission)
+            for task, submission in task_rows
+        ]
+        if registration.team_id is None:
+            return ParticipantAreaResponse(
+                public_id=hackathon.public_id,
+                name=hackathon.name,
+                description=hackathon.description,
+                start_date=hackathon.start_date,
+                end_date=hackathon.end_date,
+                team=None,
+                tasks=tasks,
+            )
+        users = await self.team_service.list_accepted_users(registration.team_id)
+
+        members = [ParticipantResponse.model_validate(member) for member in users]
+
+        team_response = ParticipantTeamResponse(
+            public_id=team.public_id,
+            name=team.name,
+            members=members,
+        )
+
+        return ParticipantAreaResponse(
+            public_id=hackathon.public_id,
+            name=hackathon.name,
+            description=hackathon.description,
+            start_date=hackathon.start_date,
+            end_date=hackathon.end_date,
+            team=team_response,
+            tasks=tasks,
+        )
 
     async def delete_registration(
         self,

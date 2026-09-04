@@ -2,6 +2,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_session
+from src.hackathon_tasks.repository import TaskRepository
 from src.hackathons.repository import HackathonRepository
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
 from src.registration.service import RegistrationQuestionService, RegistrationService
@@ -25,5 +26,6 @@ def get_registration_service(
         RegistrationRepository(session),
         RegistrationQuestionRepository(session),
         HackathonRepository(session),
-        TeamService(TeamRepository(session)),
+        TeamService(TeamRepository(session), HackathonRepository(session)),
+        TaskRepository(session),
     )

@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from src.hackathon_tasks.schemas import ParticipantTaskResponse
 from src.registration.models import RegistrationStatus
 from src.teams.schemas import TeamResponse, TeamSelection
 
@@ -46,6 +47,33 @@ class RegistrationCreate(BaseModel):
             raise ValueError("Each question can be answered only once")
 
         return self
+
+
+class ParticipantResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+
+
+class ParticipantTeamResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+    members: list[ParticipantResponse]
+
+
+class ParticipantAreaResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+    description: str
+    start_date: datetime
+    end_date: datetime
+    team: ParticipantTeamResponse | None
+    tasks: list[ParticipantTaskResponse]
 
 
 class RegistrationStatusChangedByResponse(BaseModel):

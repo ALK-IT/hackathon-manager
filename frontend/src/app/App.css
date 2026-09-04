@@ -66,9 +66,39 @@ button:disabled {
   margin: 0 auto;
 }
 
-.registration-entry-card {
+.registration-entry-card,
+.participant-area-card {
   max-width: 640px;
   margin: 0 auto;
+}
+
+.participant-list {
+  padding-left: 20px;
+}
+
+.participant-area-stack,
+.participant-task-list,
+.task-submission-form {
+  display: grid;
+  gap: 16px;
+}
+
+.participant-task-card {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.task-submission-form {
+  gap: 8px;
+}
+
+.task-submission-form input {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.task-submission-form button {
+  justify-self: start;
 }
 
 .registration-questions,
@@ -144,6 +174,34 @@ button:disabled {
 
 .co-organizer-form button {
   justify-self: start;
+}
+
+.hackathon-task-list {
+  display: grid;
+  gap: 12px;
+  padding-left: 20px;
+}
+
+.hackathon-task-list p {
+  margin: 4px 0;
+}
+
+.hackathon-task-form {
+  display: grid;
+  max-width: 640px;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.hackathon-task-form button {
+  justify-self: start;
+}
+
+.task-visibility-field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 8px;
 }
 
 @media (max-width: 560px) {

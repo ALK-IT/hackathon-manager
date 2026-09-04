@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiRequest } from '../../../lib/api/client'
 import {
   addCoOrganizer,
+  createHackathonTask,
   getHackathon,
   getHackathons,
+  getHackathonTasks,
   updateHackathon,
 } from './hackathonsApi'
 
@@ -70,6 +72,32 @@ describe('getHackathons', () => {
 
     expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id', {
       method: 'PATCH',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    })
+  })
+
+  it('gets tasks for the selected hackathon', () => {
+    const controller = new AbortController()
+
+    getHackathonTasks('hackathon-id', controller.signal)
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id/tasks', {
+      signal: controller.signal,
+    })
+  })
+
+  it('creates a task with its publication date', () => {
+    const payload = {
+      title: 'API',
+      description: 'Zbuduj API.',
+      visible_from: '2026-09-01T10:00:00.000Z',
+    }
+
+    createHackathonTask('hackathon-id', payload)
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id/tasks', {
+      method: 'POST',
       body: JSON.stringify(payload),
       headers: { 'Content-Type': 'application/json' },
     })

@@ -30,13 +30,15 @@ async def list_hackathons(
     hackathons = await service.list_hackathons(
         upcoming=upcoming,
         registration_open=registration_open,
+        user=current_user,
     )
     return [
         HackathonListItem.from_hackathon(
             hackathon,
             current_user.id if current_user is not None else None,
+            my_registration_status,
         )
-        for hackathon in hackathons
+        for hackathon, my_registration_status in hackathons
     ]
 
 

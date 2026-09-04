@@ -98,6 +98,7 @@ def test_registration_routes_are_registered():
         "/api/hackathons/{hackathon_public_id}/questions/{question_public_id}",
         "/api/hackathons/{hackathon_public_id}/registrations",
         "/api/hackathons/{hackathon_public_id}/registrations/me",
+        "/api/hackathons/{hackathon_public_id}/participant-area",
         "/api/registrations/{registration_public_id}",
         "/api/registrations/{registration_public_id}/status",
     }.issubset(paths)

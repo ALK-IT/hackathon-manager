@@ -61,3 +61,9 @@ class RegistrationNotFoundError(RegistrationError):
     status_code = 404
     error_code = "REGISTRATION_NOT_FOUND"
     detail = "Registration does not exist."
+
+
+class RegistrationNotAcceptedError(RegistrationError):
+    status_code = 403
+    error_code = "REGISTRATION_NOT_ACCEPTED"
+    detail = "Only accepted participants can access the participant area."

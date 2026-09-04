@@ -26,6 +26,7 @@ from src.hackathons.exceptions import (
 from src.hackathons.repository import HackathonRepository
 from src.hackathons.schemas import CoOrganizerAddRequest, HackathonCreate, HackathonUpdate
 from src.hackathons.service import HackathonService
+from src.registration.models import RegistrationStatus
 from tests.hackathons.factories import NOW, HackathonFactory, UserFactory
 
 
@@ -209,7 +210,12 @@ async def test_list_returns_all_active_repository_results(
     regular_user: User,
     hackathon_factory: HackathonFactory,
 ):
-    active = [hackathon_factory(organizer=regular_user)]
+    active = [
+        (
+            hackathon_factory(organizer=regular_user),
+            RegistrationStatus.ACCEPTED,
+        )
+    ]
     repository.list_active.return_value = active
     service = make_service(repository)
 
@@ -217,6 +223,7 @@ async def test_list_returns_all_active_repository_results(
     repository.list_active.assert_awaited_once_with(
         upcoming=None,
         registration_open=None,
+        user_id=None,
     )
 
 
@@ -228,6 +235,7 @@ async def test_list_passes_filters_to_repository(repository: HackathonRepository
     repository.list_active.assert_awaited_once_with(
         upcoming=True,
         registration_open=False,
+        user_id=None,
     )
 
 

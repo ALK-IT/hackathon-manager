@@ -54,3 +54,27 @@ export function getAddCoOrganizerErrorMessage(error: unknown): string {
 
   return 'Nie udało się dodać współorganizatora. Spróbuj ponownie.'
 }
+
+export function getHackathonTasksErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 401) return 'Zaloguj się ponownie i spróbuj jeszcze raz.'
+    if (error.status === 403) return 'Nie masz uprawnień do zarządzania zadaniami.'
+    if (error.status === 404) return 'Nie znaleziono tego hackathonu.'
+    return error.message
+  }
+
+  return 'Nie udało się pobrać zadań. Spróbuj ponownie.'
+}
+
+export function getCreateHackathonTaskErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.errorCode === 'INVALID_TASK_VISIBILITY_DATE') {
+      return 'Termin publikacji musi przypadać przed zakończeniem hackathonu.'
+    }
+    if (error.errorCode === 'VALIDATION_ERROR') return 'Sprawdź dane zadania.'
+    if (error.status === 403) return 'Nie masz uprawnień do dodawania zadań.'
+    return error.message
+  }
+
+  return 'Nie udało się dodać zadania. Spróbuj ponownie.'
+}

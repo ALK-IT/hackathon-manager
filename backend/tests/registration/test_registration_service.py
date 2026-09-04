@@ -15,6 +15,7 @@ from src.registration.exceptions import (
     QuestionNotFoundError,
     RegistrationAlreadyExistsError,
     RegistrationClosedError,
+    RegistrationNotAcceptedError,
     RegistrationNotFoundError,
     RegistrationQuestionsLockedError,
     RegistrationStatusChangeLockedError,
@@ -156,7 +157,15 @@ def team_service(mocker):
     service.resolve_team = mocker.AsyncMock(return_value=None)
     service.delete_if_empty = mocker.AsyncMock()
     service.ensure_member_can_be_activated = mocker.AsyncMock()
+    service.list_accepted_users = mocker.AsyncMock(return_value=[])
     return service
+
+
+@pytest.fixture
+def task_repository(mocker):
+    repository = mocker.Mock()
+    repository.list_with_team_submission = mocker.AsyncMock(return_value=[])
+    return repository
 
 
 @pytest.fixture
@@ -165,12 +174,14 @@ def registration_service(
     question_repository,
     hackathon_repository,
     team_service,
+    task_repository,
 ):
     return RegistrationService(
         registration_repository=registration_repository,
         question_repository=question_repository,
         hackathon_repository=hackathon_repository,
         team_service=team_service,
+        task_repository=task_repository,
     )
 
 
@@ -987,8 +998,8 @@ async def test_update_status_allows_changes_just_before_hackathon_end(
         hackathon=hackathon,
     )
     registration_repository.get_active_by_public_id.return_value = registration
-    registration_repository.update_status.side_effect = (
-        lambda item, status, _changed_by: setattr(item, "status", status) or item
+    registration_repository.update_status.side_effect = lambda item, status, _changed_by: (
+        setattr(item, "status", status) or item
     )
 
     result = await registration_service.update_status(
@@ -1031,8 +1042,8 @@ async def test_authorized_user_can_update_status(
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
-    registration_repository.update_status.side_effect = (
-        lambda item, status, _changed_by: setattr(item, "status", status) or item
+    registration_repository.update_status.side_effect = lambda item, status, _changed_by: (
+        setattr(item, "status", status) or item
     )
 
     result = await registration_service.update_status(
@@ -1069,8 +1080,8 @@ async def test_reactivating_rejected_team_member_checks_available_place(
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
-    registration_repository.update_status.side_effect = (
-        lambda item, status, _changed_by: setattr(item, "status", status) or item
+    registration_repository.update_status.side_effect = lambda item, status, _changed_by: (
+        setattr(item, "status", status) or item
     )
 
     result = await registration_service.update_status(
@@ -1192,3 +1203,94 @@ async def test_create_many_questions_rejects_change_after_registration_opened(
 
     question_repository.create_many.assert_not_awaited()
     question_repository.commit.assert_not_awaited()
+
+
+async def test_participant_area_returns_accepted_team_members(
+    registration_service,
+    registration_repository,
+    team_service,
+):
+    current_user = make_user()
+    now = datetime.now(UTC)
+    hackathon = SimpleNamespace(
+        id=10,
+        public_id=uuid.uuid4(),
+        name="AI Hackathon",
+        description="Build something useful",
+        start_date=now - timedelta(hours=1),
+        end_date=now + timedelta(days=1),
+    )
+    team = SimpleNamespace(id=20, public_id=uuid.uuid4(), name="Byte Buccaneers")
+    members = [
+        SimpleNamespace(public_id=uuid.uuid4(), name="Jan Kowalski"),
+        SimpleNamespace(public_id=uuid.uuid4(), name="Anna Nowak"),
+    ]
+    registration_repository.get_by_hackathon_and_user.return_value = SimpleNamespace(
+        status=RegistrationStatus.ACCEPTED,
+        team_id=team.id,
+        team=team,
+        hackathon=hackathon,
+    )
+    team_service.list_accepted_users.return_value = members
+
+    result = await registration_service.get_participant_area(
+        hackathon.public_id,
+        current_user,
+    )
+
+    assert result.public_id == hackathon.public_id
+    assert result.name == hackathon.name
+    assert result.team is not None
+    assert result.team.public_id == team.public_id
+    assert [member.name for member in result.team.members] == [
+        "Jan Kowalski",
+        "Anna Nowak",
+    ]
+    team_service.list_accepted_users.assert_awaited_once_with(team.id)
+
+
+async def test_participant_area_returns_null_team_for_accepted_individual(
+    registration_service,
+    registration_repository,
+    team_service,
+):
+    current_user = make_user()
+    now = datetime.now(UTC)
+    hackathon = SimpleNamespace(
+        id=10,
+        public_id=uuid.uuid4(),
+        name="AI Hackathon",
+        description="Build something useful",
+        start_date=now - timedelta(hours=1),
+        end_date=now + timedelta(days=1),
+    )
+    registration_repository.get_by_hackathon_and_user.return_value = SimpleNamespace(
+        status=RegistrationStatus.ACCEPTED,
+        team_id=None,
+        team=None,
+        hackathon=hackathon,
+    )
+
+    result = await registration_service.get_participant_area(
+        hackathon.public_id,
+        current_user,
+    )
+
+    assert result.team is None
+    team_service.list_accepted_users.assert_not_awaited()
+
+
+async def test_participant_area_rejects_registration_that_is_not_accepted(
+    registration_service,
+    registration_repository,
+    team_service,
+):
+    current_user = make_user()
+    registration_repository.get_by_hackathon_and_user.return_value = SimpleNamespace(
+        status=RegistrationStatus.PENDING,
+    )
+
+    with pytest.raises(RegistrationNotAcceptedError):
+        await registration_service.get_participant_area(uuid.uuid4(), current_user)
+
+    team_service.list_accepted_users.assert_not_awaited()

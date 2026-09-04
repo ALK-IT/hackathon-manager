@@ -10,6 +10,7 @@ from src.registration.dependencies import (
     get_registration_service,
 )
 from src.registration.schema import (
+    ParticipantAreaResponse,
     RegistrationCreate,
     RegistrationDetailResponse,
     RegistrationQuestionBulkCreate,
@@ -206,3 +207,16 @@ async def create_questions(
         data=data,
         current_user=current_user,
     )
+
+
+@router.get(
+    "/hackathons/{hackathon_public_id}/participant-area",
+    response_model=ParticipantAreaResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_participant_area(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[RegistrationService, Depends(get_registration_service)],
+) -> ParticipantAreaResponse:
+    return await service.get_participant_area(hackathon_public_id, current_user)
