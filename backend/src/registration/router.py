@@ -10,6 +10,7 @@ from src.registration.dependencies import (
     get_registration_service,
 )
 from src.registration.schema import (
+    ProfileHackathonResponse,
     RegistrationCreate,
     RegistrationDetailResponse,
     RegistrationQuestionBulkCreate,
@@ -27,6 +28,31 @@ router = APIRouter(
     prefix="/api",
     tags=["registrations"],
 )
+
+
+@router.get(
+    "/profile/hackathons",
+    response_model=list[ProfileHackathonResponse],
+)
+async def list_my_hackathons(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[RegistrationService, Depends(get_registration_service)],
+) -> list[ProfileHackathonResponse]:
+    registrations = await service.list_my_hackathons(current_user)
+    return [
+        ProfileHackathonResponse(
+            registration_public_id=registration.public_id,
+            hackathon_public_id=registration.hackathon.public_id,
+            name=registration.hackathon.name,
+            description=registration.hackathon.description,
+            start_date=registration.hackathon.start_date,
+            end_date=registration.hackathon.end_date,
+            status=registration.status,
+            team=registration.team,
+            status_changed_at=registration.status_changed_at,
+        )
+        for registration in registrations
+    ]
 
 
 @router.get(
