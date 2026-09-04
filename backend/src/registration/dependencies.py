@@ -26,6 +26,6 @@ def get_registration_service(
         RegistrationRepository(session),
         RegistrationQuestionRepository(session),
         HackathonRepository(session),
-        TeamService(TeamRepository(session)),
+        TeamService(TeamRepository(session), HackathonRepository(session)),
         TaskRepository(session),
     )

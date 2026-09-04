@@ -37,6 +37,13 @@ class UserRead(BaseModel):
     created_at: datetime
 
 
+class SimpleUserRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+
+
 class UserMeRead(UserRead):
     role: UserRole
 
