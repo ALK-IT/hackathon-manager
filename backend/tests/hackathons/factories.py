@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 from src.auth.models import User, UserRole
 from src.hackathons.models import Hackathon
 
-NOW = datetime(2026, 9, 1, 10, tzinfo=UTC)
+# Keep test dates relative so the default registration window cannot expire over time.
+NOW = datetime.now(UTC).replace(microsecond=0)
 
 UserFactory = Callable[..., User]
 HackathonFactory = Callable[..., Hackathon]
