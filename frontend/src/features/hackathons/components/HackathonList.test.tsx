@@ -18,6 +18,13 @@ const hackathon: Hackathon = {
   access_level: 'viewer',
 }
 
+const page = (items: Hackathon[], total = items.length, offset = 0) => ({
+  items,
+  total,
+  limit: 20,
+  offset,
+})
+
 function renderHackathonList() {
   return render(
     <MemoryRouter>
@@ -30,7 +37,7 @@ describe('HackathonList', () => {
   beforeEach(() => vi.mocked(getHackathons).mockReset())
 
   it('shows a loading state while the request is pending', async () => {
-    let resolveRequest: ((hackathons: Hackathon[]) => void) | undefined
+    let resolveRequest: ((result: ReturnType<typeof page>) => void) | undefined
     vi.mocked(getHackathons).mockReturnValue(
       new Promise((resolve) => {
         resolveRequest = resolve
@@ -40,12 +47,12 @@ describe('HackathonList', () => {
     renderHackathonList()
 
     expect(screen.getByRole('status')).toHaveTextContent('Ładowanie hackathonów')
-    resolveRequest?.([])
+    resolveRequest?.(page([]))
     expect(await screen.findByText('Brak hackathonów do wyświetlenia.')).toBeInTheDocument()
   })
 
   it('renders hackathons returned by the API', async () => {
-    vi.mocked(getHackathons).mockResolvedValue([hackathon])
+    vi.mocked(getHackathons).mockResolvedValue(page([hackathon]))
 
     renderHackathonList()
 
@@ -53,7 +60,7 @@ describe('HackathonList', () => {
   })
 
   it('shows an empty state', async () => {
-    vi.mocked(getHackathons).mockResolvedValue([])
+    vi.mocked(getHackathons).mockResolvedValue(page([]))
 
     renderHackathonList()
 
@@ -61,7 +68,7 @@ describe('HackathonList', () => {
   })
 
   it('reloads the list with selected filters', async () => {
-    vi.mocked(getHackathons).mockResolvedValue([])
+    vi.mocked(getHackathons).mockResolvedValue(page([]))
 
     renderHackathonList()
     await screen.findByText('Brak hackathonów do wyświetlenia.')
@@ -81,10 +88,29 @@ describe('HackathonList', () => {
     )
   })
 
+  it('loads hackathons page by page using the total count', async () => {
+    const nextHackathon = { ...hackathon, public_id: 'next-id', name: 'Drugi hackathon' }
+    vi.mocked(getHackathons)
+      .mockResolvedValueOnce(page([hackathon], 21))
+      .mockResolvedValueOnce(page([nextHackathon], 21, 20))
+
+    renderHackathonList()
+
+    expect(await screen.findByRole('heading', { name: 'Test Hackathon' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Następna strona' }))
+
+    expect(await screen.findByRole('heading', { name: 'Drugi hackathon' })).toBeInTheDocument()
+    expect(screen.getByText('Strona 2')).toBeInTheDocument()
+    expect(getHackathons).toHaveBeenLastCalledWith(
+      expect.objectContaining({ limit: 20, offset: 20 }),
+    )
+    expect(screen.getByRole('button', { name: 'Następna strona' })).toBeDisabled()
+  })
+
   it('shows an error and retries the request', async () => {
     vi.mocked(getHackathons)
       .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce([hackathon])
+      .mockResolvedValueOnce(page([hackathon]))
 
     renderHackathonList()
 

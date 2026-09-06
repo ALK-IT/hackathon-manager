@@ -29,6 +29,13 @@ export interface HackathonFilters {
   registrationOpen?: boolean
 }
 
+export interface HackathonPage {
+  items: Hackathon[]
+  total: number
+  limit: number
+  offset: number
+}
+
 export interface CreateHackathonPayload {
   name: string
   description: string

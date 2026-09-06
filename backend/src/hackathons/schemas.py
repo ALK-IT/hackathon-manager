@@ -212,6 +212,13 @@ class HackathonListItem(BaseModel):
         )
 
 
+class HackathonListResponse(BaseModel):
+    items: list[HackathonListItem]
+    total: int
+    limit: int
+    offset: int
+
+
 class HackathonRead(HackathonListItem):
     description: str
     organizer: UserSummary

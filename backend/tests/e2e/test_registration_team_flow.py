@@ -51,7 +51,8 @@ async def test_users_complete_registration_and_team_flow(
     )
 
     assert public_list_response.status_code == 200
-    assert [item["public_id"] for item in public_list_response.json()] == [hackathon_id]
+    assert [item["public_id"] for item in public_list_response.json()["items"]] == [hackathon_id]
+    assert public_list_response.json()["total"] == 1
     assert participant_questions_response.status_code == 200
     assert len(participant_questions_response.json()) == 2
 

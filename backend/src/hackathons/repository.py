@@ -23,13 +23,15 @@ class HackathonRepository:
         self,
         upcoming: bool | None = None,
         registration_open: bool | None = None,
-    ) -> list[Hackathon]:
-        statement = select(Hackathon).where(Hackathon.is_deleted.is_(False))
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Hackathon], int]:
+        filters = [Hackathon.is_deleted.is_(False)]
 
         if upcoming is True:
-            statement = statement.where(Hackathon.start_date > func.now())
+            filters.append(Hackathon.start_date > func.now())
         elif upcoming is False:
-            statement = statement.where(Hackathon.start_date <= func.now())
+            filters.append(Hackathon.start_date <= func.now())
 
         registration_is_open = and_(
             Hackathon.registration_open.is_(True),
@@ -38,32 +40,47 @@ class HackathonRepository:
         )
 
         if registration_open is True:
-            statement = statement.where(registration_is_open)
+            filters.append(registration_is_open)
         elif registration_open is False:
-            statement = statement.where(not_(registration_is_open))
+            filters.append(not_(registration_is_open))
 
-        statement = statement.options(*self._with_relationships()).order_by(
-            Hackathon.created_at.desc()
-        )
-
-        result = await self.session.scalars(statement)
-        return list(result.unique().all())
-
-    async def list_managed_by_user(self, user_id: int) -> list[Hackathon]:
+        total = await self.session.scalar(select(func.count(Hackathon.id)).where(*filters))
         statement = (
             select(Hackathon)
-            .where(
-                Hackathon.is_deleted.is_(False),
-                or_(
-                    Hackathon.organizer_id == user_id,
-                    Hackathon.co_organizers.any(User.id == user_id),
-                ),
-            )
+            .where(*filters)
             .options(*self._with_relationships())
-            .order_by(Hackathon.created_at.desc())
+            .order_by(Hackathon.created_at.desc(), Hackathon.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self.session.scalars(statement)
+        return list(result.unique().all()), int(total or 0)
+
+    async def list_managed_by_user(
+        self,
+        user_id: int,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Hackathon], int]:
+        filters = (
+            Hackathon.is_deleted.is_(False),
+            or_(
+                Hackathon.organizer_id == user_id,
+                Hackathon.co_organizers.any(User.id == user_id),
+            ),
+        )
+        total = await self.session.scalar(select(func.count(Hackathon.id)).where(*filters))
+        statement = (
+            select(Hackathon)
+            .where(*filters)
+            .options(*self._with_relationships())
+            .order_by(Hackathon.created_at.desc(), Hackathon.id.desc())
+            .limit(limit)
+            .offset(offset)
         )
         result = await self.session.scalars(statement)
-        return list(result.unique().all())
+        return list(result.unique().all()), int(total or 0)
 
     async def get_owned_by_public_id(
         self,

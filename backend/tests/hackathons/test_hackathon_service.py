@@ -210,24 +210,33 @@ async def test_list_returns_all_active_repository_results(
     hackathon_factory: HackathonFactory,
 ):
     active = [hackathon_factory(organizer=regular_user)]
-    repository.list_active.return_value = active
+    repository.list_active.return_value = (active, 1)
     service = make_service(repository)
 
-    assert await service.list_hackathons() == active
+    assert await service.list_hackathons() == (active, 1)
     repository.list_active.assert_awaited_once_with(
         upcoming=None,
         registration_open=None,
+        limit=50,
+        offset=0,
     )
 
 
 async def test_list_passes_filters_to_repository(repository: HackathonRepository):
     service = make_service(repository)
 
-    await service.list_hackathons(upcoming=True, registration_open=False)
+    await service.list_hackathons(
+        upcoming=True,
+        registration_open=False,
+        limit=20,
+        offset=40,
+    )
 
     repository.list_active.assert_awaited_once_with(
         upcoming=True,
         registration_open=False,
+        limit=20,
+        offset=40,
     )
 
 
@@ -237,11 +246,15 @@ async def test_list_managed_returns_users_owned_and_co_organized_hackathons(
     hackathon_factory: HackathonFactory,
 ):
     managed = [hackathon_factory(organizer=regular_user)]
-    repository.list_managed_by_user.return_value = managed
+    repository.list_managed_by_user.return_value = (managed, 1)
     service = make_service(repository)
 
-    assert await service.list_managed_hackathons(regular_user) == managed
-    repository.list_managed_by_user.assert_awaited_once_with(regular_user.id)
+    assert await service.list_managed_hackathons(regular_user, limit=10, offset=20) == (managed, 1)
+    repository.list_managed_by_user.assert_awaited_once_with(
+        regular_user.id,
+        limit=10,
+        offset=20,
+    )
 
 
 async def test_get_returns_active_hackathon_to_any_user(

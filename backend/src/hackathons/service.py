@@ -35,14 +35,27 @@ class HackathonService:
         self,
         upcoming: bool | None = None,
         registration_open: bool | None = None,
-    ) -> list[Hackathon]:
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Hackathon], int]:
         return await self.hackathon_repository.list_active(
             upcoming=upcoming,
             registration_open=registration_open,
+            limit=limit,
+            offset=offset,
         )
 
-    async def list_managed_hackathons(self, user: User) -> list[Hackathon]:
-        return await self.hackathon_repository.list_managed_by_user(user.id)
+    async def list_managed_hackathons(
+        self,
+        user: User,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Hackathon], int]:
+        return await self.hackathon_repository.list_managed_by_user(
+            user.id,
+            limit=limit,
+            offset=offset,
+        )
 
     async def create_hackathon(self, data: HackathonCreate, user: User) -> Hackathon:
         if user.role != UserRole.ADMIN:
