@@ -85,42 +85,125 @@ Powiadomienia na Discordzie: nowy/zmergowany PR, nowe/zamknięte issue, czerwone
 
 CodeQL, gitleaks (skan sekretów) i audyt zależności (`npm audit` / `pip-audit`) uruchamiają się automatycznie na każdym PR — patrz [SECURITY.md](SECURITY.md) po pełny opis mechanizmów i zasady zgłaszania podatności.
 
-## Wymagania
+## Quickstart
 
-- Node.js 20+
-- Python 3.12+
-- Docker + Docker Compose (opcjonalnie, do uruchomienia całości jedną komendą)
+### Wymagania
 
-## Uruchomienie w Dockerze
+- Docker z Docker Compose — zalecany wariant uruchomienia całego projektu,
+- Python 3.12 — wymagany przy uruchamianiu backendu poza Dockerem,
+- Node.js 22 i npm — wymagane przy uruchamianiu frontendu poza Dockerem.
 
-Najprostszy sposób odpalenia całości (frontend + backend):
+### Docker Compose (zalecane)
+
+Uruchom wszystkie usługi wraz z migracjami bazy:
 
 ```bash
 docker compose up --build
 ```
 
-- Frontend: http://localhost:5173
-- Backend: http://localhost:8000 (dokumentacja API: http://localhost:8000/docs)
+Po uruchomieniu dostępne są:
 
-Zatrzymanie: `docker compose down`. Rebuild po zmianie zależności: `docker compose up --build`.
+- frontend: http://localhost:5173,
+- backend: http://localhost:8000,
+- interaktywna dokumentacja OpenAPI: http://localhost:8000/docs,
+- specyfikacja OpenAPI JSON: http://localhost:8000/openapi.json.
 
-## Uruchomienie lokalne (bez Dockera)
+Opcjonalnie utwórz administratora, przykładowy hackathon, pytania, zasoby i rejestracje:
 
-### Frontend
+```bash
+docker compose exec backend python -m scripts.seed
+```
+
+Skrypt seedujący jest idempotentny. Tworzy konta `admin@local.dev` / `Admin123!` oraz
+`anna@local.dev` / `Participant123!`. Hasło administratora można nadpisać zmienną
+`SEED_ADMIN_PASSWORD`. Seed służy wyłącznie do lokalnego developmentu.
+
+Zatrzymanie usług:
+
+```bash
+docker compose down
+```
+
+Dodanie `-v` (`docker compose down -v`) usuwa również lokalną bazę danych.
+
+### Uruchomienie bez Dockera
+
+Najpierw uruchom PostgreSQL i Redis. Można wykorzystać tylko usługi infrastrukturalne z Compose:
+
+```bash
+docker compose up -d postgres redis
+```
+
+Skonfiguruj i uruchom backend:
+
+```bash
+cd backend
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+
+export DATABASE_URL='postgresql+asyncpg://hackathon:hackathon@localhost:5432/hackathon_manager'
+export REDIS_URL='redis://localhost:6379/0'
+export JWT_SECRET_KEY='local-development-secret-key-at-least-32-characters'
+export RESOURCE_ENCRYPTION_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+
+alembic upgrade head
+uvicorn src.main:app --reload
+```
+
+Polecenie powyżej generuje nowy klucz Fernet przeznaczony do lokalnego developmentu.
+
+W drugim terminalu uruchom frontend:
 
 ```bash
 cd frontend
 npm ci
-npm run dev
+VITE_API_URL=http://localhost:8000 npm run dev
 ```
 
-### Backend
+### Zmienne środowiskowe
+
+| Zmienna | Wymagana | Wartość lokalna / opis |
+|---|---:|---|
+| `DATABASE_URL` | produkcja | Adres PostgreSQL; lokalnie domyślnie `postgresql+asyncpg://hackathon:hackathon@localhost:5432/hackathon_manager`. |
+| `REDIS_URL` | produkcja | Adres Redis; lokalnie domyślnie `redis://localhost:6379/0`. |
+| `JWT_SECRET_KEY` | tak | Sekret JWT o długości co najmniej 32 znaków. Wygeneruj np. przez `openssl rand -hex 32`. |
+| `RESOURCE_ENCRYPTION_KEY` | tak | Klucz Fernet służący do szyfrowania wartości zasobów. |
+| `FRONTEND_ORIGINS` | nie | Lista originów CORS oddzielona przecinkami; domyślnie `http://localhost:5173`. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | nie | Czas ważności access tokena; domyślnie `30`. |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | nie | Czas ważności refresh tokena; domyślnie `7`. |
+| `AUTH_COOKIE_SECURE` | nie | Ustaw `true` przy HTTPS; domyślnie `false`. |
+| `AUTH_COOKIE_SAMESITE` | nie | `lax`, `strict` albo `none`; domyślnie `lax`. |
+| `VITE_API_URL` | nie | Adres backendu używany podczas budowania frontendu; domyślnie `http://localhost:8000`. |
+| `TEST_DATABASE_URL` | testy | Adres oddzielnej bazy testowej, której nazwa musi kończyć się na `_test`. |
+
+### Przykładowe zapytania
+
+Healthcheck i publiczna lista hackathonów:
 
 ```bash
-cd backend
-pip install -r requirements-dev.txt
-uvicorn src.main:app --reload
+curl --fail http://localhost:8000/health
+curl --fail http://localhost:8000/api/hackathons
 ```
+
+Rejestracja i logowanie:
+
+```bash
+curl --fail-with-body \
+  -X POST http://localhost:8000/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Jan Kowalski","email":"jan@example.com","password":"Password123!"}'
+
+curl --fail-with-body \
+  -X POST http://localhost:8000/api/auth/login \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -c cookies.txt \
+  --data-urlencode 'username=jan@example.com' \
+  --data-urlencode 'password=Password123!'
+```
+
+Odpowiedź logowania zawiera access token. Chronione endpointy wymagają nagłówka
+`Authorization: Bearer <access_token>`, a refresh token jest ustawiany jako ciasteczko HTTP-only.
 
 ## Testy
 
