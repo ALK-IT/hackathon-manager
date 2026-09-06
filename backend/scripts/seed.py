@@ -198,8 +198,7 @@ async def main() -> None:
         print("Seed data created.")
     else:
         print("Seed data already exists; nothing to create.")
-    print(f"Admin login: {ADMIN_EMAIL} / {ADMIN_PASSWORD}")
-    print(f"Participant login: anna@local.dev / {PARTICIPANT_PASSWORD}")
+    print("Development login details are documented in README.md.")
 
 
 if __name__ == "__main__":
