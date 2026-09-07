@@ -53,4 +53,6 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
       - run: black --check .
+      - name: Verify production-safe runtime configuration
+        run: pytest tests/common/test_runtime_configuration.py
       - run: pytest

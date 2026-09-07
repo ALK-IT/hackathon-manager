@@ -5,6 +5,9 @@ from src.auth.constants import (
     DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES,
     DEFAULT_REFRESH_TOKEN_EXPIRE_DAYS,
 )
+from src.common.environment import validate_known_fallback
+
+LOCAL_JWT_SECRET_SHA256 = "60d8b2b131258b7cce7f31e0a082a66b1ca67a67ec53f3d6a9031b1e0b0a34cb"
 
 
 def get_access_token_expire_minutes() -> int:
@@ -62,6 +65,7 @@ def get_frontend_origins() -> list[str]:
 
 
 def validate_configuration() -> None:
-    get_jwt_secret_key()
+    secret_key = get_jwt_secret_key()
+    validate_known_fallback("JWT_SECRET_KEY", secret_key, LOCAL_JWT_SECRET_SHA256)
     get_auth_cookie_samesite()
     get_frontend_origins()

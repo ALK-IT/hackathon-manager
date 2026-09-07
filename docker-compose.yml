@@ -44,6 +44,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - ENV=${ENV:-local}
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql+asyncpg://hackathon:hackathon@postgres:5432/hackathon_manager
       - TEST_DATABASE_URL=postgresql+asyncpg://hackathon:hackathon@postgres-test:5432/hackathon_manager_test
