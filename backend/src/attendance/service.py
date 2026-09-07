@@ -51,7 +51,7 @@ class AttendanceService:
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         check_in_session = CheckInSession(
-            hackathon=hackathon,
+            hackathon_id=hackathon.id,
             token_hash=token_hash,
             expires_at=datetime.now(UTC) + timedelta(minutes=request.expires_in_minutes),
             created_by_id=user.id,
