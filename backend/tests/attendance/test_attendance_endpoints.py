@@ -1,5 +1,9 @@
+import hashlib
+import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.attendance.models import CheckIn, CheckInSession
@@ -29,6 +33,278 @@ def make_hackathon(organizer: User) -> Hackathon:
         registration_open=True,
         max_team_size=4,
     )
+
+
+async def create_registration_context(
+    session: AsyncSession,
+    *,
+    registration_status: RegistrationStatus = RegistrationStatus.ACCEPTED,
+) -> tuple[User, User, Hackathon, Registration]:
+    organizer = make_user(
+        name="Attendance Organizer",
+        email="attendance-organizer@example.com",
+        role=UserRole.ADMIN,
+    )
+    participant = make_user(
+        name="Attendance Participant",
+        email="attendance-participant@example.com",
+    )
+    hackathon = make_hackathon(organizer)
+    registration = Registration(
+        user=participant,
+        hackathon=hackathon,
+        status=registration_status,
+    )
+    session.add(registration)
+    await session.commit()
+    return organizer, participant, hackathon, registration
+
+
+async def create_check_in_session(
+    session: AsyncSession,
+    *,
+    organizer: User,
+    hackathon: Hackathon,
+    token: str,
+    expires_at: datetime | None = None,
+) -> CheckInSession:
+    check_in_session = CheckInSession(
+        hackathon=hackathon,
+        token_hash=hashlib.sha256(token.encode("utf-8")).hexdigest(),
+        expires_at=expires_at or datetime.now(UTC) + timedelta(minutes=15),
+        created_by=organizer,
+    )
+    session.add(check_in_session)
+    await session.commit()
+    return check_in_session
+
+
+@pytest.mark.parametrize(
+    ("method", "path_suffix", "payload"),
+    [
+        ("POST", "check-in-sessions", {"expires_in_minutes": 15}),
+        ("PUT", "check-ins/me", {"token": "a" * 32}),
+        ("GET", "check-ins", None),
+    ],
+)
+async def test_attendance_endpoints_require_authentication(
+    api_client,
+    method: str,
+    path_suffix: str,
+    payload: dict | None,
+):
+    response = await api_client.request(
+        method,
+        f"/api/hackathons/{uuid.uuid4()}/{path_suffix}",
+        json=payload,
+    )
+
+    assert response.status_code == 401
+
+
+async def test_create_check_in_session_returns_token_and_replaces_previous_session(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    organizer, _, hackathon, _ = await create_registration_context(session)
+    force_authenticate(organizer)
+
+    first_response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/check-in-sessions",
+        json={"expires_in_minutes": 10},
+    )
+    second_response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/check-in-sessions",
+        json={"expires_in_minutes": 20},
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 201
+    assert first_response.json()["token"] != second_response.json()["token"]
+    assert first_response.json()["is_active"] is True
+    assert second_response.json()["is_active"] is True
+
+    check_in_sessions = list(
+        (
+            await session.scalars(
+                select(CheckInSession).order_by(CheckInSession.created_at, CheckInSession.id)
+            )
+        ).all()
+    )
+    assert len(check_in_sessions) == 2
+    assert [item.is_active for item in check_in_sessions] == [False, True]
+    assert (
+        check_in_sessions[0].token_hash
+        == hashlib.sha256(first_response.json()["token"].encode("utf-8")).hexdigest()
+    )
+    assert (
+        check_in_sessions[1].token_hash
+        == hashlib.sha256(second_response.json()["token"].encode("utf-8")).hexdigest()
+    )
+    assert first_response.json()["token"] not in {
+        check_in_sessions[0].token_hash,
+        check_in_sessions[1].token_hash,
+    }
+
+
+async def test_create_check_in_session_rejects_user_without_management_permission(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    _, participant, hackathon, _ = await create_registration_context(session)
+    force_authenticate(participant)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/check-in-sessions",
+        json={"expires_in_minutes": 15},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "error_code": "PERMISSION_DENIED",
+        "detail": "Only hackathon organizers can manage check-in sessions.",
+    }
+    assert await session.scalar(select(func.count()).select_from(CheckInSession)) == 0
+
+
+async def test_participant_check_in_is_idempotent(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    organizer, participant, hackathon, registration = await create_registration_context(session)
+    token = "valid-attendance-token-value-12345"
+    check_in_session = await create_check_in_session(
+        session,
+        organizer=organizer,
+        hackathon=hackathon,
+        token=token,
+    )
+    force_authenticate(participant)
+
+    first_response = await api_client.put(
+        f"/api/hackathons/{hackathon.public_id}/check-ins/me",
+        json={"token": token},
+    )
+    second_response = await api_client.put(
+        f"/api/hackathons/{hackathon.public_id}/check-ins/me",
+        json={"token": token},
+    )
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert second_response.json() == first_response.json()
+    saved_check_in = await session.scalar(
+        select(CheckIn).where(CheckIn.public_id == uuid.UUID(first_response.json()["public_id"]))
+    )
+    assert saved_check_in is not None
+    assert saved_check_in.registration_id == registration.id
+    assert saved_check_in.check_in_session_id == check_in_session.id
+    assert await session.scalar(select(func.count()).select_from(CheckIn)) == 1
+
+
+async def test_participant_check_in_rejects_invalid_token(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    organizer, participant, hackathon, _ = await create_registration_context(session)
+    await create_check_in_session(
+        session,
+        organizer=organizer,
+        hackathon=hackathon,
+        token="valid-attendance-token-value-12345",
+    )
+    force_authenticate(participant)
+
+    response = await api_client.put(
+        f"/api/hackathons/{hackathon.public_id}/check-ins/me",
+        json={"token": "invalid-attendance-token-value-123"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "error_code": "INVALID_CHECK_IN_TOKEN",
+        "detail": "The check-in token is invalid or has expired.",
+    }
+    assert await session.scalar(select(func.count()).select_from(CheckIn)) == 0
+
+
+async def test_participant_check_in_rejects_expired_token(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    organizer, participant, hackathon, _ = await create_registration_context(session)
+    token = "expired-attendance-token-value-123"
+    await create_check_in_session(
+        session,
+        organizer=organizer,
+        hackathon=hackathon,
+        token=token,
+        expires_at=datetime.now(UTC) - timedelta(seconds=1),
+    )
+    force_authenticate(participant)
+
+    response = await api_client.put(
+        f"/api/hackathons/{hackathon.public_id}/check-ins/me",
+        json={"token": token},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error_code"] == "INVALID_CHECK_IN_TOKEN"
+    assert await session.scalar(select(func.count()).select_from(CheckIn)) == 0
+
+
+async def test_participant_check_in_requires_accepted_registration(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    organizer, participant, hackathon, _ = await create_registration_context(
+        session,
+        registration_status=RegistrationStatus.PENDING,
+    )
+    token = "valid-attendance-token-value-12345"
+    await create_check_in_session(
+        session,
+        organizer=organizer,
+        hackathon=hackathon,
+        token=token,
+    )
+    force_authenticate(participant)
+
+    response = await api_client.put(
+        f"/api/hackathons/{hackathon.public_id}/check-ins/me",
+        json={"token": token},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "error_code": "CHECK_IN_NOT_ALLOWED",
+        "detail": "Only participants with an accepted registration can check in.",
+    }
+    assert await session.scalar(select(func.count()).select_from(CheckIn)) == 0
+
+
+async def test_create_check_in_session_validates_expiration_range(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    organizer, _, hackathon, _ = await create_registration_context(session)
+    force_authenticate(organizer)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/check-in-sessions",
+        json={"expires_in_minutes": 61},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+    assert await session.scalar(select(func.count()).select_from(CheckInSession)) == 0
 
 
 async def test_list_check_ins_returns_participants_from_all_sessions(
