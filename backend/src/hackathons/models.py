@@ -144,3 +144,7 @@ class Hackathon(Base):
             self.registration_open
             and self.registration_opens_at <= checked_at < self.registration_deadline
         )
+
+    def allows_registration_status_changes_at(self, moment: datetime | None = None) -> bool:
+        checked_at = moment or datetime.now(UTC)
+        return checked_at < self.end_date
