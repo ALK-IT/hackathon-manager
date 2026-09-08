@@ -1,14 +1,18 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { getCheckIns } from '../api/attendanceApi'
+import { getAttendanceTeams, getCheckIns } from '../api/attendanceApi'
 import { AttendanceParticipantsPage } from './AttendanceParticipantsPage'
 
-vi.mock('../api/attendanceApi', () => ({ getCheckIns: vi.fn() }))
+vi.mock('../api/attendanceApi', () => ({
+  getAttendanceTeams: vi.fn(),
+  getCheckIns: vi.fn(),
+}))
 
 describe('AttendanceParticipantsPage', () => {
   it('displays attendance in a separate hackathon view', async () => {
     vi.mocked(getCheckIns).mockResolvedValue([])
+    vi.mocked(getAttendanceTeams).mockResolvedValue([])
 
     render(
       <MemoryRouter initialEntries={['/hackathons/hackathon-id/attendance']}>

@@ -1,5 +1,10 @@
 import { apiRequest } from '../../../lib/api/client'
-import type { CheckIn, CheckInListItem, CheckInSession } from '../types'
+import type {
+  AttendanceTeam,
+  CheckIn,
+  CheckInListItem,
+  CheckInSession,
+} from '../types'
 
 export function createCheckInSession(
   hackathonPublicId: string,
@@ -29,6 +34,16 @@ export function checkInCurrentUser(hackathonPublicId: string, token: string) {
 export function getCheckIns(hackathonPublicId: string, signal?: AbortSignal) {
   return apiRequest<CheckInListItem[]>(
     `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/check-ins`,
+    { signal },
+  )
+}
+
+export function getAttendanceTeams(
+  hackathonPublicId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<AttendanceTeam[]>(
+    `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/teams`,
     { signal },
   )
 }
