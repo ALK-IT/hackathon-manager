@@ -234,6 +234,59 @@ button:disabled {
   gap: 8px;
 }
 
+.attendance-qr-result {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.attendance-qr-result img {
+  box-sizing: border-box;
+  width: min(280px, 100%);
+  height: auto;
+}
+
+.attendance-scanner-actions {
+  margin-top: 16px;
+}
+
+.attendance-scanner-video {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin-top: 16px;
+  background: #000;
+}
+
+.attendance-scanner-video.is-hidden {
+  display: none;
+}
+
+.attendance-participants {
+  margin-top: 16px;
+}
+
+.attendance-participants-link {
+  margin-top: 24px;
+}
+
+.attendance-participants-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.attendance-participants-list {
+  display: grid;
+  gap: 12px;
+  padding-left: 20px;
+}
+
+.attendance-participants-list li {
+  display: grid;
+  gap: 4px;
+}
+
 @media (max-width: 560px) {
   .page-header {
     align-items: flex-start;
@@ -243,6 +296,7 @@ button:disabled {
   .hackathons-layout {
     grid-template-columns: 1fr;
   }
+
 }
 
 .profile-page { max-width: 1080px; padding-top: 36px; padding-bottom: 64px; }

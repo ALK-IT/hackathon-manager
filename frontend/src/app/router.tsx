@@ -6,6 +6,7 @@ import {
   ResetPasswordPage,
   VerifyEmailPage,
 } from '../features/auth'
+import { AttendanceParticipantsPage } from '../features/attendance'
 import {
   CreateHackathonPage,
   EditHackathonPage,
@@ -112,6 +113,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute>
             <ParticipantAreaPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hackathons/:hackathonPublicId/attendance"
+        element={
+          <ProtectedRoute>
+            <AttendanceParticipantsPage />
           </ProtectedRoute>
         }
       />
