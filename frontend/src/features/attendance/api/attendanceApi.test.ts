@@ -3,6 +3,7 @@ import { apiRequest } from '../../../lib/api/client'
 import {
   checkInCurrentUser,
   createCheckInSession,
+  getAttendanceTeams,
   getCheckIns,
 } from './attendanceApi'
 
@@ -46,4 +47,12 @@ describe('attendanceApi', () => {
     )
   })
 
+  it('gets teams used to group checked-in participants', () => {
+    getAttendanceTeams('hackathon/id')
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon%2Fid/teams',
+      { signal: undefined },
+    )
+  })
 })

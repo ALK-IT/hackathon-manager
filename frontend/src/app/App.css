@@ -273,7 +273,29 @@ button:disabled {
 
 .attendance-participants-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.attendance-resource-notice {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.attendance-team-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.attendance-team-group {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.attendance-team-group h2 {
+  margin-top: 0;
 }
 
 .attendance-participants-list {
@@ -283,8 +305,21 @@ button:disabled {
 }
 
 .attendance-participants-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.attendance-participant-details {
   display: grid;
   gap: 4px;
+}
+
+.attendance-resource-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 @media (max-width: 560px) {
@@ -297,6 +332,11 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .attendance-participants-list li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 
 .profile-page { max-width: 1080px; padding-top: 36px; padding-bottom: 64px; }
