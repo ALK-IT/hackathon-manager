@@ -49,6 +49,9 @@ describe('ParticipantAreaPage', () => {
     expect(screen.getByRole('heading', { name: 'Drużyna: Byte Buccaneers' })).toBeInTheDocument()
     expect(screen.getByText('Jan Kowalski')).toBeInTheDocument()
     expect(screen.getByText('Anna Nowak')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Skanuj kod QR' }),
+    ).toBeInTheDocument()
   })
 
   it('displays an accepted participant without a team', async () => {
@@ -65,5 +68,26 @@ describe('ParticipantAreaPage', () => {
     renderPage()
 
     expect(await screen.findByText('Nie należysz do żadnej drużyny.')).toBeInTheDocument()
+  })
+
+  it('does not display the scanner outside the hackathon dates', async () => {
+    vi.mocked(getParticipantArea).mockResolvedValue({
+      public_id: 'hackathon-id',
+      name: 'Zakończony Hackathon',
+      description: 'Opis',
+      start_date: '2000-09-03T08:00:00Z',
+      end_date: '2000-09-05T18:00:00Z',
+      tasks: [],
+      team: null,
+    })
+
+    renderPage()
+
+    expect(
+      await screen.findByRole('heading', { name: 'Zakończony Hackathon' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Skanuj kod QR' }),
+    ).not.toBeInTheDocument()
   })
 })
