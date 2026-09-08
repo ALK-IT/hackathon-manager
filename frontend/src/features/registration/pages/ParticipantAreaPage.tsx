@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Card, Spinner } from '../../../components/ui'
+import { AttendanceQrScanner } from '../../attendance'
+import { isHackathonInProgress } from '../../hackathons/utils/hackathonTime'
 import { getParticipantArea } from '../api/registrationApi'
 import { ParticipantTaskCard } from '../components/ParticipantTaskCard'
 import type { ParticipantArea } from '../types'
@@ -67,6 +69,18 @@ export function ParticipantAreaPage() {
               <p>Nie należysz do żadnej drużyny.</p>
             )}
           </Card>
+
+          {isHackathonInProgress(
+            participantArea.start_date,
+            participantArea.end_date,
+            loadedAt,
+          ) && (
+            <Card>
+              <AttendanceQrScanner
+                hackathonPublicId={participantArea.public_id}
+              />
+            </Card>
+          )}
 
           <section aria-labelledby="participant-tasks-heading">
             <h2 id="participant-tasks-heading">Zadania</h2>

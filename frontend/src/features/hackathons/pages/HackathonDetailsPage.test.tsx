@@ -93,6 +93,22 @@ describe('HackathonDetailsPage', () => {
     expect(screen.getByRole('button', { name: 'Zarejestruj się' })).toBeInTheDocument()
   })
 
+  it('shows the QR generator to a manager while the hackathon is in progress', async () => {
+    vi.mocked(getHackathon).mockResolvedValue({
+      ...hackathon,
+      start_date: '2000-09-01T10:00:00Z',
+      end_date: '2099-09-02T18:00:00Z',
+    })
+    renderPage()
+
+    expect(
+      await screen.findByRole('button', { name: 'Wygeneruj kod QR' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Pokaż uczestników' }),
+    ).toBeInTheDocument()
+  })
+
   it('allows the owner to add a co-organizer and refreshes the displayed list', async () => {
     vi.mocked(addCoOrganizer).mockResolvedValue({
       ...hackathon,
