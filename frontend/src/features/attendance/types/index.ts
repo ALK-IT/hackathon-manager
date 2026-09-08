@@ -20,3 +20,12 @@ export interface CheckInListItem {
   }
   registration_public_id: string
 }
+
+export interface AttendanceTeam {
+  public_id: string
+  name: string
+  participants: Array<{
+    public_id: string
+    name: string
+  }>
+}
