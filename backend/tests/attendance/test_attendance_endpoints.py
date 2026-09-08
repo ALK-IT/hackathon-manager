@@ -26,10 +26,10 @@ def make_hackathon(organizer: User) -> Hackathon:
     return Hackathon(
         organizer=organizer,
         name="Attendance Hackathon",
-        start_date=now + timedelta(days=1),
-        end_date=now + timedelta(days=2),
+        start_date=now - timedelta(hours=1),
+        end_date=now + timedelta(days=1),
         registration_opens_at=now - timedelta(days=2),
-        registration_deadline=now + timedelta(hours=12),
+        registration_deadline=now - timedelta(hours=2),
         registration_open=True,
         max_team_size=4,
     )
@@ -169,6 +169,32 @@ async def test_create_check_in_session_rejects_user_without_management_permissio
     assert await session.scalar(select(func.count()).select_from(CheckInSession)) == 0
 
 
+async def test_create_check_in_session_rejects_hackathon_before_start(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    organizer, _, hackathon, _ = await create_registration_context(session)
+    now = datetime.now(UTC)
+    hackathon.registration_deadline = now + timedelta(hours=12)
+    hackathon.start_date = now + timedelta(days=1)
+    hackathon.end_date = now + timedelta(days=2)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/check-in-sessions",
+        json={"expires_in_minutes": 15},
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "error_code": "HACKATHON_NOT_IN_PROGRESS",
+        "detail": "Check-in is available only while the hackathon is in progress.",
+    }
+    assert await session.scalar(select(func.count()).select_from(CheckInSession)) == 0
+
+
 async def test_participant_check_in_is_idempotent(
     api_client,
     force_authenticate,
@@ -286,6 +312,37 @@ async def test_participant_check_in_requires_accepted_registration(
         "error_code": "CHECK_IN_NOT_ALLOWED",
         "detail": "Only participants with an accepted registration can check in.",
     }
+    assert await session.scalar(select(func.count()).select_from(CheckIn)) == 0
+
+
+async def test_participant_check_in_rejects_hackathon_after_end(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    organizer, participant, hackathon, _ = await create_registration_context(session)
+    token = "valid-attendance-token-value-12345"
+    await create_check_in_session(
+        session,
+        organizer=organizer,
+        hackathon=hackathon,
+        token=token,
+    )
+    now = datetime.now(UTC)
+    hackathon.registration_opens_at = now - timedelta(days=4)
+    hackathon.registration_deadline = now - timedelta(days=3)
+    hackathon.start_date = now - timedelta(days=2)
+    hackathon.end_date = now - timedelta(days=1)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.put(
+        f"/api/hackathons/{hackathon.public_id}/check-ins/me",
+        json={"token": token},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "HACKATHON_NOT_IN_PROGRESS"
     assert await session.scalar(select(func.count()).select_from(CheckIn)) == 0
 
 

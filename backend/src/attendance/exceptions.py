@@ -20,3 +20,9 @@ class InvalidCheckInTokenError(AttendanceError):
     status_code = 400
     error_code = "INVALID_CHECK_IN_TOKEN"
     detail = "The check-in token is invalid or has expired."
+
+
+class HackathonNotInProgressError(AttendanceError):
+    status_code = 409
+    error_code = "HACKATHON_NOT_IN_PROGRESS"
+    detail = "Check-in is available only while the hackathon is in progress."

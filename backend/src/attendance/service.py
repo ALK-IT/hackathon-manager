@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from src.attendance.exceptions import (
     AttendancePermissionError,
     CheckInNotAllowedError,
+    HackathonNotInProgressError,
     InvalidCheckInTokenError,
 )
 from src.attendance.models import CheckIn, CheckInSession
@@ -15,6 +16,7 @@ from src.attendance.schemas import CheckInRequest, SessionCreateRequest
 from src.auth.models import User
 from src.hackathons.access import can_manage_hackathon
 from src.hackathons.exceptions import HackathonNotFoundError
+from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
 from src.registration.repository import RegistrationRepository
 
@@ -47,6 +49,7 @@ class AttendanceService:
             raise HackathonNotFoundError()
         if not can_manage_hackathon(hackathon, user):
             raise AttendancePermissionError()
+        self._ensure_hackathon_in_progress(hackathon)
 
         token = secrets.token_urlsafe(32)
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -84,6 +87,7 @@ class AttendanceService:
         )
         if registration is None:
             raise CheckInNotAllowedError()
+        self._ensure_hackathon_in_progress(hackathon)
         token = request.token
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         check_in_session = await self.attendance_repository.get_valid_session_for_update(
@@ -113,3 +117,9 @@ class AttendanceService:
         if not can_manage_hackathon(hackathon, user):
             raise AttendancePermissionError()
         return await self.attendance_repository.get_check_ins_by_hackathon(hackathon.id)
+
+    @staticmethod
+    def _ensure_hackathon_in_progress(hackathon: Hackathon) -> None:
+        now = datetime.now(UTC)
+        if not hackathon.start_date <= now < hackathon.end_date:
+            raise HackathonNotInProgressError()
