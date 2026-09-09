@@ -152,6 +152,23 @@ async def test_regular_user_cannot_create_task(
     assert response.json()["error_code"] == "TASK_PERMISSION_DENIED"
 
 
+async def test_user_without_accepted_registration_cannot_list_tasks(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    user = await create_user(session, "user@example.com")
+    hackathon = await create_hackathon(session, admin)
+    await session.commit()
+    force_authenticate(user)
+
+    response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/tasks")
+
+    assert response.status_code == 403
+    assert response.json()["error_code"] == "REGISTRATION_NOT_ACCEPTED"
+
+
 async def test_task_visibility_must_be_before_hackathon_end(
     api_client: AsyncClient,
     session: AsyncSession,
@@ -169,6 +186,32 @@ async def test_task_visibility_must_be_before_hackathon_end(
             "description": "Build a REST API.",
             "visible_from": hackathon.end_date.isoformat(),
         },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "INVALID_TASK_VISIBILITY_DATE"
+
+
+async def test_task_update_rejects_visibility_at_hackathon_end(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    hackathon = await create_hackathon(session, admin)
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC),
+    )
+    session.add(task)
+    await session.commit()
+    force_authenticate(admin)
+
+    response = await api_client.patch(
+        f"/api/hackathons/{hackathon.public_id}/tasks/{task.public_id}",
+        json={"visible_from": hackathon.end_date.isoformat()},
     )
 
     assert response.status_code == 422
@@ -199,6 +242,62 @@ async def test_accepted_participant_sees_only_released_tasks(
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+async def test_participant_cannot_submit_before_task_is_released(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, admin)
+    await create_team_with_participants(session, hackathon, participant)
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) + timedelta(hours=1),
+    )
+    session.add(task)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.put(
+        f"/api/hackathons/{hackathon.public_id}/tasks/{task.public_id}/submission",
+        json={"github_url": "https://github.com/example/repo"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error_code"] == "TASKS_NOT_RELEASED"
+
+
+async def test_participant_cannot_submit_after_hackathon_has_ended(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    admin = await create_user(session, "admin@example.com", role=UserRole.ADMIN)
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, admin, ended=True)
+    await create_team_with_participants(session, hackathon, participant)
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=hackathon.start_date,
+    )
+    session.add(task)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.put(
+        f"/api/hackathons/{hackathon.public_id}/tasks/{task.public_id}/submission",
+        json={"github_url": "https://github.com/example/repo"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "TASK_SUBMISSION_CLOSED"
 
 
 async def test_team_members_share_one_submission_and_manager_can_list_it(
