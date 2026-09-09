@@ -19,6 +19,7 @@ describe('Countdown', () => {
     )
 
     expect(screen.getByText('Do rozpoczęcia')).toBeInTheDocument()
+    expect(screen.getByRole('timer')).toHaveAttribute('aria-live', 'off')
     expect(screen.getByRole('timer')).toHaveAccessibleName(
       'Do rozpoczęcia: 1 dzień, 1 godzina, 2 minuty, 4 sekundy',
     )
@@ -105,6 +106,19 @@ describe('Countdown', () => {
 
     rerender(<Countdown endDate="invalid-date" />)
     expect(container).toBeEmptyDOMElement()
+  })
+
+  it('counts down to the end when the start date is missing or invalid', () => {
+    const endDate = '2026-09-02T18:00:00Z'
+    const { rerender } = render(<Countdown startDate={null} endDate={endDate} />)
+
+    expect(screen.getByText('Do zakończenia')).toBeInTheDocument()
+    expect(screen.getByRole('timer')).toBeInTheDocument()
+
+    rerender(<Countdown startDate="invalid-date" endDate={endDate} />)
+
+    expect(screen.getByText('Do zakończenia')).toBeInTheDocument()
+    expect(screen.getByRole('timer')).toBeInTheDocument()
   })
 
   it('clears the timer when unmounted', () => {

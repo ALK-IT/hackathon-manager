@@ -124,6 +124,7 @@ export function Countdown({ startDate, endDate, style, ...props }: CountdownProp
       <span style={{ color: colors.textMuted }}>{label}</span>
       <div
         role="timer"
+        aria-live="off"
         aria-label={`${label}: ${accessibleRemainingTime}`}
         style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}
       >
