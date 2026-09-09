@@ -1,18 +1,16 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { getAttendanceTeams, getCheckIns } from '../api/attendanceApi'
+import { getAttendanceParticipants } from '../api/attendanceApi'
 import { AttendanceParticipantsPage } from './AttendanceParticipantsPage'
 
 vi.mock('../api/attendanceApi', () => ({
-  getAttendanceTeams: vi.fn(),
-  getCheckIns: vi.fn(),
+  getAttendanceParticipants: vi.fn(),
 }))
 
 describe('AttendanceParticipantsPage', () => {
   it('displays attendance in a separate hackathon view', async () => {
-    vi.mocked(getCheckIns).mockResolvedValue([])
-    vi.mocked(getAttendanceTeams).mockResolvedValue([])
+    vi.mocked(getAttendanceParticipants).mockResolvedValue([])
 
     render(
       <MemoryRouter initialEntries={['/hackathons/hackathon-id/attendance']}>
@@ -26,14 +24,14 @@ describe('AttendanceParticipantsPage', () => {
     )
 
     expect(
-      screen.getByRole('heading', { name: 'Obecni uczestnicy' }),
+      screen.getByRole('heading', { name: 'Uczestnicy' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Wróć do hackathonu' })).toHaveAttribute(
       'href',
       '/hackathons/hackathon-id',
     )
     expect(
-      await screen.findByText('Nikt jeszcze nie potwierdził obecności.'),
+      await screen.findByText('Brak zaakceptowanych uczestników.'),
     ).toBeInTheDocument()
   })
 })

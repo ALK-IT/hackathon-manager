@@ -1,9 +1,10 @@
 import { Button } from '../../../components/ui'
-import type { CheckInListItem } from '../types'
+import type { AttendanceParticipant } from '../types'
+import { AttendancePresenceStatus } from './AttendancePresenceStatus'
 
 interface AttendanceTeamGroupProps {
   name: string
-  participants: CheckInListItem[]
+  participants: AttendanceParticipant[]
 }
 
 export function AttendanceTeamGroup({
@@ -15,14 +16,11 @@ export function AttendanceTeamGroup({
       <h2>{name}</h2>
       <ul className="attendance-participants-list">
         {participants.map((item) => (
-          <li key={item.check_in.public_id}>
+          <li key={item.registration_public_id}>
             <div className="attendance-participant-details">
               <strong>{item.participant.name}</strong>
               <span>{item.participant.email}</span>
-              <span>
-                Potwierdzono:{' '}
-                {new Date(item.check_in.checked_in_at).toLocaleString('pl-PL')}
-              </span>
+              <AttendancePresenceStatus isPresent={item.is_present} />
             </div>
             <div className="attendance-resource-actions">
               <Button

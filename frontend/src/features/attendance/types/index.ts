@@ -21,6 +21,22 @@ export interface CheckInListItem {
   registration_public_id: string
 }
 
+export interface AttendanceParticipant {
+  participant: {
+    public_id: string
+    name: string
+    email: string
+    created_at: string
+  }
+  registration_public_id: string
+  team: {
+    public_id: string
+    name: string
+  } | null
+  is_present: boolean
+  checked_in_at: string | null
+}
+
 export interface AttendanceTeam {
   public_id: string
   name: string
