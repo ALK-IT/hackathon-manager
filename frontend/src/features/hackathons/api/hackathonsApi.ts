@@ -6,6 +6,7 @@ import type {
   HackathonDetails,
   HackathonFilters,
   UpdateHackathonPayload,
+  UserSummary,
 } from '../types'
 
 interface GetHackathonsOptions extends HackathonFilters {
@@ -57,4 +58,16 @@ export function updateHackathon(publicId: string, payload: UpdateHackathonPayloa
     body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+export function searchCoOrganizerCandidates(
+  publicId: string,
+  query: string,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams({ query })
+  return apiRequest<UserSummary[]>(
+    `/api/hackathons/${encodeURIComponent(publicId)}/co-organizer-candidates?${params.toString()}`,
+    { signal },
+  )
 }
