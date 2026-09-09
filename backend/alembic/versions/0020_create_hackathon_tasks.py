@@ -1,7 +1,7 @@
 """create hackathon tasks and team submissions
 
-Revision ID: 0017
-Revises: 0016
+Revision ID: 0020
+Revises: 0019
 Create Date: 2026-09-03
 
 """
@@ -13,8 +13,8 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision: str = "0017"
-down_revision: str | None = "0016"
+revision: str = "0020"
+down_revision: str | None = "0019"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
