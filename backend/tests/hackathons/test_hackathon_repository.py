@@ -150,7 +150,7 @@ async def test_list_active_without_filters_returns_all_non_deleted_hackathons(
 
     result = await repository.list_active()
 
-    assert [hackathon for hackathon, _status in result] == [
+    assert result == [
         manually_closed,
         expired,
         scheduled,
@@ -158,8 +158,7 @@ async def test_list_active_without_filters_returns_all_non_deleted_hackathons(
         co_organized,
         owned,
     ]
-    assert all(status is None for _hackathon, status in result)
-    assert result[4][0].co_organizers == [current_user]
+    assert result[4].co_organizers == [current_user]
 
 
 async def test_list_active_filters_upcoming_hackathons(session: AsyncSession):
@@ -188,8 +187,8 @@ async def test_list_active_filters_upcoming_hackathons(session: AsyncSession):
     await session.commit()
     repository = HackathonRepository(session)
 
-    assert await repository.list_active(upcoming=True) == [(upcoming, None)]
-    assert await repository.list_active(upcoming=False) == [(started, None)]
+    assert await repository.list_active(upcoming=True) == [upcoming]
+    assert await repository.list_active(upcoming=False) == [started]
 
 
 async def test_list_active_filters_effective_registration_state(session: AsyncSession):
@@ -225,11 +224,11 @@ async def test_list_active_filters_effective_registration_state(session: AsyncSe
     await session.commit()
     repository = HackathonRepository(session)
 
-    assert await repository.list_active(registration_open=True) == [(opened, None)]
+    assert await repository.list_active(registration_open=True) == [opened]
     assert await repository.list_active(registration_open=False) == [
-        (manually_closed, None),
-        (expired, None),
-        (scheduled, None),
+        manually_closed,
+        expired,
+        scheduled,
     ]
 
 
@@ -263,13 +262,13 @@ async def test_list_active_returns_only_current_users_registration_status(
     await session.commit()
     repository = HackathonRepository(session)
 
-    assert await repository.list_active(user_id=current_user.id) == [
+    assert await repository.list_active_with_registration_status(current_user.id) == [
         (hackathon, RegistrationStatus.ACCEPTED)
     ]
-    assert await repository.list_active(user_id=other_user.id) == [
+    assert await repository.list_active_with_registration_status(other_user.id) == [
         (hackathon, RegistrationStatus.REJECTED)
     ]
-    assert await repository.list_active() == [(hackathon, None)]
+    assert await repository.list_active() == [hackathon]
 
 
 async def test_list_managed_returns_only_owned_and_co_organized_hackathons(

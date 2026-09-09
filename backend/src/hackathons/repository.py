@@ -22,7 +22,37 @@ class HackathonRepository:
 
     async def list_active(
         self,
-        user_id: int | None = None,
+        upcoming: bool | None = None,
+        registration_open: bool | None = None,
+    ) -> list[Hackathon]:
+        statement = select(Hackathon).where(Hackathon.is_deleted.is_(False))
+
+        if upcoming is True:
+            statement = statement.where(Hackathon.start_date > func.now())
+        elif upcoming is False:
+            statement = statement.where(Hackathon.start_date <= func.now())
+
+        registration_is_open = and_(
+            Hackathon.registration_open.is_(True),
+            Hackathon.registration_opens_at <= func.now(),
+            Hackathon.registration_deadline > func.now(),
+        )
+
+        if registration_open is True:
+            statement = statement.where(registration_is_open)
+        elif registration_open is False:
+            statement = statement.where(not_(registration_is_open))
+
+        statement = statement.options(*self._with_relationships()).order_by(
+            Hackathon.created_at.desc()
+        )
+
+        result = await self.session.scalars(statement)
+        return list(result.unique().all())
+
+    async def list_active_with_registration_status(
+        self,
+        user_id: int,
         upcoming: bool | None = None,
         registration_open: bool | None = None,
     ) -> list[tuple[Hackathon, RegistrationStatus | None]]:

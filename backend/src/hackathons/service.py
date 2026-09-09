@@ -47,10 +47,16 @@ class HackathonService:
         registration_open: bool | None = None,
         user: User | None = None,
     ) -> list[tuple[Hackathon, RegistrationStatus | None]]:
-        return await self.hackathon_repository.list_active(
+        if user is None:
+            hackathons = await self.hackathon_repository.list_active(
+                upcoming=upcoming,
+                registration_open=registration_open,
+            )
+            return [(hackathon, None) for hackathon in hackathons]
+        return await self.hackathon_repository.list_active_with_registration_status(
+            user_id=user.id,
             upcoming=upcoming,
             registration_open=registration_open,
-            user_id=user.id if user else None,
         )
 
     async def list_managed_hackathons(self, user: User) -> list[Hackathon]:
