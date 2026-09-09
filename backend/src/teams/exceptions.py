@@ -39,5 +39,5 @@ class TeamJoinCodeGenerationError(TeamError):
 
 class TeamPermissionDeniedError(TeamError):
     status_code = 403
-    error_code = "TEAM_PERMISSION_DENIED"
+    error_code = ErrorCode.TEAM_PERMISSION_DENIED
     detail = "You do not have permission to view teams for this hackathon."

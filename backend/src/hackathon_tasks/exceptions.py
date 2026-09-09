@@ -27,7 +27,7 @@ class TasksNotReleasedError(TaskError):
 
 class InvalidTaskVisibilityDateError(TaskError):
     status_code = 422
-    error_code = "INVALID_TASK_VISIBILITY_DATE"
+    error_code = ErrorCode.INVALID_TASK_VISIBILITY_DATE
     detail = "visible_from must be earlier than the hackathon end date."
 
 
