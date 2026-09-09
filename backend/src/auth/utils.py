@@ -30,6 +30,7 @@ class AccessTokenPayload:
     subject: uuid.UUID
     expires_at: datetime
     session_id: uuid.UUID | None
+    auth_version: int
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,7 @@ class RefreshTokenPayload:
     subject: uuid.UUID
     expires_at: datetime
     session_id: uuid.UUID
+    auth_version: int
 
 
 def hash_password(password: str) -> str:
@@ -52,6 +54,7 @@ def create_access_token(
     *,
     session_id: uuid.UUID | None = None,
     expires_delta: timedelta | None = None,
+    auth_version: int = 0,
 ) -> str:
     now = datetime.now(UTC)
     session_id = session_id or uuid.uuid4()
@@ -66,6 +69,7 @@ def create_access_token(
         "exp": expires_at,
         "token_type": ACCESS_TOKEN_TYPE,
         "sid": str(session_id),
+        "ver": auth_version,
     }
     return jwt.encode(payload, get_jwt_secret_key(), algorithm=JWT_ALGORITHM)
 
@@ -75,6 +79,7 @@ def create_refresh_token(
     *,
     session_id: uuid.UUID,
     expires_delta: timedelta | None = None,
+    auth_version: int = 0,
 ) -> str:
     now = datetime.now(UTC)
     expires_at = now + (
@@ -88,6 +93,7 @@ def create_refresh_token(
         "exp": expires_at,
         "token_type": REFRESH_TOKEN_TYPE,
         "sid": str(session_id),
+        "ver": auth_version,
     }
     return jwt.encode(payload, get_jwt_secret_key(), algorithm=JWT_ALGORITHM)
 
@@ -114,6 +120,7 @@ def decode_access_token_payload(token: str) -> AccessTokenPayload:
             subject=subject,
             expires_at=expires_at,
             session_id=session_id,
+            auth_version=int(payload.get("ver", 0)),
         )
     except (InvalidTokenError, KeyError, OSError, OverflowError, TypeError, ValueError) as exc:
         raise InvalidAccessTokenError from exc
@@ -128,6 +135,7 @@ def decode_refresh_token(token: str) -> RefreshTokenPayload:
             subject=uuid.UUID(payload["sub"]),
             expires_at=datetime.fromtimestamp(payload["exp"], UTC),
             session_id=uuid.UUID(payload["sid"]),
+            auth_version=int(payload.get("ver", 0)),
         )
     except (InvalidTokenError, KeyError, OSError, OverflowError, TypeError, ValueError) as exc:
         raise InvalidAccessTokenError from exc
