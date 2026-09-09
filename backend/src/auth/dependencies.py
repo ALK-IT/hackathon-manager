@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,7 @@ from src.auth.repository import UserRepository
 from src.auth.service import TokenService, UserService
 from src.auth.utils import decode_access_token
 from src.cache import get_cache
+from src.common.errors import AuthenticationRequiredError
 from src.database import get_session
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -27,12 +28,8 @@ def get_token_service(
     return TokenService(cache)
 
 
-def unauthorized_exception() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid email, password, or access token",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+def unauthorized_exception() -> AuthenticationRequiredError:
+    return AuthenticationRequiredError()
 
 
 async def get_current_user(

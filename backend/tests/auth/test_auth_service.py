@@ -3,7 +3,6 @@ from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
 from pydantic import ValidationError
 
 from src.auth.dependencies import get_current_user
@@ -21,6 +20,7 @@ from src.auth.utils import (
     revoked_access_token_key,
     verify_password,
 )
+from src.common.errors import AuthenticationRequiredError
 
 
 def test_password_is_hashed_and_can_be_verified():
@@ -105,7 +105,7 @@ async def test_revoked_token_is_rejected_by_current_user_dependency(mocker):
     user_service = mocker.Mock()
     user_service.get_by_public_id = mocker.AsyncMock()
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(AuthenticationRequiredError) as exc_info:
         await get_current_user("revoked-token", user_service, token_service)
 
     assert exc_info.value.status_code == 401
