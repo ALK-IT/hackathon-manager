@@ -4,6 +4,7 @@ import {
   addCoOrganizer,
   getHackathon,
   getHackathons,
+  searchCoOrganizerCandidates,
   updateHackathon,
 } from './hackathonsApi'
 
@@ -73,5 +74,16 @@ describe('getHackathons', () => {
       body: JSON.stringify(payload),
       headers: { 'Content-Type': 'application/json' },
     })
+  })
+
+  it('searches co-organizer candidates by name', () => {
+    const controller = new AbortController()
+
+    searchCoOrganizerCandidates('hackathon-id', 'Jan Kowalski', controller.signal)
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon-id/co-organizer-candidates?query=Jan+Kowalski',
+      { signal: controller.signal },
+    )
   })
 })
