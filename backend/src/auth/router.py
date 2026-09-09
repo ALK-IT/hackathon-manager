@@ -21,7 +21,6 @@ from src.auth.dependencies import (
 )
 from src.auth.email import EmailDeliveryError, EmailService
 from src.auth.exceptions import (
-    EmailAlreadyRegisteredError,
     InvalidAccessTokenError,
     InvalidActionTokenError,
     RateLimitError,
@@ -124,13 +123,7 @@ async def register(
         ip_limit=5,
         identifier_limit=3,
     )
-    try:
-        user = await service.register(data)
-    except EmailAlreadyRegisteredError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists",
-        ) from exc
+    user = await service.register(data)
     token = await token_service.issue_action_token(
         user.public_id,
         "email-verification",

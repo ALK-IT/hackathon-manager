@@ -1,4 +1,4 @@
-# SPEC-013: Potwierdzanie konta i reset hasła przez e-mail
+# SPEC-014: Potwierdzanie konta i reset hasła przez e-mail
 
 **Status:** Zaimplementowany
 **Data:** 2026-09-02
