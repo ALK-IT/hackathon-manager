@@ -29,6 +29,8 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-010 | Zasoby hackathonu i ręczny przydział | Zaimplementowany | [implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md](implemented/SPEC-010-2026-08-20-zasoby-hackathonu.md) |
 | SPEC-011 | Frontend pytań rejestracyjnych i ustawień hackathonu | Zaimplementowany | [implemented/SPEC-011-2026-08-22-frontend-pytan-i-ustawien-hackathonu.md](implemented/SPEC-011-2026-08-22-frontend-pytan-i-ustawien-hackathonu.md) |
 | SPEC-012 | Frontend zarządzania zgłoszeniami | Zaimplementowany | [implemented/SPEC-012-2026-08-23-frontend-zarzadzania-zgloszeniami.md](implemented/SPEC-012-2026-08-23-frontend-zarzadzania-zgloszeniami.md) |
-| SPEC-013 | Profil użytkownika i lista własnych hackathonów | Zaimplementowany | [implemented/SPEC-013-2026-09-04-profil-uzytkownika.md](implemented/SPEC-013-2026-09-04-profil-uzytkownika.md) |
+| SPEC-013 | Spójny kontrakt błędów API | Zaimplementowany | [implemented/SPEC-013-2026-08-24-spojny-kontrakt-bledow-api.md](implemented/SPEC-013-2026-08-24-spojny-kontrakt-bledow-api.md) |
+| SPEC-014 | Potwierdzanie konta i reset hasła przez e-mail | Zaimplementowany | [implemented/SPEC-014-2026-09-02-email-verification-password-reset.md](implemented/SPEC-014-2026-09-02-email-verification-password-reset.md) |
+| SPEC-015 | Profil użytkownika i lista własnych hackathonów | Zaimplementowany | [implemented/SPEC-015-2026-09-04-profil-uzytkownika.md](implemented/SPEC-015-2026-09-04-profil-uzytkownika.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

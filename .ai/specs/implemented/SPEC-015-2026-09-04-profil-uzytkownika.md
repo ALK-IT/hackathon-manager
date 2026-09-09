@@ -1,4 +1,4 @@
-# SPEC-013: Profil użytkownika i lista własnych hackathonów
+# SPEC-015: Profil użytkownika i lista własnych hackathonów
 
 **Status:** Zaimplementowany
 **Data:** 2026-09-04
