@@ -1,5 +1,6 @@
 import { apiRequest } from '../../../lib/api/client'
 import type {
+  AttendanceParticipant,
   AttendanceTeam,
   CheckIn,
   CheckInListItem,
@@ -34,6 +35,16 @@ export function checkInCurrentUser(hackathonPublicId: string, token: string) {
 export function getCheckIns(hackathonPublicId: string, signal?: AbortSignal) {
   return apiRequest<CheckInListItem[]>(
     `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/check-ins`,
+    { signal },
+  )
+}
+
+export function getAttendanceParticipants(
+  hackathonPublicId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<AttendanceParticipant[]>(
+    `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/attendance`,
     { signal },
   )
 }

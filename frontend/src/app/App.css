@@ -316,6 +316,48 @@ button:disabled {
   gap: 4px;
 }
 
+.attendance-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.attendance-presence-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9ca3af;
+}
+
+.attendance-presence-icon {
+  width: 14px;
+  height: 14px;
+  overflow: visible;
+}
+
+.attendance-presence-icon circle {
+  fill: #22c55e;
+}
+
+.attendance-presence-icon path {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.attendance-presence.is-present {
+  color: #15803d;
+}
+
+.attendance-presence.is-present .attendance-presence-dot {
+  background: #22c55e;
+}
+
 .attendance-resource-actions {
   display: flex;
   flex-wrap: wrap;

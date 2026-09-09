@@ -14,8 +14,11 @@ export function AttendanceParticipantsPage() {
       </div>
 
       <Card>
-        <h1>Obecni uczestnicy</h1>
-        <p>Lista osób, które potwierdziły obecność kodem QR.</p>
+        <h1>Uczestnicy</h1>
+        <p>
+          Lista zaakceptowanych uczestników. Osoby, które zeskanowały kod QR,
+          są oznaczone jako obecne.
+        </p>
         {hackathonPublicId ? (
           <AttendanceCheckInList hackathonPublicId={hackathonPublicId} />
         ) : (
