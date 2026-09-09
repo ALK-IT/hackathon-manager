@@ -31,7 +31,14 @@ def attendance_repository(mocker):
 @pytest.fixture
 def hackathon_repository(mocker):
     repository = mocker.Mock()
-    repository.get_active_by_public_id = mocker.AsyncMock(return_value=SimpleNamespace(id=10))
+    now = datetime.now(UTC)
+    repository.get_active_by_public_id = mocker.AsyncMock(
+        return_value=SimpleNamespace(
+            id=10,
+            start_date=now - timedelta(hours=1),
+            end_date=now + timedelta(hours=1),
+        )
+    )
     return repository
 
 
