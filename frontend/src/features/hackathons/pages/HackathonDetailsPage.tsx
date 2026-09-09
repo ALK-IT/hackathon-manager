@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Alert, Button, Card, Spinner } from '../../../components/ui'
+import { Alert, Button, Card, Countdown, Spinner } from '../../../components/ui'
 import { useAuth } from '../../auth'
 import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
 import { CoOrganizerAutocomplete } from '../components/CoOrganizerAutocomplete'
@@ -104,6 +104,7 @@ export function HackathonDetailsPage() {
               Termin: {new Date(hackathon.start_date).toLocaleString('pl-PL')} –{' '}
               {new Date(hackathon.end_date).toLocaleString('pl-PL')}
             </p>
+            <Countdown startDate={hackathon.start_date} endDate={hackathon.end_date} />
             <p>Rejestracja: {hackathon.registration_open ? 'otwarta' : 'zamknięta'}</p>
             <p>Organizator: {hackathon.organizer.name}</p>
             <p>
