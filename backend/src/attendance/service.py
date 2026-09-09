@@ -18,6 +18,7 @@ from src.hackathons.access import can_manage_hackathon
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
+from src.registration.models import Registration
 from src.registration.repository import RegistrationRepository
 
 
@@ -117,6 +118,20 @@ class AttendanceService:
         if not can_manage_hackathon(hackathon, user):
             raise AttendancePermissionError()
         return await self.attendance_repository.get_check_ins_by_hackathon(hackathon.id)
+
+    async def list_attendance(
+        self,
+        hackathon_public_id: uuid.UUID,
+        user: User,
+    ) -> list[Registration]:
+        hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
+        if hackathon is None:
+            raise HackathonNotFoundError()
+        if not can_manage_hackathon(hackathon, user):
+            raise AttendancePermissionError()
+        return await self.attendance_repository.get_accepted_registrations_with_attendance(
+            hackathon.id
+        )
 
     @staticmethod
     def _ensure_hackathon_in_progress(hackathon: Hackathon) -> None:

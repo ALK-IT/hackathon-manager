@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, status
 
 from src.attendance.dependencies import get_attendance_service
 from src.attendance.schemas import (
+    AttendanceParticipantResponse,
     CheckInListItemResponse,
     CheckInRequest,
     CheckInResponse,
@@ -50,6 +51,23 @@ async def list_check_ins(
 ) -> list[CheckInListItemResponse]:
     check_ins = await service.list_check_ins(hackathon_public_id, current_user)
     return [CheckInListItemResponse.from_check_in(check_in) for check_in in check_ins]
+
+
+@router.get(
+    "/hackathons/{hackathon_public_id}/attendance",
+    response_model=list[AttendanceParticipantResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def list_attendance(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AttendanceService, Depends(get_attendance_service)],
+) -> list[AttendanceParticipantResponse]:
+    registrations = await service.list_attendance(hackathon_public_id, current_user)
+    return [
+        AttendanceParticipantResponse.from_registration(registration)
+        for registration in registrations
+    ]
 
 
 @router.put(

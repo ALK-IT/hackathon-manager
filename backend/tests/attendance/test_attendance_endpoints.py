@@ -10,6 +10,7 @@ from src.attendance.models import CheckIn, CheckInSession
 from src.auth.models import User, UserRole
 from src.hackathons.models import Hackathon
 from src.registration.models import Registration, RegistrationStatus
+from src.teams.models import Team
 
 
 def make_user(*, name: str, email: str, role: UserRole = UserRole.USER) -> User:
@@ -85,6 +86,7 @@ async def create_check_in_session(
         ("POST", "check-in-sessions", {"expires_in_minutes": 15}),
         ("PUT", "check-ins/me", {"token": "a" * 32}),
         ("GET", "check-ins", None),
+        ("GET", "attendance", None),
     ],
 )
 async def test_attendance_endpoints_require_authentication(
@@ -451,6 +453,79 @@ async def test_list_check_ins_returns_empty_list_when_nobody_checked_in(
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+async def test_list_attendance_returns_all_accepted_participants_with_presence(
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    now = datetime.now(UTC)
+    organizer = make_user(
+        name="Attendance Overview Organizer",
+        email="attendance-overview-organizer@example.com",
+        role=UserRole.ADMIN,
+    )
+    present_participant = make_user(
+        name="Present Participant",
+        email="present-attendance-overview@example.com",
+    )
+    absent_participant = make_user(
+        name="Absent Participant",
+        email="absent-attendance-overview@example.com",
+    )
+    rejected_participant = make_user(
+        name="Rejected Participant",
+        email="rejected-attendance-overview@example.com",
+    )
+    hackathon = make_hackathon(organizer)
+    team = Team(
+        hackathon=hackathon,
+        name="Attendance Team",
+        join_code="ATTEND01",
+    )
+    present_registration = Registration(
+        user=present_participant,
+        hackathon=hackathon,
+        team=team,
+        status=RegistrationStatus.ACCEPTED,
+    )
+    absent_registration = Registration(
+        user=absent_participant,
+        hackathon=hackathon,
+        status=RegistrationStatus.ACCEPTED,
+    )
+    rejected_registration = Registration(
+        user=rejected_participant,
+        hackathon=hackathon,
+        status=RegistrationStatus.REJECTED,
+    )
+    check_in_session = CheckInSession(
+        hackathon=hackathon,
+        token_hash="c" * 64,
+        expires_at=now + timedelta(minutes=15),
+        created_by=organizer,
+    )
+    check_in = CheckIn(
+        registration=present_registration,
+        session=check_in_session,
+        checked_in_at=now,
+    )
+    session.add_all([check_in, absent_registration, rejected_registration])
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/attendance")
+
+    assert response.status_code == 200
+    response_by_name = {item["participant"]["name"]: item for item in response.json()}
+    assert set(response_by_name) == {"Present Participant", "Absent Participant"}
+    assert response_by_name["Present Participant"]["is_present"] is True
+    assert response_by_name["Present Participant"]["checked_in_at"] is not None
+    assert response_by_name["Present Participant"]["team"]["name"] == "Attendance Team"
+    assert response_by_name["Absent Participant"]["is_present"] is False
+    assert response_by_name["Absent Participant"]["checked_in_at"] is None
+    assert response_by_name["Absent Participant"]["team"] is None
 
 
 async def test_list_check_ins_rejects_user_without_management_permission(

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.attendance.models import CheckIn, CheckInSession
-from src.registration.models import Registration
+from src.registration.models import Registration, RegistrationStatus
 
 
 class AttendanceRepository:
@@ -59,6 +59,26 @@ class AttendanceRepository:
             .where(Registration.hackathon_id == hackathon_id)
             .options(selectinload(CheckIn.registration).selectinload(Registration.user))
             .order_by(CheckIn.checked_in_at)
+        )
+        result = await self.session.scalars(statement)
+        return list(result.all())
+
+    async def get_accepted_registrations_with_attendance(
+        self,
+        hackathon_id: int,
+    ) -> list[Registration]:
+        statement = (
+            select(Registration)
+            .where(
+                Registration.hackathon_id == hackathon_id,
+                Registration.status == RegistrationStatus.ACCEPTED,
+            )
+            .options(
+                selectinload(Registration.user),
+                selectinload(Registration.team),
+                selectinload(Registration.check_in),
+            )
+            .order_by(Registration.id)
         )
         result = await self.session.scalars(statement)
         return list(result.all())

@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.attendance.models import CheckIn
 from src.auth.schemas import UserRead
+from src.registration.models import Registration
 
 
 class SessionCreateRequest(BaseModel):
@@ -48,4 +49,35 @@ class CheckInListItemResponse(BaseModel):
             check_in=CheckInResponse.model_validate(check_in),
             participant=UserRead.model_validate(check_in.registration.user),
             registration_public_id=check_in.registration.public_id,
+        )
+
+
+class AttendanceTeamResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+
+
+class AttendanceParticipantResponse(BaseModel):
+    participant: UserRead
+    registration_public_id: uuid.UUID
+    team: AttendanceTeamResponse | None
+    is_present: bool
+    checked_in_at: datetime | None
+
+    @classmethod
+    def from_registration(cls, registration: Registration) -> "AttendanceParticipantResponse":
+        return cls(
+            participant=UserRead.model_validate(registration.user),
+            registration_public_id=registration.public_id,
+            team=(
+                AttendanceTeamResponse.model_validate(registration.team)
+                if registration.team is not None
+                else None
+            ),
+            is_present=registration.check_in is not None,
+            checked_in_at=(
+                registration.check_in.checked_in_at if registration.check_in is not None else None
+            ),
         )
