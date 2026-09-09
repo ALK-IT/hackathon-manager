@@ -39,7 +39,7 @@ class OrganizerCannotBeCoOrganizerError(HackathonError):
 
 class CoOrganizerSearchRateLimitExceededError(HackathonError):
     status_code = 429
-    error_code = "CO_ORGANIZER_SEARCH_RATE_LIMIT_EXCEEDED"
+    error_code = ErrorCode.CO_ORGANIZER_SEARCH_RATE_LIMIT_EXCEEDED
     detail = "Too many co-organizer searches. Try again later."
 
 
