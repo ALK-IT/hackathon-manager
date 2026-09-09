@@ -100,6 +100,27 @@ class RegistrationDetailResponse(RegistrationResponse):
     answers: list[RegistrationAnswerResponse]
 
 
+class ProfileHackathonTeamResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    name: str
+
+
+class ProfileHackathonResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    registration_public_id: uuid.UUID
+    hackathon_public_id: uuid.UUID
+    name: str
+    description: str
+    start_date: datetime
+    end_date: datetime
+    status: RegistrationStatus
+    team: ProfileHackathonTeamResponse | None = None
+    status_changed_at: datetime | None
+
+
 class RegistrationQuestionBulkCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
