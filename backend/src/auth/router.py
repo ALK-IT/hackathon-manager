@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.auth.config import get_auth_cookie_samesite, get_auth_cookie_secure
@@ -12,7 +12,7 @@ from src.auth.dependencies import (
     optional_oauth2_scheme,
     unauthorized_exception,
 )
-from src.auth.exceptions import EmailAlreadyRegisteredError, InvalidAccessTokenError
+from src.auth.exceptions import InvalidAccessTokenError
 from src.auth.models import User
 from src.auth.schemas import TokenResponse, UserCreate, UserMeRead, UserRead
 from src.auth.service import IssuedTokenPair, TokenService, UserService
@@ -41,13 +41,7 @@ async def register(
     data: UserCreate,
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> User:
-    try:
-        return await service.register(data)
-    except EmailAlreadyRegisteredError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists",
-        ) from exc
+    return await service.register(data)
 
 
 @router.post("/login", response_model=TokenResponse)
