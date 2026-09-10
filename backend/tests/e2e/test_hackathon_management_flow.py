@@ -24,9 +24,10 @@ async def test_admin_completes_hackathon_management_flow(
     public_before_open_response = await e2e_client.get("/api/hackathons?open=true")
 
     assert managed_response.status_code == 200
-    assert [item["public_id"] for item in managed_response.json()] == [hackathon_id]
+    assert [item["public_id"] for item in managed_response.json()["items"]] == [hackathon_id]
+    assert managed_response.json()["total"] == 1
     assert public_before_open_response.status_code == 200
-    assert public_before_open_response.json() == []
+    assert public_before_open_response.json()["items"] == []
 
     update_response = await e2e_client.patch(
         f"/api/hackathons/{hackathon_id}",
@@ -43,7 +44,9 @@ async def test_admin_completes_hackathon_management_flow(
     assert update_response.json()["description"] == "Updated through the E2E API flow"
     assert open_response.status_code == 200
     assert open_response.json()["registration_open"] is True
-    assert [item["public_id"] for item in public_after_open_response.json()] == [hackathon_id]
+    assert [item["public_id"] for item in public_after_open_response.json()["items"]] == [
+        hackathon_id
+    ]
 
     close_response = await e2e_client.post(
         f"/api/hackathons/{hackathon_id}/close-registration",
@@ -60,7 +63,7 @@ async def test_admin_completes_hackathon_management_flow(
 
     assert close_response.status_code == 200
     assert close_response.json()["registration_open"] is False
-    assert public_after_close_response.json() == []
+    assert public_after_close_response.json()["items"] == []
     assert delete_response.status_code == 204
     assert deleted_response.status_code == 404
     assert deleted_response.json()["error_code"] == "HACKATHON_NOT_FOUND"

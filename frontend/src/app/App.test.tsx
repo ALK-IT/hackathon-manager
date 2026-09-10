@@ -17,7 +17,7 @@ const anonymousAuth: AuthContextValue = {
 
 describe('App', () => {
   it('shows the public hackathon list and login link to an anonymous user', async () => {
-    vi.mocked(getHackathons).mockResolvedValue([])
+    vi.mocked(getHackathons).mockResolvedValue({ items: [], total: 0, limit: 50, offset: 0 })
 
     render(
       <MemoryRouter initialEntries={['/']}>

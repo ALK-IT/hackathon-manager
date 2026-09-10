@@ -24,10 +24,10 @@ describe('getHackathons', () => {
   })
 
   it('adds selected filters as query parameters', () => {
-    getHackathons({ upcoming: true, registrationOpen: false })
+    getHackathons({ upcoming: true, registrationOpen: false, limit: 20, offset: 40 })
 
     expect(apiRequest).toHaveBeenCalledWith(
-      '/api/hackathons?upcoming=true&open=false',
+      '/api/hackathons?upcoming=true&open=false&limit=20&offset=40',
       { signal: undefined },
     )
   })
