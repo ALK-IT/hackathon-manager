@@ -1,18 +1,26 @@
 import { expect, test } from '@playwright/test'
 
-const API_URL = process.env.E2E_API_URL ?? 'http://localhost:8000'
+interface HackathonPage {
+  items: Array<{ name: string }>
+  total: number
+  limit: number
+  offset: number
+}
 
-test('frontend dziala, a lista hackathonow jest publiczna', async ({
-  page,
-  request,
-}) => {
-  const response = await request.get(`${API_URL}/api/hackathons`)
-
-  expect(response.status()).toBe(200)
-  const hackathons = (await response.json()) as Array<{ name: string }>
-  expect(hackathons).toEqual(expect.any(Array))
+test('frontend dziala, a lista hackathonow jest publiczna', async ({ page }) => {
+  const hackathonsResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return url.pathname === '/api/hackathons' && response.request().method() === 'GET'
+  })
 
   await page.goto('/')
+  const response = await hackathonsResponsePromise
+
+  expect(response.status()).toBe(200)
+  const hackathonPage = (await response.json()) as HackathonPage
+  expect(hackathonPage.items).toEqual(expect.any(Array))
+  expect(hackathonPage.total).toEqual(expect.any(Number))
+  const hackathons = hackathonPage.items
 
   await expect(page.getByRole('heading', { name: 'Hackathony' })).toBeVisible()
   await expect(page.getByText('Ładowanie hackathonów…')).toBeHidden()
