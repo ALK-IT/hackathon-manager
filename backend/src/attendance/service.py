@@ -4,7 +4,10 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy.exc import IntegrityError
+
 from src.attendance.exceptions import (
+    ActiveCheckInSessionConflictError,
     AttendancePermissionError,
     CheckInNotAllowedError,
     HackathonNotInProgressError,
@@ -14,6 +17,7 @@ from src.attendance.models import CheckIn, CheckInSession
 from src.attendance.repository import AttendanceRepository
 from src.attendance.schemas import CheckInRequest, SessionCreateRequest
 from src.auth.models import User
+from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.access import can_manage_hackathon
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
@@ -45,7 +49,9 @@ class AttendanceService:
         user: User,
         request: SessionCreateRequest,
     ) -> SessionCreateResult:
-        hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
+        hackathon = await self.hackathon_repository.get_active_by_public_id_for_update(
+            hackathon_public_id
+        )
         if hackathon is None:
             raise HackathonNotFoundError()
         if not can_manage_hackathon(hackathon, user):
@@ -64,6 +70,12 @@ class AttendanceService:
             await self.attendance_repository.deactivate_active_session(hackathon.id)
             await self.attendance_repository.create_check_in_session(check_in_session)
             await self.attendance_repository.commit()
+        except IntegrityError as exc:
+            await self.attendance_repository.rollback()
+            constraint = get_integrity_error_constraint(exc)
+            if constraint == "uq_check_in_sessions_one_active_per_hackathon":
+                raise ActiveCheckInSessionConflictError() from exc
+            raise
         except Exception:
             await self.attendance_repository.rollback()
             raise

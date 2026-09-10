@@ -29,3 +29,9 @@ class HackathonNotInProgressError(AttendanceError):
     status_code = 409
     error_code = ErrorCode.HACKATHON_NOT_IN_PROGRESS
     detail = "Check-in is available only while the hackathon is in progress."
+
+
+class ActiveCheckInSessionConflictError(AttendanceError):
+    status_code = 409
+    error_code = ErrorCode.CHECK_IN_SESSION_CONFLICT
+    detail = "Another check-in session was created concurrently. Try again."
