@@ -4,6 +4,7 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel, Field
+from redis.exceptions import RedisError
 
 from src.auth.exceptions import EmailAlreadyRegisteredError
 from src.common.errors import (
@@ -11,6 +12,7 @@ from src.common.errors import (
     AuthenticationRequiredError,
     DomainError,
     ErrorCode,
+    RateLimitedError,
 )
 from src.common.exception_handlers import handle_api_error, register_exception_handlers
 from src.hackathons.exceptions import (
@@ -145,6 +147,10 @@ def error_app() -> FastAPI:
     async def failure() -> None:
         raise RuntimeError("database password must never reach the response")
 
+    @app.get("/redis-failure")
+    async def redis_failure() -> None:
+        raise RedisError("redis connection details must never reach the response")
+
     return app
 
 
@@ -181,6 +187,17 @@ async def test_http_authentication_error_preserves_authenticate_header(
     }
 
 
+async def test_rate_limit_error_preserves_retry_after_header():
+    response = await handle_api_error(None, RateLimitedError(42))  # type: ignore[arg-type]
+
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "42"
+    assert json.loads(response.body) == {
+        "error_code": "RATE_LIMITED",
+        "detail": "Too many requests. Try again later.",
+    }
+
+
 async def test_http_permission_error_uses_common_contract(error_client: AsyncClient):
     response = await error_client.get("/forbidden")
 
@@ -214,3 +231,16 @@ async def test_unexpected_error_is_logged_without_leaking_detail(
     }
     assert "database password" not in response.text
     assert "Unhandled API exception" in caplog.text
+
+
+async def test_redis_error_returns_service_unavailable_without_leaking_detail(
+    error_client: AsyncClient,
+):
+    response = await error_client.get("/redis-failure")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error_code": "SERVICE_UNAVAILABLE",
+        "detail": "A required service is temporarily unavailable.",
+    }
+    assert "redis connection details" not in response.text

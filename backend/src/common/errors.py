@@ -14,6 +14,8 @@ class ErrorCode(StrEnum):
     METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED"
     HTTP_ERROR = "HTTP_ERROR"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+    RATE_LIMITED = "RATE_LIMITED"
+    SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE"
 
     EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_REGISTERED"
 
@@ -128,3 +130,12 @@ class AuthenticationRequiredError(APIError):
     error_code = ErrorCode.AUTHENTICATION_REQUIRED
     detail = "Invalid email, password, or access token."
     headers: ClassVar[dict[str, str]] = {"WWW-Authenticate": "Bearer"}
+
+
+class RateLimitedError(APIError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    error_code = ErrorCode.RATE_LIMITED
+    detail = "Too many requests. Try again later."
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__(headers={"Retry-After": str(retry_after_seconds)})

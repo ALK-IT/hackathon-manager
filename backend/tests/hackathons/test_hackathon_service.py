@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
-from src.common.rate_limit import FixedWindowRateLimiter
+from src.common.rate_limit import SlidingWindowRateLimiter
 from src.hackathons.constants import CO_ORGANIZER_SEARCH_RESULT_LIMIT
 from src.hackathons.exceptions import (
     AdminRequiredError,
@@ -78,10 +78,10 @@ def user_repository(mocker) -> UserRepository:
 def make_service(
     repository: HackathonRepository,
     user_repository: UserRepository | None = None,
-    rate_limiter: FixedWindowRateLimiter | None = None,
+    rate_limiter: SlidingWindowRateLimiter | None = None,
 ) -> HackathonService:
     if rate_limiter is None:
-        rate_limiter = Mock(spec=FixedWindowRateLimiter)
+        rate_limiter = Mock(spec=SlidingWindowRateLimiter)
         rate_limiter.consume = AsyncMock(return_value=True)
     return HackathonService(
         repository,
@@ -702,7 +702,7 @@ async def test_candidate_search_rejects_request_after_rate_limit_is_exceeded(
 ):
     hackathon = hackathon_factory(organizer=admin_user)
     repository.get_owned_by_public_id.return_value = hackathon
-    rate_limiter = mocker.Mock(spec=FixedWindowRateLimiter)
+    rate_limiter = mocker.Mock(spec=SlidingWindowRateLimiter)
     rate_limiter.consume = mocker.AsyncMock(return_value=False)
     service = make_service(repository, user_repository, rate_limiter)
 
@@ -724,7 +724,7 @@ async def test_candidate_search_hides_unowned_hackathon_before_user_lookup(
     mocker,
 ):
     repository.get_owned_by_public_id.return_value = None
-    rate_limiter = mocker.Mock(spec=FixedWindowRateLimiter)
+    rate_limiter = mocker.Mock(spec=SlidingWindowRateLimiter)
     rate_limiter.consume = mocker.AsyncMock(return_value=True)
     service = make_service(repository, user_repository, rate_limiter)
 

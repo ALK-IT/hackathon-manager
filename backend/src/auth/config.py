@@ -1,10 +1,59 @@
 import os
+from dataclasses import dataclass
 from typing import Literal
 
 from src.auth.constants import (
     DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES,
     DEFAULT_REFRESH_TOKEN_EXPIRE_DAYS,
 )
+
+
+@dataclass(frozen=True)
+class AuthRateLimitSettings:
+    requests: int
+    window_seconds: int
+
+
+def _get_positive_integer(name: str, default: int) -> int:
+    raw_value = os.environ.get(name, str(default))
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer") from exc
+    if value <= 0:
+        raise RuntimeError(f"{name} must be greater than zero")
+    return value
+
+
+def _get_rate_limit_settings(
+    namespace: str,
+    default_requests: int,
+    default_window_seconds: int,
+) -> AuthRateLimitSettings:
+    prefix = f"RATE_LIMIT_{namespace.upper()}"
+    return AuthRateLimitSettings(
+        requests=_get_positive_integer(f"{prefix}_REQUESTS", default_requests),
+        window_seconds=_get_positive_integer(
+            f"{prefix}_WINDOW_SECONDS",
+            default_window_seconds,
+        ),
+    )
+
+
+def get_login_rate_limit_settings() -> AuthRateLimitSettings:
+    return _get_rate_limit_settings("login", 10, 60)
+
+
+def get_register_rate_limit_settings() -> AuthRateLimitSettings:
+    return _get_rate_limit_settings("register", 5, 3600)
+
+
+def get_refresh_rate_limit_settings() -> AuthRateLimitSettings:
+    return _get_rate_limit_settings("refresh", 30, 60)
+
+
+def get_verify_email_rate_limit_settings() -> AuthRateLimitSettings:
+    return _get_rate_limit_settings("verify_email", 20, 300)
 
 
 def get_access_token_expire_minutes() -> int:
@@ -97,3 +146,7 @@ def validate_configuration() -> None:
     get_auth_cookie_samesite()
     get_frontend_origins()
     get_smtp_port()
+    get_login_rate_limit_settings()
+    get_register_rate_limit_settings()
+    get_refresh_rate_limit_settings()
+    get_verify_email_rate_limit_settings()
