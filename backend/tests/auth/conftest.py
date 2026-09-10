@@ -67,7 +67,7 @@ def mock_user_service(mocker):
 @pytest.fixture
 def mock_rate_limit_cache(mocker):
     cache = mocker.Mock(spec=Redis)
-    cache.eval = mocker.AsyncMock(return_value=[1, 60])
+    cache.register_script.return_value = mocker.AsyncMock(return_value=[1, 0])
     return cache
 
 

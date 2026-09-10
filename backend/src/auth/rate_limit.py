@@ -15,7 +15,7 @@ from src.auth.config import (
 )
 from src.cache import get_cache
 from src.common.errors import RateLimitedError
-from src.common.rate_limit import FixedWindowRateLimiter
+from src.common.rate_limit import SlidingWindowRateLimiter
 
 SettingsProvider = Callable[[], AuthRateLimitSettings]
 RateLimitDependency = Callable[[Request, Redis], Awaitable[None]]
@@ -35,7 +35,7 @@ def create_rate_limit_dependency(
         cache: Annotated[Redis, Depends(get_cache)],
     ) -> None:
         settings = settings_provider()
-        limiter = FixedWindowRateLimiter(
+        limiter = SlidingWindowRateLimiter(
             cache=cache,
             namespace=namespace,
             limit=settings.requests,

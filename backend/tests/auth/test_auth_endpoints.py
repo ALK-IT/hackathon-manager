@@ -160,7 +160,8 @@ async def test_auth_endpoints_return_rate_limit_error(
     namespace,
     retry_after,
 ):
-    mock_rate_limit_cache.eval.return_value = [10_000, int(retry_after)]
+    script = mock_rate_limit_cache.register_script.return_value
+    script.return_value = [0, int(retry_after)]
 
     response = await auth_client.post(path, **request_kwargs)
 
@@ -170,7 +171,7 @@ async def test_auth_endpoints_return_rate_limit_error(
         "error_code": "RATE_LIMITED",
         "detail": "Too many requests. Try again later.",
     }
-    redis_key = mock_rate_limit_cache.eval.await_args.args[2]
+    redis_key = script.await_args.kwargs["keys"][0]
     assert redis_key.startswith(f"rate-limit:{namespace}:")
 
 
@@ -178,7 +179,8 @@ async def test_auth_endpoint_returns_service_unavailable_when_redis_fails(
     auth_client,
     mock_rate_limit_cache,
 ):
-    mock_rate_limit_cache.eval.side_effect = RedisError("redis unavailable")
+    script = mock_rate_limit_cache.register_script.return_value
+    script.side_effect = RedisError("redis unavailable")
 
     response = await auth_client.post(
         "/api/auth/login",

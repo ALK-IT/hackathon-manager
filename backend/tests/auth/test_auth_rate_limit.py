@@ -44,7 +44,7 @@ def test_client_identifier_ignores_untrusted_proxy_header(monkeypatch):
 
 async def test_dependency_rejects_request_above_limit(mocker):
     cache = mocker.Mock(spec=Redis)
-    cache.eval = mocker.AsyncMock(return_value=[3, 17])
+    cache.register_script.return_value = mocker.AsyncMock(return_value=[0, 17])
     dependency = create_rate_limit_dependency(
         "auth-test",
         lambda: AuthRateLimitSettings(requests=2, window_seconds=60),

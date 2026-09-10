@@ -31,7 +31,7 @@ from src.auth.utils import (
     revoked_access_token_key,
     verify_password,
 )
-from src.common.rate_limit import FixedWindowRateLimiter
+from src.common.rate_limit import SlidingWindowRateLimiter
 
 ActionTokenKind = Literal["email-verification", "password-reset"]
 ISSUE_ACTION_TOKEN_SCRIPT = """
@@ -233,7 +233,7 @@ class TokenService:
         window_seconds: int,
     ) -> None:
         digest = sha256(identifier.strip().lower().encode()).hexdigest()
-        limiter = FixedWindowRateLimiter(
+        limiter = SlidingWindowRateLimiter(
             cache=self.cache,
             namespace=scope,
             limit=limit,
