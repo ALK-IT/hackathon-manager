@@ -13,11 +13,18 @@ limity, ale nie wszystkie wymagane endpointy korzystały ze wspólnego komponent
 
 ## Rozwiązanie
 
-Wspólny `FixedWindowRateLimiter` używa atomowego skryptu Lua do przechowywania w Redisie
-osobnego licznika dla każdego endpointu i klienta. Zależności FastAPI uruchamiają limiter przed
+Wspólny `SlidingWindowRateLimiter` używa atomowego skryptu Lua i ważonego licznika bieżącego
+oraz poprzedniego okna do przechowywania w Redisie limitu dla każdego endpointu i klienta.
+Zapobiega to krótkim skokom ruchu na granicy sztywnych okien przy zachowaniu stałego zużycia
+pamięci na identyfikator. Zależności FastAPI uruchamiają limiter przed
 logiką `/register`, `/login`, `/refresh` oraz `/verify-email`. Adres klienta jest hashowany
 SHA-256 przed użyciem w kluczu Redis. Ta sama implementacja limitera obsługuje również
 istniejące limity po adresie e-mail i loginie.
+
+Skrypt jest rejestrowany przez klienta `redis-py` i przy kolejnych wywołaniach uruchamiany
+poleceniem `EVALSHA`, dzięki czemu backend nie przesyła do Redisa całej treści Lua przy każdym
+żądaniu. Jeżeli Redis nie zna skryptu, na przykład po restarcie, klient automatycznie obsługuje
+odpowiedź `NOSCRIPT`, ładuje skrypt poleceniem `SCRIPT LOAD` i ponawia `EVALSHA`.
 
 Po przekroczeniu limitu API zwraca HTTP `429`, kod błędu `RATE_LIMITED` oraz nagłówek
 `Retry-After`. Limity i długości okien można nadpisać zmiennymi środowiskowymi `RATE_LIMIT_*`.
