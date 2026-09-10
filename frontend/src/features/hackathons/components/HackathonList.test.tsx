@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuthContext, type AuthContextValue } from '../../auth'
 import { getHackathons } from '../api/hackathonsApi'
 import type { Hackathon } from '../types'
 import { HackathonList } from './HackathonList'
@@ -16,6 +17,7 @@ const hackathon: Hackathon = {
   capacity: 100,
   max_team_size: 4,
   access_level: 'viewer',
+  my_registration_status: null,
 }
 
 const page = (items: Hackathon[], total = items.length, offset = 0) => ({
@@ -25,16 +27,70 @@ const page = (items: Hackathon[], total = items.length, offset = 0) => ({
   offset,
 })
 
-function renderHackathonList() {
+const anonymousAuth: AuthContextValue = {
+  user: null,
+  isLoading: false,
+  login: vi.fn(),
+  register: vi.fn(),
+  logout: vi.fn(),
+}
+
+function renderHackathonList(auth: AuthContextValue = anonymousAuth) {
   return render(
     <MemoryRouter>
-      <HackathonList />
+      <AuthContext.Provider value={auth}>
+        <HackathonList />
+      </AuthContext.Provider>
     </MemoryRouter>,
   )
 }
 
 describe('HackathonList', () => {
   beforeEach(() => vi.mocked(getHackathons).mockReset())
+
+  it('waits for session restoration before loading hackathons', async () => {
+    vi.mocked(getHackathons).mockResolvedValue(page([]))
+    const { rerender } = renderHackathonList({ ...anonymousAuth, isLoading: true })
+
+    expect(getHackathons).not.toHaveBeenCalled()
+
+    rerender(
+      <MemoryRouter>
+        <AuthContext.Provider value={anonymousAuth}>
+          <HackathonList />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(getHackathons).toHaveBeenCalledTimes(1))
+  })
+
+  it('reloads hackathons when the authenticated user changes', async () => {
+    vi.mocked(getHackathons).mockResolvedValue(page([]))
+    const authenticatedAuth: AuthContextValue = {
+      ...anonymousAuth,
+      user: {
+        public_id: 'user-1',
+        name: 'Jan Kowalski',
+        email: 'jan@example.com',
+        created_at: '2026-08-26T10:00:00Z',
+        role: 'user',
+      },
+    }
+    const { rerender } = renderHackathonList(authenticatedAuth)
+
+    await waitFor(() => expect(getHackathons).toHaveBeenCalledTimes(1))
+
+    rerender(
+      <MemoryRouter>
+        <AuthContext.Provider value={anonymousAuth}>
+          <HackathonList />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(getHackathons).toHaveBeenCalledTimes(2))
+  })
 
   it('shows a loading state while the request is pending', async () => {
     let resolveRequest: ((result: ReturnType<typeof page>) => void) | undefined

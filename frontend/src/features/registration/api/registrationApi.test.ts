@@ -4,7 +4,9 @@ import {
   createRegistration,
   createRegistrationQuestions,
   getMyRegistration,
+  getParticipantArea,
   getRegistrationQuestions,
+  saveTaskSubmission,
 } from './registrationApi'
 
 vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
@@ -44,6 +46,15 @@ describe('registrationApi', () => {
     )
   })
 
+  it('gets the participant area for the selected hackathon', () => {
+    getParticipantArea('hackathon-id')
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon-id/participant-area',
+      { signal: undefined },
+    )
+  })
+
   it('sends the registration payload', () => {
     const payload = {
       answers: [{ question_public_id: 'question-id', content: 'Odpowiedź' }],
@@ -57,6 +68,19 @@ describe('registrationApi', () => {
       {
         method: 'POST',
         body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  })
+
+  it('upserts the team solution for a task', () => {
+    saveTaskSubmission('hackathon-id', 'task-id', 'https://github.com/example/repo')
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon-id/tasks/task-id/submission',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ github_url: 'https://github.com/example/repo' }),
         headers: { 'Content-Type': 'application/json' },
       },
     )

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Spinner } from '../../../components/ui'
+import { useAuth } from '../../auth'
 import { getHackathons } from '../api/hackathonsApi'
 import type { Hackathon, HackathonFilters as Filters } from '../types'
 import { HackathonFilters } from './HackathonFilters'
@@ -8,6 +9,7 @@ import { HackathonListItem } from './HackathonListItem'
 const PAGE_SIZE = 20
 
 export function HackathonList() {
+  const { user, isLoading: isAuthLoading } = useAuth()
   const [hackathons, setHackathons] = useState<Hackathon[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
@@ -17,6 +19,8 @@ export function HackathonList() {
   const [filters, setFilters] = useState<Filters>({})
 
   useEffect(() => {
+    if (isAuthLoading) return
+
     const controller = new AbortController()
 
     async function loadHackathons() {
@@ -41,7 +45,7 @@ export function HackathonList() {
 
     void loadHackathons()
     return () => controller.abort()
-  }, [filters, page, requestVersion])
+  }, [filters, isAuthLoading, page, requestVersion, user?.public_id])
 
   function changeFilters(nextFilters: Filters) {
     setFilters(nextFilters)

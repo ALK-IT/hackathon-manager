@@ -1,6 +1,8 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from src.auth.models import User
 from src.registration.models import Registration, RegistrationStatus
 from src.teams.models import Team
 
@@ -43,6 +45,32 @@ class TeamRepository:
         statement = select(func.count(Registration.id)).where(Registration.team_id == team_id)
         result = await self.session.execute(statement)
         return result.scalar_one()
+
+    async def get_members(self, team_id: int) -> list[User]:
+        statement = (
+            select(User)
+            .join(Registration, Registration.user_id == User.id)
+            .where(
+                Registration.team_id == team_id, Registration.status == RegistrationStatus.ACCEPTED
+            )
+            .order_by(User.name, User.id)
+        )
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
+
+    async def get_teams(self, hackathon_id: int) -> list[Team]:
+        statement = (
+            select(Team)
+            .where(Team.hackathon_id == hackathon_id)
+            .order_by(Team.name)
+            .options(
+                selectinload(
+                    Team.registrations.and_(Registration.status == RegistrationStatus.ACCEPTED)
+                ).selectinload(Registration.user)
+            )
+        )
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
 
     async def create(self, team: Team) -> Team:
         async with self.session.begin_nested():

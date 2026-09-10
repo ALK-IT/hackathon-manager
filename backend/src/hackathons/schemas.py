@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from src.hackathons.access import HackathonAccessLevel, get_hackathon_access_level
 from src.hackathons.models import Hackathon
+from src.registration.models import RegistrationStatus
 
 DEFAULT_REGISTRATION_DEADLINE_OFFSET = timedelta(hours=48)
 
@@ -194,9 +195,15 @@ class HackathonListItem(BaseModel):
     max_team_size: int
     teams_enabled: bool
     access_level: HackathonAccessLevel
+    my_registration_status: RegistrationStatus | None = None
 
     @classmethod
-    def from_hackathon(cls, hackathon: Hackathon, user_id: int | None) -> "HackathonListItem":
+    def from_hackathon(
+        cls,
+        hackathon: Hackathon,
+        user_id: int | None,
+        my_registration_status: RegistrationStatus | None = None,
+    ) -> "HackathonListItem":
         return cls(
             public_id=hackathon.public_id,
             name=hackathon.name,
@@ -209,6 +216,7 @@ class HackathonListItem(BaseModel):
             max_team_size=hackathon.max_team_size,
             teams_enabled=hackathon.teams_enabled,
             access_level=get_hackathon_access_level(hackathon, user_id),
+            my_registration_status=my_registration_status,
         )
 
 
