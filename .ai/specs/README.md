@@ -35,6 +35,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-016 | Strefa uczestnika i status zgłoszenia na liście hackathonów | Zaimplementowany | [implemented/SPEC-016-2026-08-26-strefa-uczestnika.md](implemented/SPEC-016-2026-08-26-strefa-uczestnika.md) |
 | SPEC-017 | Zadania hackathonu i rozwiązania drużyn | Zaakceptowany | [SPEC-017-2026-09-03-zadania-i-rozwiazania-druzyn.md](SPEC-017-2026-09-03-zadania-i-rozwiazania-druzyn.md) |
 | SPEC-018 | Odliczanie na publicznej stronie hackathonu | Zaimplementowany | [implemented/SPEC-018-2026-08-26-odliczanie-hackathonu.md](implemented/SPEC-018-2026-08-26-odliczanie-hackathonu.md) |
-| SPEC-019 | Rate limiting endpointów auth | Zaimplementowany | [implemented/SPEC-019-2026-09-10-rate-limiting-endpointow-auth.md](implemented/SPEC-019-2026-09-10-rate-limiting-endpointow-auth.md) |
+| SPEC-020 | Rate limiting endpointów auth | Zaimplementowany | [implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md](implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

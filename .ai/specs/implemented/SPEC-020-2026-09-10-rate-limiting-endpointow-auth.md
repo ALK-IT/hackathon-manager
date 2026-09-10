@@ -1,4 +1,4 @@
-# SPEC-019: Rate limiting endpointów auth
+# SPEC-020: Rate limiting endpointów auth
 
 **Status:** Zaimplementowany  
 **Data:** 2026-09-10  
@@ -13,9 +13,11 @@ limity, ale nie wszystkie wymagane endpointy korzystały ze wspólnego komponent
 
 ## Rozwiązanie
 
-Wspólny `FixedWindowRateLimiter` przechowuje w Redisie osobny licznik dla każdego endpointu i
-klienta. Zależności FastAPI uruchamiają limiter przed logiką `/register`, `/login`, `/refresh`
-oraz `/verify-email`. Adres klienta jest hashowany SHA-256 przed użyciem w kluczu Redis.
+Wspólny `FixedWindowRateLimiter` używa atomowego skryptu Lua do przechowywania w Redisie
+osobnego licznika dla każdego endpointu i klienta. Zależności FastAPI uruchamiają limiter przed
+logiką `/register`, `/login`, `/refresh` oraz `/verify-email`. Adres klienta jest hashowany
+SHA-256 przed użyciem w kluczu Redis. Ta sama implementacja limitera obsługuje również
+istniejące limity po adresie e-mail i loginie.
 
 Po przekroczeniu limitu API zwraca HTTP `429`, kod błędu `RATE_LIMITED` oraz nagłówek
 `Retry-After`. Limity i długości okien można nadpisać zmiennymi środowiskowymi `RATE_LIMIT_*`.
@@ -29,6 +31,9 @@ Domyślne wartości to:
 Istniejące limity per adres e-mail dla nieudanych logowań, rejestracji i operacji odzyskiwania
 konta pozostają zachowane jako dodatkowa warstwa ochrony.
 
+Jeśli Redis jest niedostępny, chroniona operacja nie jest wykonywana, a API zwraca kontrolowaną
+odpowiedź HTTP `503` z kodem `SERVICE_UNAVAILABLE`.
+
 ## Zakres
 
 ### W zakresie
@@ -37,6 +42,7 @@ konta pozostają zachowane jako dodatkowa warstwa ochrony.
 - oddzielna przestrzeń kluczy i konfiguracja dla każdego endpointu;
 - bezpieczna obsługa adresu klienta za zaufanym reverse proxy;
 - wspólny kontrakt błędu `429 RATE_LIMITED`;
+- kontrolowany błąd `503 SERVICE_UNAVAILABLE` podczas awarii Redis;
 - walidacja dodatnich wartości konfiguracyjnych podczas startu aplikacji;
 - testy konfiguracji, zależności, endpointów i odpowiedzi błędu.
 
