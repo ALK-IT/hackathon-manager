@@ -16,6 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models import Base
 
 if TYPE_CHECKING:
+    from src.hackathon_tasks.models import TaskSubmission
     from src.hackathons.models import Hackathon
     from src.registration.models import Registration
     from src.resources.models import ResourceAssignment
@@ -57,6 +58,10 @@ class Team(Base):
 
     registrations: Mapped[list["Registration"]] = relationship(back_populates="team")
     resource_assignments: Mapped[list["ResourceAssignment"]] = relationship(
+        back_populates="team",
+        passive_deletes=True,
+    )
+    task_submissions: Mapped[list["TaskSubmission"]] = relationship(
         back_populates="team",
         passive_deletes=True,
     )

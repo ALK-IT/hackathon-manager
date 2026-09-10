@@ -37,6 +37,25 @@ async def test_user_repository_returns_none_when_user_does_not_exist(session: As
     assert await repository.get_by_public_id(uuid.uuid4()) is None
 
 
+async def test_user_repository_searches_by_name_and_excludes_selected_users(
+    session: AsyncSession,
+):
+    repository = UserRepository(session)
+    excluded = make_user("excluded@example.com", name="Jan Admin")
+    matching_users = [
+        make_user("jan@example.com", name="Jan Kowalski"),
+        make_user("anna@example.com", name="Anna Janowska"),
+    ]
+    unrelated = make_user("ola@example.com", name="Ola Nowak")
+    for user in [excluded, *matching_users, unrelated]:
+        await repository.create(user)
+    await repository.commit()
+
+    result = await repository.search_by_name("jAn", {excluded.id}, limit=7)
+
+    assert result == [matching_users[1], matching_users[0]]
+
+
 async def test_user_repository_updates_user(session: AsyncSession):
     repository = UserRepository(session)
     user = make_user("jan@example.com")

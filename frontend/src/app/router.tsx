@@ -1,5 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { LoginPage, RegisterPage } from '../features/auth'
+import {
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+} from '../features/auth'
 import {
   CreateHackathonPage,
   EditHackathonPage,
@@ -7,6 +13,7 @@ import {
   HackathonsPage,
 } from '../features/hackathons'
 import {
+  ParticipantAreaPage,
   RegistrationEntryPage,
   RegistrationQuestionsSetupPage,
 } from '../features/registration'
@@ -35,6 +42,16 @@ export function AppRouter() {
           </PublicOnlyRoute>
         }
       />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicOnlyRoute>
+            <ForgotPasswordPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/hackathons" element={<HackathonsPage />} />
       <Route
         path="/hackathons/create"
@@ -78,6 +95,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute>
             <ManageRegistrationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hackathons/:hackathonPublicId/participant-area"
+        element={
+          <ProtectedRoute>
+            <ParticipantAreaPage />
           </ProtectedRoute>
         }
       />

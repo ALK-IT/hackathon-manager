@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import DateTime, Integer, String, func
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models import Base
 
 if TYPE_CHECKING:
+    from src.hackathon_tasks.models import TaskSubmission
     from src.hackathons.models import Hackathon
     from src.registration.models import Registration
     from src.resources.models import ResourceAssignment, ResourceAuditLog
@@ -35,6 +36,8 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    auth_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -64,3 +67,4 @@ class User(Base):
         back_populates="assigned_by"
     )
     resource_audit_logs: Mapped[list["ResourceAuditLog"]] = relationship(back_populates="user")
+    task_submissions: Mapped[list["TaskSubmission"]] = relationship(back_populates="submitted_by")
