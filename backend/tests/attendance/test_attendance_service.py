@@ -4,21 +4,26 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from src.attendance.exceptions import (
+    ActiveCheckInSessionConflictError,
     AttendancePermissionError,
     CheckInNotAllowedError,
     InvalidCheckInTokenError,
 )
 from src.attendance.models import CheckIn, CheckInSession
-from src.attendance.schemas import CheckInRequest
+from src.attendance.schemas import CheckInRequest, SessionCreateRequest
 from src.attendance.service import AttendanceService
+from src.auth.models import UserRole
 from src.registration.models import Registration, RegistrationStatus
 
 
 @pytest.fixture
 def attendance_repository(mocker):
     repository = mocker.Mock()
+    repository.deactivate_active_session = mocker.AsyncMock()
+    repository.create_check_in_session = mocker.AsyncMock()
     repository.get_valid_session_for_update = mocker.AsyncMock()
     repository.get_check_in_by_registration_id = mocker.AsyncMock()
     repository.get_check_ins_by_hackathon = mocker.AsyncMock(return_value=[])
@@ -33,13 +38,15 @@ def attendance_repository(mocker):
 def hackathon_repository(mocker):
     repository = mocker.Mock()
     now = datetime.now(UTC)
-    repository.get_active_by_public_id = mocker.AsyncMock(
-        return_value=SimpleNamespace(
-            id=10,
-            start_date=now - timedelta(hours=1),
-            end_date=now + timedelta(hours=1),
-        )
+    hackathon = SimpleNamespace(
+        id=10,
+        organizer_id=99,
+        co_organizers=[],
+        start_date=now - timedelta(hours=1),
+        end_date=now + timedelta(hours=1),
     )
+    repository.get_active_by_public_id = mocker.AsyncMock(return_value=hackathon)
+    repository.get_active_by_public_id_for_update = mocker.AsyncMock(return_value=hackathon)
     return repository
 
 
@@ -80,6 +87,50 @@ def make_session(token: str) -> CheckInSession:
         expires_at=datetime.now(UTC) + timedelta(minutes=15),
         created_by_id=99,
     )
+
+
+def make_integrity_error(constraint_name: str) -> IntegrityError:
+    original_error = RuntimeError("unique constraint violation")
+    original_error.constraint_name = constraint_name  # type: ignore[attr-defined]
+    return IntegrityError("INSERT", {}, original_error)
+
+
+async def test_create_session_maps_active_session_constraint_to_conflict(
+    attendance_service,
+    attendance_repository,
+):
+    attendance_repository.create_check_in_session.side_effect = make_integrity_error(
+        "uq_check_in_sessions_one_active_per_hackathon"
+    )
+
+    with pytest.raises(ActiveCheckInSessionConflictError):
+        await attendance_service.create_check_in_session(
+            uuid.uuid4(),
+            SimpleNamespace(id=20, role=UserRole.ADMIN),
+            SessionCreateRequest(),
+        )
+
+    attendance_repository.rollback.assert_awaited_once_with()
+    attendance_repository.commit.assert_not_awaited()
+
+
+async def test_create_session_does_not_mask_other_integrity_errors(
+    attendance_service,
+    attendance_repository,
+):
+    integrity_error = make_integrity_error("different_constraint")
+    attendance_repository.create_check_in_session.side_effect = integrity_error
+
+    with pytest.raises(IntegrityError) as exc_info:
+        await attendance_service.create_check_in_session(
+            uuid.uuid4(),
+            SimpleNamespace(id=20, role=UserRole.ADMIN),
+            SessionCreateRequest(),
+        )
+
+    assert exc_info.value is integrity_error
+    attendance_repository.rollback.assert_awaited_once_with()
+    attendance_repository.commit.assert_not_awaited()
 
 
 async def test_check_in_current_user_rejects_user_without_accepted_registration(
