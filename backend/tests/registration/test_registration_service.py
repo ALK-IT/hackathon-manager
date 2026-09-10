@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from src.auth.email import EmailDeliveryError
 from src.auth.models import User, UserRole
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
@@ -169,12 +170,20 @@ def task_repository(mocker):
 
 
 @pytest.fixture
+def email_service(mocker):
+    service = mocker.Mock()
+    service.send_registration_status_changed = mocker.AsyncMock()
+    return service
+
+
+@pytest.fixture
 def registration_service(
     registration_repository,
     question_repository,
     hackathon_repository,
     team_service,
     task_repository,
+    email_service,
 ):
     return RegistrationService(
         registration_repository=registration_repository,
@@ -182,6 +191,7 @@ def registration_service(
         hackathon_repository=hackathon_repository,
         team_service=team_service,
         task_repository=task_repository,
+        email_service=email_service,
     )
 
 
@@ -987,14 +997,17 @@ async def test_update_status_rejects_changes_exactly_at_hackathon_end(
 async def test_update_status_allows_changes_just_before_hackathon_end(
     registration_service,
     registration_repository,
+    email_service,
 ):
     boundary = datetime(2026, 9, 1, 12, tzinfo=UTC)
     hackathon = make_hackathon()
     hackathon.organizer_id = 10
     hackathon.end_date = boundary
     registration = SimpleNamespace(
+        public_id=uuid.uuid4(),
         status=RegistrationStatus.PENDING,
         team_id=None,
+        user=SimpleNamespace(email="participant@example.com"),
         hackathon=hackathon,
     )
     registration_repository.get_active_by_public_id.return_value = registration
@@ -1012,6 +1025,12 @@ async def test_update_status_allows_changes_just_before_hackathon_end(
     assert result.status is RegistrationStatus.ACCEPTED
     registration_repository.update_status.assert_awaited_once()
     registration_repository.commit.assert_awaited_once_with()
+    email_service.send_registration_status_changed.assert_awaited_once_with(
+        "participant@example.com",
+        hackathon.name,
+        str(hackathon.public_id),
+        "accepted",
+    )
 
 
 @pytest.mark.parametrize("access_kind", ["admin", "organizer", "co_organizer"])
@@ -1020,6 +1039,7 @@ async def test_authorized_user_can_update_status(
     registration_service,
     registration_repository,
     team_service,
+    email_service,
 ):
     organizer_id = 10
     co_organizer_id = 20
@@ -1032,9 +1052,13 @@ async def test_authorized_user_can_update_status(
         current_user.id = co_organizer_id
 
     registration = SimpleNamespace(
+        public_id=uuid.uuid4(),
         status=RegistrationStatus.PENDING,
         team_id=None,
+        user=SimpleNamespace(email="participant@example.com"),
         hackathon=SimpleNamespace(
+            public_id=uuid.uuid4(),
+            name="AI Hackathon",
             organizer_id=organizer_id,
             co_organizers=[SimpleNamespace(id=co_organizer_id)],
             end_date=datetime.max.replace(tzinfo=UTC),
@@ -1061,17 +1085,23 @@ async def test_authorized_user_can_update_status(
     registration_repository.commit.assert_awaited_once_with()
     registration_repository.rollback.assert_not_awaited()
     team_service.ensure_member_can_be_activated.assert_not_awaited()
+    email_service.send_registration_status_changed.assert_awaited_once()
 
 
 async def test_reactivating_rejected_team_member_checks_available_place(
     registration_service,
     registration_repository,
     team_service,
+    email_service,
 ):
     registration = SimpleNamespace(
+        public_id=uuid.uuid4(),
         status=RegistrationStatus.REJECTED,
         team_id=40,
+        user=SimpleNamespace(email="participant@example.com"),
         hackathon=SimpleNamespace(
+            public_id=uuid.uuid4(),
+            name="AI Hackathon",
             organizer_id=10,
             co_organizers=[],
             max_team_size=4,
@@ -1093,6 +1123,68 @@ async def test_reactivating_rejected_team_member_checks_available_place(
     team_service.ensure_member_can_be_activated.assert_awaited_once_with(40, 4)
     assert result.status is RegistrationStatus.ACCEPTED
     registration_repository.commit.assert_awaited_once_with()
+    email_service.send_registration_status_changed.assert_awaited_once()
+
+
+async def test_update_status_does_not_send_email_when_status_is_unchanged(
+    registration_service,
+    registration_repository,
+    email_service,
+):
+    registration = SimpleNamespace(
+        status=RegistrationStatus.ACCEPTED,
+        team_id=None,
+        hackathon=SimpleNamespace(
+            organizer_id=10,
+            co_organizers=[],
+            allows_registration_status_changes_at=lambda _moment=None: True,
+        ),
+    )
+    registration_repository.get_active_by_public_id.return_value = registration
+    registration_repository.update_status.return_value = registration
+
+    await registration_service.update_status(
+        uuid.uuid4(),
+        RegistrationStatus.ACCEPTED,
+        make_user(user_id=10),
+    )
+
+    email_service.send_registration_status_changed.assert_not_awaited()
+
+
+async def test_update_status_succeeds_when_email_delivery_fails(
+    registration_service,
+    registration_repository,
+    email_service,
+):
+    registration = SimpleNamespace(
+        public_id=uuid.uuid4(),
+        status=RegistrationStatus.PENDING,
+        team_id=None,
+        user=SimpleNamespace(email="participant@example.com"),
+        hackathon=SimpleNamespace(
+            public_id=uuid.uuid4(),
+            name="AI Hackathon",
+            organizer_id=10,
+            co_organizers=[],
+            allows_registration_status_changes_at=lambda _moment=None: True,
+        ),
+    )
+    registration_repository.get_active_by_public_id.return_value = registration
+    registration_repository.update_status.side_effect = lambda item, status, _changed_by: (
+        setattr(item, "status", status) or item
+    )
+    email_service.send_registration_status_changed.side_effect = EmailDeliveryError()
+
+    result = await registration_service.update_status(
+        uuid.uuid4(),
+        RegistrationStatus.REJECTED,
+        make_user(user_id=10),
+    )
+
+    assert result.status is RegistrationStatus.REJECTED
+    registration_repository.commit.assert_awaited_once_with()
+    registration_repository.rollback.assert_not_awaited()
 
 
 async def test_reactivating_rejected_team_member_rolls_back_when_team_is_full(
