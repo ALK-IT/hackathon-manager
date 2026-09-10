@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models import Base
 
 if TYPE_CHECKING:
+    from src.attendance.models import CheckInSession
     from src.hackathon_tasks.models import TaskSubmission
     from src.hackathons.models import Hackathon
     from src.registration.models import Registration
@@ -68,3 +69,6 @@ class User(Base):
     )
     resource_audit_logs: Mapped[list["ResourceAuditLog"]] = relationship(back_populates="user")
     task_submissions: Mapped[list["TaskSubmission"]] = relationship(back_populates="submitted_by")
+    check_in_sessions_created: Mapped[list["CheckInSession"]] = relationship(
+        back_populates="created_by"
+    )

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from src.attendance.router import router as attendance_router
 from src.auth.router import router as auth_router
 from src.hackathon_tasks.router import router as tasks_router
 from src.hackathons.router import router as hackathons_router
@@ -16,3 +17,4 @@ api_router.include_router(tasks_router)
 api_router.include_router(registration_router)
 api_router.include_router(resources_router)
 api_router.include_router(teams_router)
+api_router.include_router(attendance_router)
