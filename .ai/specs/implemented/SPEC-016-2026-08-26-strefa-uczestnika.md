@@ -2,7 +2,7 @@
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-26
-**Autor:** zespół hackathon-manager
+**Autor:** Mateusz Guzowski
 
 ## Kontekst / Problem
 

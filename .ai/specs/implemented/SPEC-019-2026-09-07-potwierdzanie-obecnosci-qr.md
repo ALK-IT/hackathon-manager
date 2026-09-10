@@ -2,7 +2,7 @@
 
 **Status:** Zaimplementowany
 **Data:** 2026-09-07
-**Autor:** Patryk Nisgorski
+**Autor:** Mateusz Guzowski
 
 ## Kontekst / Problem
 

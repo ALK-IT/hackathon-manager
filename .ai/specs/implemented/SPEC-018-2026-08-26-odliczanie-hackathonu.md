@@ -2,7 +2,7 @@
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-26
-**Autor:** zespół hackathon-manager
+**Autor:** Mateusz Guzowski
 **Powiązane zadanie:** GitHub #54
 
 ## Kontekst / Problem
