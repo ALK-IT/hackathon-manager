@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from src.auth.models import User, UserRole
 from src.hackathons.exceptions import (
     CoOrganizerAlreadyAssignedError,
+    CoOrganizerSearchRateLimitExceededError,
     CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
     InvalidConfirmNameError,
@@ -14,6 +15,7 @@ from src.hackathons.exceptions import (
     RegistrationDeadlinePassedError,
 )
 from src.hackathons.service import HackathonService
+from src.registration.models import RegistrationStatus
 from tests.hackathons.factories import HackathonFactory, UserFactory
 
 
@@ -103,9 +105,9 @@ async def test_list_endpoint_returns_all_access_levels(
     viewed_hackathon = hackathon_factory(organizer=other_owner)
     viewed_hackathon.id = 3
     mock_hackathon_service.list_hackathons.return_value = [
-        owned_hackathon,
-        co_organized_hackathon,
-        viewed_hackathon,
+        (owned_hackathon, RegistrationStatus.ACCEPTED),
+        (co_organized_hackathon, None),
+        (viewed_hackathon, RegistrationStatus.PENDING),
     ]
 
     response = await hackathon_client.get("/api/hackathons")
@@ -116,9 +118,15 @@ async def test_list_endpoint_returns_all_access_levels(
         "co_organizer",
         "viewer",
     ]
+    assert [item["my_registration_status"] for item in response.json()] == [
+        "accepted",
+        None,
+        "pending",
+    ]
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=None,
         registration_open=None,
+        user=admin_user,
     )
 
 
@@ -133,7 +141,7 @@ async def test_list_endpoint_is_public(
         organizer=admin_user,
         registration_opens_at=datetime.now(UTC) - timedelta(hours=1),
     )
-    mock_hackathon_service.list_hackathons.return_value = [hackathon]
+    mock_hackathon_service.list_hackathons.return_value = [(hackathon, None)]
     force_authenticate(None)
 
     response = await hackathon_client.get("/api/hackathons")
@@ -144,12 +152,14 @@ async def test_list_endpoint_is_public(
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=None,
         registration_open=None,
+        user=None,
     )
 
 
 async def test_list_endpoint_passes_query_filters_to_service(
     hackathon_client: AsyncClient,
     mock_hackathon_service: HackathonService,
+    admin_user: User,
 ):
     mock_hackathon_service.list_hackathons.return_value = []
 
@@ -160,6 +170,7 @@ async def test_list_endpoint_passes_query_filters_to_service(
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=True,
         registration_open=False,
+        user=admin_user,
     )
 
 
@@ -174,7 +185,7 @@ async def test_list_endpoint_reports_registration_closed_after_deadline(
         registration_open=True,
         registration_deadline=datetime.now(UTC) - timedelta(seconds=1),
     )
-    mock_hackathon_service.list_hackathons.return_value = [hackathon]
+    mock_hackathon_service.list_hackathons.return_value = [(hackathon, None)]
 
     response = await hackathon_client.get("/api/hackathons")
 
@@ -355,6 +366,69 @@ async def test_add_co_organizer_endpoint_rejects_invalid_payload(
     mock_hackathon_service.add_co_organizer.assert_not_awaited()
 
 
+async def test_co_organizer_candidates_endpoint_returns_user_summaries(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+    admin_user: User,
+    user_factory: UserFactory,
+):
+    public_id = uuid.uuid4()
+    candidate = user_factory(user_id=2)
+    candidate.name = "Jan Kowalski"
+    mock_hackathon_service.get_co_organizer_candidates.return_value = [candidate]
+
+    response = await hackathon_client.get(
+        f"/api/hackathons/{public_id}/co-organizer-candidates",
+        params={"query": "Jan"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "public_id": str(candidate.public_id),
+            "name": "Jan Kowalski",
+        }
+    ]
+    mock_hackathon_service.get_co_organizer_candidates.assert_awaited_once_with(
+        public_id,
+        admin_user,
+        "Jan",
+    )
+
+
+async def test_co_organizer_candidates_endpoint_validates_query(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    response = await hackathon_client.get(
+        f"/api/hackathons/{uuid.uuid4()}/co-organizer-candidates",
+        params={"query": "J"},
+    )
+
+    assert response.status_code == 422
+    mock_hackathon_service.get_co_organizer_candidates.assert_not_awaited()
+
+
+async def test_co_organizer_candidates_endpoint_returns_rate_limit_error(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    mock_hackathon_service.get_co_organizer_candidates.side_effect = (
+        CoOrganizerSearchRateLimitExceededError
+    )
+
+    response = await hackathon_client.get(
+        f"/api/hackathons/{uuid.uuid4()}/co-organizer-candidates",
+        params={"query": "Jan"},
+    )
+
+    assert response.status_code == 429
+    assert response.json() == {
+        "error_code": "CO_ORGANIZER_SEARCH_RATE_LIMIT_EXCEEDED",
+        "detail": "Too many co-organizer searches. Try again later.",
+    }
+
+
 async def test_registration_endpoints_return_current_state(
     hackathon_client: AsyncClient,
     mock_hackathon_service: HackathonService,
@@ -418,6 +492,10 @@ async def test_management_endpoints_require_access_token(
             f"/api/hackathons/{public_id}/co-organizers",
             json={"user_public_id": str(uuid.uuid4())},
         ),
+        await hackathon_client.get(
+            f"/api/hackathons/{public_id}/co-organizer-candidates",
+            params={"query": "Jan"},
+        ),
         await hackathon_client.post(f"/api/hackathons/{public_id}/open-registration"),
         await hackathon_client.post(f"/api/hackathons/{public_id}/close-registration"),
     ]
@@ -428,6 +506,7 @@ async def test_management_endpoints_require_access_token(
     mock_hackathon_service.update_hackathon.assert_not_awaited()
     mock_hackathon_service.delete_hackathon.assert_not_awaited()
     mock_hackathon_service.add_co_organizer.assert_not_awaited()
+    mock_hackathon_service.get_co_organizer_candidates.assert_not_awaited()
     mock_hackathon_service.open_registration.assert_not_awaited()
     mock_hackathon_service.close_registration.assert_not_awaited()
 

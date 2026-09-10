@@ -102,6 +102,25 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8000 (dokumentacja API: http://localhost:8000/docs)
 
+### Dane przykładowe (quickstart)
+
+Po uruchomieniu kontenerów można jedną komendą utworzyć lokalnego administratora,
+hackathon z pytaniami, zasoby oraz przykładowe rejestracje:
+
+```bash
+docker compose exec backend python -m scripts.seed
+```
+
+Skrypt jest idempotentny, więc można uruchamiać go wielokrotnie. Dane logowania:
+
+- administrator: `admin@local.dev` / `Admin123!`
+- uczestnik: `anna@local.dev` / `Participant123!`
+
+Hasło administratora można zmienić przez `SEED_ADMIN_PASSWORD`, np.
+`docker compose exec -e SEED_ADMIN_PASSWORD='inne-hasło' backend python -m scripts.seed`.
+Seed jest przeznaczony wyłącznie do lokalnego developmentu, odmawia działania na zdalnej bazie
+i nie uruchamia się automatycznie.
+
 Zatrzymanie: `docker compose down`. Rebuild po zmianie zależności: `docker compose up --build`.
 
 ## Uruchomienie lokalne (bez Dockera)

@@ -10,6 +10,8 @@ from src.registration.dependencies import (
     get_registration_service,
 )
 from src.registration.schema import (
+    ParticipantAreaResponse,
+    ProfileHackathonResponse,
     RegistrationCreate,
     RegistrationDetailResponse,
     RegistrationQuestionBulkCreate,
@@ -27,6 +29,31 @@ router = APIRouter(
     prefix="/api",
     tags=["registrations"],
 )
+
+
+@router.get(
+    "/profile/hackathons",
+    response_model=list[ProfileHackathonResponse],
+)
+async def list_my_hackathons(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[RegistrationService, Depends(get_registration_service)],
+) -> list[ProfileHackathonResponse]:
+    registrations = await service.list_my_hackathons(current_user)
+    return [
+        ProfileHackathonResponse(
+            registration_public_id=registration.public_id,
+            hackathon_public_id=registration.hackathon.public_id,
+            name=registration.hackathon.name,
+            description=registration.hackathon.description,
+            start_date=registration.hackathon.start_date,
+            end_date=registration.hackathon.end_date,
+            status=registration.status,
+            team=registration.team,
+            status_changed_at=registration.status_changed_at,
+        )
+        for registration in registrations
+    ]
 
 
 @router.get(
@@ -206,3 +233,16 @@ async def create_questions(
         data=data,
         current_user=current_user,
     )
+
+
+@router.get(
+    "/hackathons/{hackathon_public_id}/participant-area",
+    response_model=ParticipantAreaResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_participant_area(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[RegistrationService, Depends(get_registration_service)],
+) -> ParticipantAreaResponse:
+    return await service.get_participant_area(hackathon_public_id, current_user)
