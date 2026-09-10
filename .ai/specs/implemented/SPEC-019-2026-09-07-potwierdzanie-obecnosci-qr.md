@@ -29,6 +29,11 @@ Organizatorzy mogą pobrać listę wszystkich potwierdzeń obecności złożonyc
 danego hackathonu. Lista zawiera dane uczestnika, publiczny identyfikator zgłoszenia i czas
 potwierdzenia.
 
+Osobny przegląd obecności zwraca wszystkich zaakceptowanych uczestników, również tych, którzy
+nie wykonali check-inu. Dla każdego uczestnika zawiera drużynę, status obecności oraz opcjonalny
+czas potwierdzenia. Dzięki temu brak check-inu nie powoduje zniknięcia osoby z danych dostępnych
+organizatorowi.
+
 ## Endpointy API
 
 - `POST /api/hackathons/{hackathon_public_id}/check-in-sessions` — tworzy krótkotrwałą sesję i
@@ -36,7 +41,9 @@ potwierdzenia.
 - `PUT /api/hackathons/{hackathon_public_id}/check-ins/me` — potwierdza obecność zalogowanego
   uczestnika;
 - `GET /api/hackathons/{hackathon_public_id}/check-ins` — zwraca organizatorom listę obecnych
-  uczestników.
+  uczestników;
+- `GET /api/hackathons/{hackathon_public_id}/attendance` — zwraca wszystkich zaakceptowanych
+  uczestników wraz ze statusem obecności i drużyną.
 
 Wszystkie endpointy wymagają access tokenu. Tworzenie sesji i odczyt listy są dostępne
 właścicielowi, współorganizatorom oraz administratorom. Sam check-in wymaga zaakceptowanego
@@ -52,21 +59,24 @@ zgłoszenia uczestnika.
 - ograniczony czas ważności sesji;
 - indywidualne, idempotentne potwierdzanie obecności;
 - lista obecnych uczestników dla osób zarządzających hackathonem;
+- przegląd wszystkich zaakceptowanych uczestników ze statusem obecności;
+- ograniczenie tworzenia sesji i check-inu do czasu trwania hackathonu;
 - testy serwisu, uprawnień i endpointów HTTP.
 
 **Poza zakresem:**
 
 - frontend generujący i skanujący kod QR;
+- frontendowy panel uczestników pogrupowanych według drużyn;
 - zbiorowe potwierdzanie obecności całej drużyny;
 - automatyczne wydawanie zasobów po check-inie;
 - osobny widok statusu obecności dla uczestnika;
-- dodatkowe ograniczenie sesji do dat `start_date` i `end_date` hackathonu.
+- działające akcje przydzielania i cofania zasobów w panelu obecności.
 
 ## Wpływ
 
 - **Frontend:** w kolejnym etapie może zbudować kod QR z otrzymanego tokenu i przesłać token po
   jego zeskanowaniu.
-- **Backend/API:** nowy moduł `attendance` i trzy chronione endpointy.
+- **Backend/API:** nowy moduł `attendance` i cztery chronione endpointy.
 - **Baza danych:** nowe tabele `check_in_sessions` i `check_ins`; unikalne ograniczenia gwarantują
   jedną aktywną sesję na hackathon oraz jedno potwierdzenie na zgłoszenie.
 - **Bezpieczeństwo:** jawne tokeny sesji nie są zapisywane; krótki czas ważności ogranicza skutki
@@ -82,3 +92,5 @@ drużynową na później.
 ## Changelog
 
 - 2026-09-07 — opisano zaimplementowany backend indywidualnego check-inu QR.
+- 2026-09-09 — dodano backendowy przegląd wszystkich zaakceptowanych uczestników ze statusem
+  obecności.
