@@ -60,22 +60,28 @@ zgłoszenia uczestnika.
 - indywidualne, idempotentne potwierdzanie obecności;
 - lista obecnych uczestników dla osób zarządzających hackathonem;
 - przegląd wszystkich zaakceptowanych uczestników ze statusem obecności;
+- frontend generujący i skanujący kod QR;
+- frontendowy panel uczestników pogrupowanych według drużyn;
 - ograniczenie tworzenia sesji i check-inu do czasu trwania hackathonu;
-- testy serwisu, uprawnień i endpointów HTTP.
+- testy backendu i frontendu.
 
 **Poza zakresem:**
 
-- frontend generujący i skanujący kod QR;
-- frontendowy panel uczestników pogrupowanych według drużyn;
 - zbiorowe potwierdzanie obecności całej drużyny;
 - automatyczne wydawanie zasobów po check-inie;
 - osobny widok statusu obecności dla uczestnika;
 - działające akcje przydzielania i cofania zasobów w panelu obecności.
 
+Docelowo organizator może przydzielić albo cofnąć zasoby pojedynczemu zaakceptowanemu
+uczestnikowi niezależnie od jego statusu obecności. Akcja zbiorcza „Wyślij obecnym” obejmuje
+wyłącznie uczestników, którzy potwierdzili obecność. W tej wersji przyciski przedstawiają
+planowany interfejs, ale pozostają nieaktywne do czasu dodania brakujących operacji backendu.
+
 ## Wpływ
 
-- **Frontend:** w kolejnym etapie może zbudować kod QR z otrzymanego tokenu i przesłać token po
-  jego zeskanowaniu.
+- **Frontend:** generuje kod QR, pozwala uczestnikowi go zeskanować oraz pokazuje organizatorowi
+  wszystkich zaakceptowanych uczestników. Obecność jest oznaczona małym statusem i zieloną
+  kropką, a uczestnicy pozostają pogrupowani według drużyn.
 - **Backend/API:** nowy moduł `attendance` i cztery chronione endpointy.
 - **Baza danych:** nowe tabele `check_in_sessions` i `check_ins`; unikalne ograniczenia gwarantują
   jedną aktywną sesję na hackathon oraz jedno potwierdzenie na zgłoszenie.
@@ -94,3 +100,4 @@ drużynową na później.
 - 2026-09-07 — opisano zaimplementowany backend indywidualnego check-inu QR.
 - 2026-09-09 — dodano backendowy przegląd wszystkich zaakceptowanych uczestników ze statusem
   obecności.
+- 2026-09-10 — dodano frontend generowania i skanowania QR oraz panel obecności uczestników.
