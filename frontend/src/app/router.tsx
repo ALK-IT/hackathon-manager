@@ -13,6 +13,7 @@ import {
   HackathonsPage,
 } from '../features/hackathons'
 import {
+  ParticipantAreaPage,
   RegistrationEntryPage,
   RegistrationQuestionsSetupPage,
 } from '../features/registration'
@@ -94,6 +95,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute>
             <ManageRegistrationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hackathons/:hackathonPublicId/participant-area"
+        element={
+          <ProtectedRoute>
+            <ParticipantAreaPage />
           </ProtectedRoute>
         }
       />

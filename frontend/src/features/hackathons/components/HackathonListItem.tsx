@@ -6,6 +6,12 @@ interface HackathonListItemProps {
   hackathon: Hackathon
 }
 
+const registrationStatusLabels = {
+  pending: 'oczekujące',
+  accepted: 'zaakceptowane',
+  rejected: 'odrzucone',
+} as const
+
 export function HackathonListItem({ hackathon }: HackathonListItemProps) {
   const navigate = useNavigate()
 
@@ -21,14 +27,33 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
         </p>
         <Countdown startDate={hackathon.start_date} endDate={hackathon.end_date} />
         <p>Rejestracja: {hackathon.registration_open ? 'otwarta' : 'zamknięta'}</p>
-        {hackathon.registration_open && (
+        {hackathon.my_registration_status && (
+          <p>
+            Status zgłoszenia:{' '}
+            {registrationStatusLabels[hackathon.my_registration_status]}
+          </p>
+        )}
+        {hackathon.my_registration_status === 'accepted' ? (
           <Button
             type="button"
             variant="ghost"
-            onClick={() => navigate(`/hackathons/${hackathon.public_id}/register`)}
+            onClick={() =>
+              navigate(`/hackathons/${hackathon.public_id}/participant-area`)
+            }
           >
-            Zarejestruj się
+            Przejdź do hackathonu
           </Button>
+        ) : (
+          hackathon.my_registration_status === null &&
+          hackathon.registration_open && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => navigate(`/hackathons/${hackathon.public_id}/register`)}
+            >
+              Zarejestruj się
+            </Button>
+          )
         )}
         {(hackathon.access_level === 'owner' ||
           hackathon.access_level === 'co_organizer') && (

@@ -4,6 +4,7 @@ import { Alert, Button, Card, Countdown, Spinner } from '../../../components/ui'
 import { useAuth } from '../../auth'
 import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
 import { CoOrganizerAutocomplete } from '../components/CoOrganizerAutocomplete'
+import { HackathonTaskManager } from '../components/HackathonTaskManager'
 import type { HackathonDetails, UserSummary } from '../types'
 import {
   getAddCoOrganizerErrorMessage,
@@ -161,6 +162,17 @@ export function HackathonDetailsPage() {
               </form>
             )}
           </Card>
+
+          {(hackathon.access_level === 'owner' ||
+            hackathon.access_level === 'co_organizer') && (
+            <Card>
+              <HackathonTaskManager
+                hackathonPublicId={hackathon.public_id}
+                hackathonStartDate={hackathon.start_date}
+                hackathonEndDate={hackathon.end_date}
+              />
+            </Card>
+          )}
         </div>
       )}
     </main>

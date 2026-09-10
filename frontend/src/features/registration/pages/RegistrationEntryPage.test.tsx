@@ -29,6 +29,10 @@ function renderPage() {
           path="/hackathons/:hackathonPublicId/register"
           element={<RegistrationEntryPage />}
         />
+        <Route
+          path="/hackathons/:hackathonPublicId/participant-area"
+          element={<p>Strefa uczestnika</p>}
+        />
       </Routes>
     </MemoryRouter>,
   )
@@ -62,6 +66,22 @@ describe('RegistrationEntryPage', () => {
     expect(getRegistrationQuestions).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Wyślij zgłoszenie' })).not.toBeInTheDocument()
     expect(screen.queryByText('Ładowanie formularza…')).not.toBeInTheDocument()
+  })
+
+  it('allows an accepted participant to enter the hackathon', async () => {
+    vi.mocked(getMyRegistration).mockResolvedValue({
+      public_id: 'registration-id',
+      status: 'accepted',
+      team: null,
+    })
+
+    renderPage()
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Wejdź do hackathonu' }),
+    )
+
+    expect(await screen.findByText('Strefa uczestnika')).toBeInTheDocument()
   })
 
   it('loads questions and validates required answers', async () => {
