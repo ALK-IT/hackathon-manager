@@ -106,6 +106,22 @@ class RegistrationRepository:
 
         return list(result.scalars().all())
 
+    async def get_by_user(self, user_id: int) -> list[Registration]:
+        result = await self.session.execute(
+            select(Registration)
+            .join(Registration.hackathon)
+            .where(
+                Registration.user_id == user_id,
+                Hackathon.is_deleted.is_(False),
+            )
+            .options(
+                selectinload(Registration.hackathon),
+                selectinload(Registration.team),
+            )
+            .order_by(Hackathon.start_date.desc())
+        )
+        return list(result.scalars().all())
+
     async def get_by_hackathon_and_user(
         self, hackathon_public_id: uuid.UUID, user_public_id: uuid.UUID
     ) -> Registration | None:
@@ -146,6 +162,23 @@ class RegistrationRepository:
                 selectinload(Registration.status_changed_by),
                 selectinload(Registration.team),
             )
+        )
+
+        return result.scalar_one_or_none()
+
+    async def get_accepted_by_hackathon_and_user_for_update(
+        self,
+        hackathon_id: int,
+        user_id: int,
+    ) -> Registration | None:
+        result = await self.session.execute(
+            select(Registration)
+            .where(
+                Registration.hackathon_id == hackathon_id,
+                Registration.user_id == user_id,
+                Registration.status == RegistrationStatus.ACCEPTED,
+            )
+            .with_for_update()
         )
 
         return result.scalar_one_or_none()

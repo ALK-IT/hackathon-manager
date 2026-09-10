@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from src.auth.models import User, UserRole
 from src.hackathons.exceptions import (
     CoOrganizerAlreadyAssignedError,
+    CoOrganizerSearchRateLimitExceededError,
     CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
     InvalidConfirmNameError,
@@ -14,6 +15,7 @@ from src.hackathons.exceptions import (
     RegistrationDeadlinePassedError,
 )
 from src.hackathons.service import HackathonService
+from src.registration.models import RegistrationStatus
 from tests.hackathons.factories import HackathonFactory, UserFactory
 
 
@@ -102,24 +104,36 @@ async def test_list_endpoint_returns_all_access_levels(
     co_organized_hackathon.id = 2
     viewed_hackathon = hackathon_factory(organizer=other_owner)
     viewed_hackathon.id = 3
-    mock_hackathon_service.list_hackathons.return_value = [
-        owned_hackathon,
-        co_organized_hackathon,
-        viewed_hackathon,
-    ]
+    mock_hackathon_service.list_hackathons.return_value = (
+        [
+            (owned_hackathon, RegistrationStatus.ACCEPTED),
+            (co_organized_hackathon, None),
+            (viewed_hackathon, RegistrationStatus.PENDING),
+        ],
+        3,
+    )
 
     response = await hackathon_client.get("/api/hackathons")
 
     assert response.status_code == 200
-    assert [item["access_level"] for item in response.json()] == [
+    assert [item["access_level"] for item in response.json()["items"]] == [
         "owner",
         "co_organizer",
         "viewer",
     ]
+    assert [item["my_registration_status"] for item in response.json()["items"]] == [
+        "accepted",
+        None,
+        "pending",
+    ]
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=None,
         registration_open=None,
+        limit=50,
+        offset=0,
+        user=admin_user,
     )
+    assert response.json()["total"] == 3
 
 
 async def test_list_endpoint_is_public(
@@ -133,33 +147,40 @@ async def test_list_endpoint_is_public(
         organizer=admin_user,
         registration_opens_at=datetime.now(UTC) - timedelta(hours=1),
     )
-    mock_hackathon_service.list_hackathons.return_value = [hackathon]
+    mock_hackathon_service.list_hackathons.return_value = ([(hackathon, None)], 1)
     force_authenticate(None)
 
     response = await hackathon_client.get("/api/hackathons")
 
     assert response.status_code == 200
-    assert response.json()[0]["public_id"] == str(hackathon.public_id)
-    assert response.json()[0]["access_level"] == "viewer"
+    assert response.json()["items"][0]["public_id"] == str(hackathon.public_id)
+    assert response.json()["items"][0]["access_level"] == "viewer"
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=None,
         registration_open=None,
+        limit=50,
+        offset=0,
+        user=None,
     )
 
 
 async def test_list_endpoint_passes_query_filters_to_service(
     hackathon_client: AsyncClient,
     mock_hackathon_service: HackathonService,
+    admin_user: User,
 ):
-    mock_hackathon_service.list_hackathons.return_value = []
+    mock_hackathon_service.list_hackathons.return_value = ([], 0)
 
     response = await hackathon_client.get("/api/hackathons?upcoming=true&open=false")
 
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() == {"items": [], "total": 0, "limit": 50, "offset": 0}
     mock_hackathon_service.list_hackathons.assert_awaited_once_with(
         upcoming=True,
         registration_open=False,
+        limit=50,
+        offset=0,
+        user=admin_user,
     )
 
 
@@ -174,12 +195,12 @@ async def test_list_endpoint_reports_registration_closed_after_deadline(
         registration_open=True,
         registration_deadline=datetime.now(UTC) - timedelta(seconds=1),
     )
-    mock_hackathon_service.list_hackathons.return_value = [hackathon]
+    mock_hackathon_service.list_hackathons.return_value = ([(hackathon, None)], 1)
 
     response = await hackathon_client.get("/api/hackathons")
 
     assert response.status_code == 200
-    assert response.json()[0]["registration_open"] is False
+    assert response.json()["items"][0]["registration_open"] is False
 
 
 async def test_managed_endpoint_returns_only_owned_and_co_organized_hackathons(
@@ -195,19 +216,68 @@ async def test_managed_endpoint_returns_only_owned_and_co_organized_hackathons(
         organizer=other_owner,
         co_organizers=[admin_user],
     )
-    mock_hackathon_service.list_managed_hackathons.return_value = [
-        owned_hackathon,
-        co_organized_hackathon,
-    ]
+    mock_hackathon_service.list_managed_hackathons.return_value = (
+        [owned_hackathon, co_organized_hackathon],
+        2,
+    )
 
     response = await hackathon_client.get("/api/hackathons/managed")
 
     assert response.status_code == 200
-    assert [item["access_level"] for item in response.json()] == [
+    assert [item["access_level"] for item in response.json()["items"]] == [
         "owner",
         "co_organizer",
     ]
-    mock_hackathon_service.list_managed_hackathons.assert_awaited_once_with(admin_user)
+    mock_hackathon_service.list_managed_hackathons.assert_awaited_once_with(
+        admin_user,
+        limit=50,
+        offset=0,
+    )
+
+
+async def test_list_endpoints_apply_pagination(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+    admin_user: User,
+):
+    list_response = await hackathon_client.get(
+        "/api/hackathons",
+        params={"limit": 10, "offset": 20},
+    )
+    managed_response = await hackathon_client.get(
+        "/api/hackathons/managed",
+        params={"limit": 5, "offset": 10},
+    )
+
+    assert list_response.status_code == 200
+    assert managed_response.status_code == 200
+    mock_hackathon_service.list_hackathons.assert_awaited_once_with(
+        upcoming=None,
+        registration_open=None,
+        limit=10,
+        offset=20,
+        user=admin_user,
+    )
+    mock_hackathon_service.list_managed_hackathons.assert_awaited_once_with(
+        admin_user,
+        limit=5,
+        offset=10,
+    )
+
+
+async def test_list_endpoints_reject_invalid_pagination(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    responses = [
+        await hackathon_client.get("/api/hackathons", params={"limit": 0}),
+        await hackathon_client.get("/api/hackathons", params={"limit": 101}),
+        await hackathon_client.get("/api/hackathons/managed", params={"offset": -1}),
+    ]
+
+    assert all(response.status_code == 422 for response in responses)
+    mock_hackathon_service.list_hackathons.assert_not_awaited()
+    mock_hackathon_service.list_managed_hackathons.assert_not_awaited()
 
 
 async def test_get_endpoint_returns_details_to_regular_viewer(
@@ -355,6 +425,69 @@ async def test_add_co_organizer_endpoint_rejects_invalid_payload(
     mock_hackathon_service.add_co_organizer.assert_not_awaited()
 
 
+async def test_co_organizer_candidates_endpoint_returns_user_summaries(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+    admin_user: User,
+    user_factory: UserFactory,
+):
+    public_id = uuid.uuid4()
+    candidate = user_factory(user_id=2)
+    candidate.name = "Jan Kowalski"
+    mock_hackathon_service.get_co_organizer_candidates.return_value = [candidate]
+
+    response = await hackathon_client.get(
+        f"/api/hackathons/{public_id}/co-organizer-candidates",
+        params={"query": "Jan"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "public_id": str(candidate.public_id),
+            "name": "Jan Kowalski",
+        }
+    ]
+    mock_hackathon_service.get_co_organizer_candidates.assert_awaited_once_with(
+        public_id,
+        admin_user,
+        "Jan",
+    )
+
+
+async def test_co_organizer_candidates_endpoint_validates_query(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    response = await hackathon_client.get(
+        f"/api/hackathons/{uuid.uuid4()}/co-organizer-candidates",
+        params={"query": "J"},
+    )
+
+    assert response.status_code == 422
+    mock_hackathon_service.get_co_organizer_candidates.assert_not_awaited()
+
+
+async def test_co_organizer_candidates_endpoint_returns_rate_limit_error(
+    hackathon_client: AsyncClient,
+    mock_hackathon_service: HackathonService,
+):
+    mock_hackathon_service.get_co_organizer_candidates.side_effect = (
+        CoOrganizerSearchRateLimitExceededError
+    )
+
+    response = await hackathon_client.get(
+        f"/api/hackathons/{uuid.uuid4()}/co-organizer-candidates",
+        params={"query": "Jan"},
+    )
+
+    assert response.status_code == 429
+    assert response.json() == {
+        "error_code": "CO_ORGANIZER_SEARCH_RATE_LIMIT_EXCEEDED",
+        "detail": "Too many co-organizer searches. Try again later.",
+    }
+
+
 async def test_registration_endpoints_return_current_state(
     hackathon_client: AsyncClient,
     mock_hackathon_service: HackathonService,
@@ -418,6 +551,10 @@ async def test_management_endpoints_require_access_token(
             f"/api/hackathons/{public_id}/co-organizers",
             json={"user_public_id": str(uuid.uuid4())},
         ),
+        await hackathon_client.get(
+            f"/api/hackathons/{public_id}/co-organizer-candidates",
+            params={"query": "Jan"},
+        ),
         await hackathon_client.post(f"/api/hackathons/{public_id}/open-registration"),
         await hackathon_client.post(f"/api/hackathons/{public_id}/close-registration"),
     ]
@@ -428,6 +565,7 @@ async def test_management_endpoints_require_access_token(
     mock_hackathon_service.update_hackathon.assert_not_awaited()
     mock_hackathon_service.delete_hackathon.assert_not_awaited()
     mock_hackathon_service.add_co_organizer.assert_not_awaited()
+    mock_hackathon_service.get_co_organizer_candidates.assert_not_awaited()
     mock_hackathon_service.open_registration.assert_not_awaited()
     mock_hackathon_service.close_registration.assert_not_awaited()
 

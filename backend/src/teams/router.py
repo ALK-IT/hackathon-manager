@@ -8,6 +8,9 @@ from src.auth.models import User
 from src.registration.dependencies import get_registration_service
 from src.registration.schema import RegistrationCreate, RegistrationResponse
 from src.registration.service import RegistrationService
+from src.teams.dependencies import get_teams_service
+from src.teams.schemas import TeamDetailResponse
+from src.teams.service import TeamService
 
 router = APIRouter(prefix="/api", tags=["teams"])
 
@@ -33,3 +36,17 @@ async def create_registration(
         hackathon_public_id=hackathon_public_id,
         current_user=current_user,
     )
+
+
+@router.get(
+    "/hackathons/{hackathon_public_id}/teams",
+    response_model=list[TeamDetailResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def get_all_teams(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[TeamService, Depends(get_teams_service)],
+) -> list[TeamDetailResponse]:
+    result = await service.get_all_teams(hackathon_public_id, current_user)
+    return [TeamDetailResponse.from_team(team) for team in result]

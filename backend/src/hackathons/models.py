@@ -20,7 +20,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from src.models import Base
 
 if TYPE_CHECKING:
+    from src.attendance.models import CheckInSession
     from src.auth.models import User
+    from src.hackathon_tasks.models import HackathonTask
     from src.registration.models import Registration, RegistrationQuestion
     from src.resources.models import Resource
     from src.teams.models import Team
@@ -135,6 +137,15 @@ class Hackathon(Base):
     resources: Mapped[list["Resource"]] = relationship(
         back_populates="hackathon",
         cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    tasks: Mapped[list["HackathonTask"]] = relationship(
+        back_populates="hackathon",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    check_in_sessions: Mapped[list["CheckInSession"]] = relationship(
+        back_populates="hackathon",
         passive_deletes=True,
     )
 
