@@ -31,15 +31,9 @@ from src.auth.utils import (
     revoked_access_token_key,
     verify_password,
 )
+from src.common.rate_limit import FixedWindowRateLimiter
 
 ActionTokenKind = Literal["email-verification", "password-reset"]
-RATE_LIMIT_SCRIPT = """
-local current = redis.call('INCR', KEYS[1])
-if current == 1 then
-  redis.call('EXPIRE', KEYS[1], ARGV[1])
-end
-return {current, redis.call('TTL', KEYS[1])}
-"""
 ISSUE_ACTION_TOKEN_SCRIPT = """
 local previous_digest = redis.call('GET', KEYS[1])
 if previous_digest then
@@ -239,12 +233,12 @@ class TokenService:
         window_seconds: int,
     ) -> None:
         digest = sha256(identifier.strip().lower().encode()).hexdigest()
-        key = f"rate-limit:{scope}:{digest}"
-        current, ttl = await self.cache.eval(
-            RATE_LIMIT_SCRIPT,
-            1,
-            key,
-            window_seconds,
+        limiter = FixedWindowRateLimiter(
+            cache=self.cache,
+            namespace=scope,
+            limit=limit,
+            window_seconds=window_seconds,
         )
-        if int(current) > limit:
-            raise RateLimitError(max(1, int(ttl)))
+        allowed, retry_after = await limiter.consume_with_retry_after(digest)
+        if not allowed:
+            raise RateLimitError(retry_after)

@@ -5,12 +5,12 @@ from typing import Annotated
 from fastapi import Depends, Request
 from redis.asyncio import Redis
 
+from src.auth.client import get_client_ip
 from src.auth.config import (
     AuthRateLimitSettings,
     get_login_rate_limit_settings,
     get_refresh_rate_limit_settings,
     get_register_rate_limit_settings,
-    get_trust_proxy_headers,
     get_verify_email_rate_limit_settings,
 )
 from src.cache import get_cache
@@ -22,11 +22,7 @@ RateLimitDependency = Callable[[Request, Redis], Awaitable[None]]
 
 
 def get_client_identifier(request: Request) -> str:
-    client_ip = request.client.host if request.client else "unknown-client"
-    if get_trust_proxy_headers():
-        proxy_ip = request.headers.get("X-Real-IP", "").strip()
-        if proxy_ip:
-            client_ip = proxy_ip
+    client_ip = get_client_ip(request)
     return hashlib.sha256(client_ip.encode("utf-8")).hexdigest()
 
 
@@ -45,8 +41,11 @@ def create_rate_limit_dependency(
             limit=settings.requests,
             window_seconds=settings.window_seconds,
         )
-        if not await limiter.consume(get_client_identifier(request)):
-            raise RateLimitedError(settings.window_seconds)
+        allowed, retry_after = await limiter.consume_with_retry_after(
+            get_client_identifier(request)
+        )
+        if not allowed:
+            raise RateLimitedError(retry_after)
 
     return enforce_rate_limit
 

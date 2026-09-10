@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import Request
 from httpx import AsyncClient
+from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.dependencies import get_optional_current_user
@@ -159,8 +160,7 @@ async def test_auth_endpoints_return_rate_limit_error(
     namespace,
     retry_after,
 ):
-    mock_rate_limit_cache.set.return_value = False
-    mock_rate_limit_cache.incr.return_value = 10_000
+    mock_rate_limit_cache.eval.return_value = [10_000, int(retry_after)]
 
     response = await auth_client.post(path, **request_kwargs)
 
@@ -170,8 +170,26 @@ async def test_auth_endpoints_return_rate_limit_error(
         "error_code": "RATE_LIMITED",
         "detail": "Too many requests. Try again later.",
     }
-    redis_key = mock_rate_limit_cache.incr.await_args.args[0]
+    redis_key = mock_rate_limit_cache.eval.await_args.args[2]
     assert redis_key.startswith(f"rate-limit:{namespace}:")
+
+
+async def test_auth_endpoint_returns_service_unavailable_when_redis_fails(
+    auth_client,
+    mock_rate_limit_cache,
+):
+    mock_rate_limit_cache.eval.side_effect = RedisError("redis unavailable")
+
+    response = await auth_client.post(
+        "/api/auth/login",
+        data={"username": "jan@example.com", "password": "password123"},
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "error_code": "SERVICE_UNAVAILABLE",
+        "detail": "A required service is temporarily unavailable.",
+    }
 
 
 async def test_register_verify_login_and_me_use_database(
@@ -340,6 +358,21 @@ async def test_rate_limited_password_reset_returns_retry_after(
 
     assert response.status_code == 429
     assert response.headers["retry-after"] == "60"
+
+
+async def test_password_reset_returns_service_unavailable_when_redis_fails(
+    auth_client,
+    mock_token_service,
+):
+    mock_token_service.enforce_rate_limit.side_effect = RedisError("redis unavailable")
+
+    response = await auth_client.post(
+        "/api/auth/forgot-password",
+        json={"email": "jan@example.com"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error_code"] == "SERVICE_UNAVAILABLE"
 
 
 async def test_resend_verification_sends_a_new_link(

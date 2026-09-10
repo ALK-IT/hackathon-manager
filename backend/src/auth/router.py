@@ -5,11 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from src.auth.config import (
-    get_auth_cookie_samesite,
-    get_auth_cookie_secure,
-    get_trust_proxy_headers,
-)
+from src.auth.client import get_client_ip
+from src.auth.config import get_auth_cookie_samesite, get_auth_cookie_secure
 from src.auth.constants import REFRESH_TOKEN_COOKIE_NAME
 from src.auth.dependencies import (
     get_current_user,
@@ -20,11 +17,7 @@ from src.auth.dependencies import (
     unauthorized_exception,
 )
 from src.auth.email import EmailDeliveryError, EmailService
-from src.auth.exceptions import (
-    InvalidAccessTokenError,
-    InvalidActionTokenError,
-    RateLimitError,
-)
+from src.auth.exceptions import InvalidAccessTokenError, InvalidActionTokenError, RateLimitError
 from src.auth.models import User
 from src.auth.rate_limit import (
     enforce_login_rate_limit,
@@ -71,14 +64,9 @@ async def enforce_rate_limits(
 ) -> None:
     try:
         if ip_limit is not None:
-            client_ip = request.client.host if request.client else "unknown"
-            if get_trust_proxy_headers():
-                proxy_ip = request.headers.get("X-Real-IP", "").strip()
-                if proxy_ip:
-                    client_ip = proxy_ip
             await token_service.enforce_rate_limit(
                 f"{scope}:ip",
-                client_ip,
+                get_client_ip(request),
                 ip_limit,
                 RATE_LIMIT_WINDOW,
             )

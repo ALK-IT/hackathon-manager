@@ -1,5 +1,13 @@
 from redis.asyncio import Redis
 
+RATE_LIMIT_SCRIPT = """
+local current = redis.call('INCR', KEYS[1])
+if current == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return {current, redis.call('TTL', KEYS[1])}
+"""
+
 
 class FixedWindowRateLimiter:
     def __init__(
@@ -15,15 +23,15 @@ class FixedWindowRateLimiter:
         self.window_seconds = window_seconds
 
     async def consume(self, identifier: str) -> bool:
-        key = f"rate-limit:{self.namespace}:{identifier}"
-        created = await self.cache.set(
-            key,
-            "1",
-            ex=self.window_seconds,
-            nx=True,
-        )
-        if created:
-            return True
+        allowed, _retry_after = await self.consume_with_retry_after(identifier)
+        return allowed
 
-        request_count = await self.cache.incr(key)
-        return request_count <= self.limit
+    async def consume_with_retry_after(self, identifier: str) -> tuple[bool, int]:
+        key = f"rate-limit:{self.namespace}:{identifier}"
+        current, ttl = await self.cache.eval(
+            RATE_LIMIT_SCRIPT,
+            1,
+            key,
+            self.window_seconds,
+        )
+        return int(current) <= self.limit, max(1, int(ttl))
