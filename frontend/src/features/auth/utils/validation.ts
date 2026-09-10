@@ -1,5 +1,9 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+export function isValidEmail(email: string): boolean {
+  return EMAIL_PATTERN.test(email.trim())
+}
+
 export interface LoginErrors {
   email?: string
   password?: string
@@ -12,7 +16,7 @@ export interface RegisterErrors extends LoginErrors {
 
 export function validateLogin(email: string, password: string): LoginErrors {
   const errors: LoginErrors = {}
-  if (!EMAIL_PATTERN.test(email.trim())) errors.email = 'Podaj poprawny adres e-mail.'
+  if (!isValidEmail(email)) errors.email = 'Podaj poprawny adres e-mail.'
   if (!password) errors.password = 'Podaj hasło.'
   return errors
 }

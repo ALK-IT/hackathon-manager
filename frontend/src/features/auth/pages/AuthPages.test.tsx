@@ -51,6 +51,22 @@ describe('auth pages', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Zaloguj się' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Nieprawidłowy e-mail lub hasło')
+    expect(
+      screen.queryByRole('link', { name: 'Wyślij ponownie link aktywacyjny' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers verification resend only after an unverified-account response', async () => {
+    const login = vi.fn().mockRejectedValue(new ApiError(403))
+    renderPage('login', { login })
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'jan@example.com' } })
+    fireEvent.change(screen.getByLabelText('Hasło'), { target: { value: 'password123' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zaloguj się' }))
+
+    expect(
+      await screen.findByRole('link', { name: 'Wyślij ponownie link aktywacyjny' }),
+    ).toHaveAttribute('href', '/verify-email')
   })
 
   it('validates registration fields before submission', () => {
