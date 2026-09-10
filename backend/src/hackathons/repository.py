@@ -136,6 +136,22 @@ class HackathonRepository:
         result = await self.session.scalars(statement)
         return result.unique().one_or_none()
 
+    async def get_active_by_public_id_for_update(
+        self,
+        public_id: uuid.UUID,
+    ) -> Hackathon | None:
+        statement = (
+            select(Hackathon)
+            .where(
+                Hackathon.public_id == public_id,
+                Hackathon.is_deleted.is_(False),
+            )
+            .with_for_update()
+            .options(*self._with_relationships())
+        )
+        result = await self.session.scalars(statement)
+        return result.unique().one_or_none()
+
     async def add(self, hackathon: Hackathon) -> None:
         self.session.add(hackathon)
         await self.session.flush()
