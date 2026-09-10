@@ -1,4 +1,5 @@
 from src.auth.models import User
+from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 from src.hackathons.models import Hackathon
 from src.registration.models import (
     Registration,
@@ -10,6 +11,7 @@ from src.teams.models import Team
 
 __all__ = [
     "Hackathon",
+    "HackathonTask",
     "Registration",
     "RegistrationAnswer",
     "RegistrationQuestion",
@@ -17,6 +19,7 @@ __all__ = [
     "ResourceAssignment",
     "ResourceAuditLog",
     "ResourceItem",
+    "TaskSubmission",
     "Team",
     "User",
 ]

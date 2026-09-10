@@ -32,6 +32,7 @@ describe('CreateHackathonPage', () => {
       capacity: null,
       max_team_size: 4,
       access_level: 'owner',
+      my_registration_status: null,
     })
     render(
       <MemoryRouter initialEntries={['/hackathons/create']}>

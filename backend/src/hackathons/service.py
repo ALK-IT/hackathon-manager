@@ -27,6 +27,7 @@ from src.hackathons.exceptions import (
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
 from src.hackathons.schemas import CoOrganizerAddRequest, HackathonCreate, HackathonUpdate
+from src.registration.models import RegistrationStatus
 
 
 class HackathonService:
@@ -44,8 +45,16 @@ class HackathonService:
         self,
         upcoming: bool | None = None,
         registration_open: bool | None = None,
-    ) -> list[Hackathon]:
-        return await self.hackathon_repository.list_active(
+        user: User | None = None,
+    ) -> list[tuple[Hackathon, RegistrationStatus | None]]:
+        if user is None:
+            hackathons = await self.hackathon_repository.list_active(
+                upcoming=upcoming,
+                registration_open=registration_open,
+            )
+            return [(hackathon, None) for hackathon in hackathons]
+        return await self.hackathon_repository.list_active_with_registration_status(
+            user_id=user.id,
             upcoming=upcoming,
             registration_open=registration_open,
         )

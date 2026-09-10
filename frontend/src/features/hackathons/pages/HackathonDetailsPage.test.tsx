@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../../auth'
 import {
   addCoOrganizer,
+  createHackathonTask,
   getHackathon,
+  getHackathonTasks,
   searchCoOrganizerCandidates,
 } from '../api/hackathonsApi'
 import type { HackathonDetails } from '../types'
@@ -12,7 +14,9 @@ import { HackathonDetailsPage } from './HackathonDetailsPage'
 
 vi.mock('../api/hackathonsApi', () => ({
   addCoOrganizer: vi.fn(),
+  createHackathonTask: vi.fn(),
   getHackathon: vi.fn(),
+  getHackathonTasks: vi.fn(),
   searchCoOrganizerCandidates: vi.fn(),
 }))
 
@@ -33,6 +37,7 @@ const hackathon: HackathonDetails = {
   organizer: { public_id: ownerId, name: 'Admin' },
   co_organizers: [],
   access_level: 'owner',
+  my_registration_status: null,
   created_at: '2026-07-01T10:00:00Z',
   updated_at: '2026-07-01T10:00:00Z',
 }
@@ -70,8 +75,11 @@ describe('HackathonDetailsPage', () => {
   beforeEach(() => {
     vi.mocked(getHackathon).mockReset()
     vi.mocked(addCoOrganizer).mockReset()
+    vi.mocked(createHackathonTask).mockReset()
+    vi.mocked(getHackathonTasks).mockReset()
     vi.mocked(searchCoOrganizerCandidates).mockReset()
     vi.mocked(getHackathon).mockResolvedValue(hackathon)
+    vi.mocked(getHackathonTasks).mockResolvedValue([])
     vi.mocked(searchCoOrganizerCandidates).mockResolvedValue([])
   })
 
@@ -116,6 +124,53 @@ describe('HackathonDetailsPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Współorganizatorzy' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Nazwa użytkownika')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Dodaj zadanie' })).not.toBeInTheDocument()
+  })
+
+  it('allows a manager to add a task with its publication date', async () => {
+    vi.mocked(createHackathonTask).mockResolvedValue({
+      public_id: 'task-id',
+      title: 'Publiczne API',
+      description: 'Zbuduj API.',
+      visible_from: '2026-09-01T12:00:00Z',
+      created_at: '2026-08-01T10:00:00Z',
+      updated_at: '2026-08-01T10:00:00Z',
+    })
+    renderPage()
+
+    fireEvent.change(await screen.findByLabelText('Nazwa zadania'), {
+      target: { value: 'Publiczne API' },
+    })
+    fireEvent.change(screen.getByLabelText('Opis zadania'), {
+      target: { value: 'Zbuduj API.' },
+    })
+    fireEvent.change(screen.getByLabelText('Widoczne dla uczestników od'), {
+      target: { value: '2026-09-01T14:00' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj zadanie' }))
+
+    await waitFor(() => expect(createHackathonTask).toHaveBeenCalledTimes(1))
+    expect(await screen.findByText('Publiczne API')).toBeInTheDocument()
+    expect(screen.getByText('Zadanie zostało dodane.')).toBeInTheDocument()
+  })
+
+  it('sets task publication to the hackathon start date', async () => {
+    renderPage()
+
+    const publicationField = await screen.findByLabelText(
+      'Widoczne dla uczestników od',
+    )
+    fireEvent.change(publicationField, {
+      target: { value: '2026-08-20T12:00' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start hackathonu' }))
+
+    const startDate = new Date(hackathon.start_date)
+    const offset = startDate.getTimezoneOffset() * 60_000
+    const expectedValue = new Date(startDate.getTime() - offset)
+      .toISOString()
+      .slice(0, 16)
+    expect(publicationField).toHaveValue(expectedValue)
   })
 
   it('requires selecting a user from the suggestions', async () => {

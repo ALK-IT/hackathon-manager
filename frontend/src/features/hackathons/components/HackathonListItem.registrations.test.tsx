@@ -13,6 +13,7 @@ const hackathon: Hackathon = {
   capacity: null,
   max_team_size: 4,
   access_level: 'viewer',
+  my_registration_status: null,
 }
 
 describe('HackathonListItem registrations link', () => {
