@@ -3,10 +3,12 @@ from collections.abc import AsyncIterator
 
 import pytest
 from httpx import AsyncClient
+from redis.asyncio import Redis
 
 from src.auth.dependencies import get_email_service, get_token_service, get_user_service
 from src.auth.service import IssuedTokenPair
 from src.auth.utils import create_access_token, create_refresh_token
+from src.cache import get_cache
 from src.main import app
 
 
@@ -63,19 +65,30 @@ def mock_user_service(mocker):
 
 
 @pytest.fixture
+def mock_rate_limit_cache(mocker):
+    cache = mocker.Mock(spec=Redis)
+    cache.set = mocker.AsyncMock(return_value=True)
+    cache.incr = mocker.AsyncMock(return_value=1)
+    return cache
+
+
+@pytest.fixture
 async def auth_client(
     api_client: AsyncClient,
     mock_token_service,
     mock_email_service,
+    mock_rate_limit_cache,
 ) -> AsyncIterator[AsyncClient]:
     app.dependency_overrides[get_token_service] = lambda: mock_token_service
     app.dependency_overrides[get_email_service] = lambda: mock_email_service
+    app.dependency_overrides[get_cache] = lambda: mock_rate_limit_cache
 
     try:
         yield api_client
     finally:
         app.dependency_overrides.pop(get_token_service, None)
         app.dependency_overrides.pop(get_email_service, None)
+        app.dependency_overrides.pop(get_cache, None)
 
 
 @pytest.fixture

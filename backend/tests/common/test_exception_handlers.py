@@ -11,6 +11,7 @@ from src.common.errors import (
     AuthenticationRequiredError,
     DomainError,
     ErrorCode,
+    RateLimitedError,
 )
 from src.common.exception_handlers import handle_api_error, register_exception_handlers
 from src.hackathons.exceptions import (
@@ -178,6 +179,17 @@ async def test_http_authentication_error_preserves_authenticate_header(
     assert response.json() == {
         "error_code": "AUTHENTICATION_REQUIRED",
         "detail": "Authentication is required.",
+    }
+
+
+async def test_rate_limit_error_preserves_retry_after_header():
+    response = await handle_api_error(None, RateLimitedError(42))  # type: ignore[arg-type]
+
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "42"
+    assert json.loads(response.body) == {
+        "error_code": "RATE_LIMITED",
+        "detail": "Too many requests. Try again later.",
     }
 
 
