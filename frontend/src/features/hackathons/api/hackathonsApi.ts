@@ -6,6 +6,7 @@ import type {
   Hackathon,
   HackathonDetails,
   HackathonFilters,
+  HackathonPage,
   HackathonTask,
   UpdateHackathonPayload,
   UserSummary,
@@ -13,6 +14,8 @@ import type {
 
 interface GetHackathonsOptions extends HackathonFilters {
   signal?: AbortSignal
+  limit?: number
+  offset?: number
 }
 
 export function getHackathons(options: GetHackathonsOptions = {}) {
@@ -23,10 +26,16 @@ export function getHackathons(options: GetHackathonsOptions = {}) {
   if (options.registrationOpen !== undefined) {
     params.set('open', String(options.registrationOpen))
   }
+  if (options.limit !== undefined) {
+    params.set('limit', String(options.limit))
+  }
+  if (options.offset !== undefined) {
+    params.set('offset', String(options.offset))
+  }
 
   const query = params.toString()
   const path = query ? `/api/hackathons?${query}` : '/api/hackathons'
-  return apiRequest<Hackathon[]>(path, { signal: options.signal })
+  return apiRequest<HackathonPage>(path, { signal: options.signal })
 }
 
 export function createHackathon(payload: CreateHackathonPayload) {
