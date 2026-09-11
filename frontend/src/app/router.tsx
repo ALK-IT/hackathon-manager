@@ -17,6 +17,7 @@ import {
   RegistrationEntryPage,
   RegistrationQuestionsSetupPage,
 } from '../features/registration'
+import { ProfilePage } from '../features/profile'
 import { ManageRegistrationsPage } from '../features/registration/pages/ManageRegistrationsPage'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
@@ -53,6 +54,14 @@ export function AppRouter() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/hackathons" element={<HackathonsPage />} />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/hackathons/create"
         element={
