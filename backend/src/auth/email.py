@@ -17,6 +17,10 @@ from src.auth.config import (
 logger = logging.getLogger(__name__)
 
 
+def _email_header_text(value: str) -> str:
+    return " ".join(value.replace("\r", " ").replace("\n", " ").split())
+
+
 class EmailDeliveryError(Exception):
     pass
 
@@ -39,16 +43,37 @@ class EmailService:
             "Jeżeli nie prosisz o reset, zignoruj tę wiadomość.",
         )
 
+    async def send_registration_status_changed(
+        self,
+        recipient: str,
+        hackathon_name: str,
+        hackathon_public_id: str,
+        status: str,
+    ) -> None:
+        status_labels = {
+            "accepted": "zaakceptowane",
+            "rejected": "odrzucone",
+        }
+        safe_hackathon_name = _email_header_text(hackathon_name)
+        status_label = status_labels.get(status, status)
+        url = f"{get_frontend_url()}/hackathons/{hackathon_public_id}"
+        await self._send(
+            recipient,
+            f"Zmiana statusu zgłoszenia: {safe_hackathon_name}",
+            f"Status Twojego zgłoszenia na hackathon „{safe_hackathon_name}” został zmieniony "
+            f"na: {status_label}.\n\nSzczegóły wydarzenia: {url}",
+        )
+
     async def _send(self, recipient: str, subject: str, content: str) -> None:
-        message = EmailMessage()
-        message["From"] = get_email_from()
-        message["To"] = recipient
-        message["Subject"] = subject
-        message.set_content(content)
         try:
+            message = EmailMessage()
+            message["From"] = get_email_from()
+            message["To"] = recipient
+            message["Subject"] = subject
+            message.set_content(content)
             await asyncio.to_thread(self._send_sync, message)
-        except (OSError, smtplib.SMTPException) as exc:
-            logger.exception("Could not send authentication email")
+        except (OSError, smtplib.SMTPException, ValueError) as exc:
+            logger.exception("Could not send email")
             raise EmailDeliveryError from exc
 
     @staticmethod
