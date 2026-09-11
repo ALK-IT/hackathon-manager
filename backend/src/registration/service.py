@@ -1,8 +1,10 @@
+import logging
 import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
+from src.auth.email import EmailDeliveryError, EmailService
 from src.auth.models import User
 from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathon_tasks.repository import TaskRepository
@@ -39,6 +41,8 @@ from src.registration.schema import (
     RegistrationQuestionCreate,
 )
 from src.teams.service import TeamService
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_questions_editable(hackathon: Hackathon) -> None:
@@ -160,12 +164,14 @@ class RegistrationService:
         hackathon_repository: HackathonRepository,
         team_service: TeamService,
         task_repository: TaskRepository,
+        email_service: EmailService,
     ):
         self.registration_repository = registration_repository
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
         self.team_service = team_service
         self.task_repository = task_repository
+        self.email_service = email_service
 
     async def list_registrations(
         self,
@@ -380,6 +386,7 @@ class RegistrationService:
         if not hackathon.allows_registration_status_changes_at(moment):
             raise RegistrationStatusChangeLockedError()
 
+        status_changed = registration.status is not new_status
         try:
             if (
                 registration.team_id is not None
@@ -396,7 +403,23 @@ class RegistrationService:
                 current_user,
             )
             await self.registration_repository.commit()
-            return registration
         except Exception:
             await self.registration_repository.rollback()
             raise
+
+        if status_changed:
+            try:
+                await self.email_service.send_registration_status_changed(
+                    registration.user.email,
+                    hackathon.name,
+                    str(hackathon.public_id),
+                    new_status.value,
+                )
+            except EmailDeliveryError:
+                logger.warning(
+                    "Registration status email delivery failed",
+                    extra={"registration_public_id": str(registration.public_id)},
+                    exc_info=True,
+                )
+
+        return registration
