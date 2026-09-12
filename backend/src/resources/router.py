@@ -8,6 +8,8 @@ from src.auth.models import User
 from src.resources.dependencies import get_resource_service
 from src.resources.models import Resource, ResourceAssignment
 from src.resources.schemas import (
+    MyResourceHackathonResponse,
+    MyResourceResponse,
     ResourceAssignmentCreate,
     ResourceAssignmentResponse,
     ResourceCreate,
@@ -15,10 +17,51 @@ from src.resources.schemas import (
     ResourceItemResponse,
     ResourceItemsImport,
     ResourceResponse,
+    ResourceRevealResponse,
 )
 from src.resources.service import ResourceImportResult, ResourceService
 
 router = APIRouter(prefix="/api", tags=["resources"])
+
+
+def _my_resource_response(assignment: ResourceAssignment) -> MyResourceResponse:
+    item = assignment.resource_item
+    resource = item.resource
+    hackathon = resource.hackathon
+    return MyResourceResponse(
+        public_id=item.public_id,
+        name=resource.name,
+        type=resource.type,
+        target=resource.target,
+        metadata=resource.resource_metadata,
+        is_revoked=item.is_revoked or assignment.revoked_at is not None,
+        hackathon=MyResourceHackathonResponse(
+            public_id=hackathon.public_id,
+            name=hackathon.name,
+        ),
+    )
+
+
+@router.get("/my-resources", response_model=list[MyResourceResponse])
+async def list_my_resources(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ResourceService, Depends(get_resource_service)],
+) -> list[MyResourceResponse]:
+    assignments = await service.list_my_resources(current_user)
+    return [_my_resource_response(assignment) for assignment in assignments]
+
+
+@router.post(
+    "/resource-items/{resource_item_public_id}/reveal",
+    response_model=ResourceRevealResponse,
+)
+async def reveal_resource_item(
+    resource_item_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ResourceService, Depends(get_resource_service)],
+) -> ResourceRevealResponse:
+    value = await service.reveal_item(resource_item_public_id, current_user)
+    return ResourceRevealResponse(value=value)
 
 
 @router.post(

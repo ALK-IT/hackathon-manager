@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getParticipantArea } from '../api/registrationApi'
@@ -7,6 +7,11 @@ import { ParticipantAreaPage } from './ParticipantAreaPage'
 vi.mock('../api/registrationApi', () => ({
   getParticipantArea: vi.fn(),
   saveTaskSubmission: vi.fn(),
+}))
+vi.mock('../../resources/components/HackathonResourcesPanel', () => ({
+  HackathonResourcesPanel: ({ hackathonPublicId }: { hackathonPublicId: string }) => (
+    <div>Panel zasobów: {hackathonPublicId}</div>
+  ),
 }))
 
 function renderPage() {
@@ -65,5 +70,25 @@ describe('ParticipantAreaPage', () => {
     renderPage()
 
     expect(await screen.findByText('Nie należysz do żadnej drużyny.')).toBeInTheDocument()
+  })
+
+  it('opens resources assigned to the current hackathon in a separate tab', async () => {
+    vi.mocked(getParticipantArea).mockResolvedValue({
+      public_id: 'hackathon-id',
+      name: 'Hackathon AI',
+      description: 'Zbuduj użyteczne rozwiązanie.',
+      start_date: '2026-09-03T08:00:00Z',
+      end_date: '2099-09-05T18:00:00Z',
+      tasks: [],
+      team: null,
+    })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Moje zasoby' }))
+
+    expect(screen.getByText('Panel zasobów: hackathon-id')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Hackathon AI' }),
+    ).not.toBeInTheDocument()
   })
 })

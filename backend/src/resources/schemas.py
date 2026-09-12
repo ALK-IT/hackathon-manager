@@ -93,3 +93,22 @@ class ResourceAssignmentResponse(BaseModel):
     public_id: uuid.UUID
     assigned_at: datetime
     revoked_at: datetime | None
+
+
+class MyResourceHackathonResponse(BaseModel):
+    public_id: uuid.UUID
+    name: str
+
+
+class MyResourceResponse(BaseModel):
+    public_id: uuid.UUID
+    name: str
+    type: str
+    target: str
+    metadata: dict
+    is_revoked: bool
+    hackathon: MyResourceHackathonResponse
+
+
+class ResourceRevealResponse(BaseModel):
+    value: str
