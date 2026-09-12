@@ -114,6 +114,8 @@ def test_resource_routes_are_registered():
         "/api/hackathons/{hackathon_public_id}/resources",
         "/api/hackathons/{hackathon_public_id}/resources/{resource_public_id}/items",
         "/api/hackathons/{hackathon_public_id}/resources/{resource_public_id}/assignments",
+        "/api/hackathons/{hackathon_public_id}/resources/{resource_public_id}/participant-assignments",
+        "/api/hackathons/{hackathon_public_id}/resources/{resource_public_id}/participant-assignments/{registration_public_id}",
     }.issubset(paths)
 
 
@@ -157,6 +159,47 @@ async def test_organizer_creates_resource_with_public_contract(
     )
     assert resource is not None
     assert resource.hackathon_id == hackathon.id
+
+
+async def test_organizer_atomically_creates_resource_with_encrypted_items(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/resources",
+        json={
+            "name": "Warsztatowe klucze API",
+            "type": "api_key",
+            "target": "individual",
+            "values": [" first-secret ", "second-secret"],
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["item_count"] == 2
+    assert "first-secret" not in response.text
+    assert "second-secret" not in response.text
+    resource = await session.scalar(
+        select(Resource).where(Resource.public_id == uuid.UUID(response.json()["public_id"]))
+    )
+    assert resource is not None
+    items = list(
+        await session.scalars(
+            select(ResourceItem)
+            .where(ResourceItem.resource_id == resource.id)
+            .order_by(ResourceItem.id)
+        )
+    )
+    assert [decrypt_value(item.encrypted_value) for item in items] == [
+        "first-secret",
+        "second-secret",
+    ]
 
 
 async def test_import_encrypts_every_value_and_never_returns_plaintext(
@@ -239,6 +282,227 @@ async def test_organizer_imports_lists_and_assigns_item_using_only_public_api(
     assigned_items_response = await api_client.get(items_url)
     assert assigned_items_response.status_code == 200
     assert assigned_items_response.json()[0]["is_assigned"] is True
+
+
+async def test_organizer_lists_resource_inventory(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    resource = await create_resource(session, hackathon, target="individual")
+    available_item = await create_item(session, resource)
+    assigned_item = await create_item(session, resource)
+    assigned_item.is_assigned = True
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/resources")
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "public_id": str(resource.public_id),
+            "name": "OpenAI API keys",
+            "type": "api_key",
+            "distribution_mode": "manual",
+            "target": "individual",
+            "metadata": {"provider": "openai"},
+            "item_count": 2,
+            "available_item_count": 1,
+        }
+    ]
+    assert available_item.is_assigned is False
+
+
+async def test_organizer_assigns_available_items_to_participants_and_lists_assignments(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    first_participant = await create_user(session, "first@example.com")
+    second_participant = await create_user(session, "second@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    first_registration = await create_registration(session, hackathon, first_participant)
+    second_registration = await create_registration(session, hackathon, second_participant)
+    resource = await create_resource(session, hackathon, target="individual")
+    await create_item(session, resource)
+    await create_item(session, resource)
+    await session.commit()
+    force_authenticate(organizer)
+    url = (
+        f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/"
+        "participant-assignments"
+    )
+
+    response = await api_client.post(
+        url,
+        json={
+            "registration_public_ids": [
+                str(first_registration.public_id),
+                str(second_registration.public_id),
+            ]
+        },
+    )
+
+    assert response.status_code == 201
+    assert {
+        assignment["registration_public_id"] for assignment in response.json()["assignments"]
+    } == {str(first_registration.public_id), str(second_registration.public_id)}
+    assert response.json()["already_assigned_registration_public_ids"] == []
+
+    repeat_response = await api_client.post(
+        url,
+        json={"registration_public_ids": [str(first_registration.public_id)]},
+    )
+    assert repeat_response.status_code == 201
+    assert repeat_response.json()["assignments"] == []
+    assert repeat_response.json()["already_assigned_registration_public_ids"] == [
+        str(first_registration.public_id)
+    ]
+
+    list_response = await api_client.get(url)
+    assert list_response.status_code == 200
+    assert {assignment["registration_public_id"] for assignment in list_response.json()} == {
+        str(first_registration.public_id),
+        str(second_registration.public_id),
+    }
+
+
+async def test_bulk_assignment_is_atomic_when_pool_has_too_few_items(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    first_participant = await create_user(session, "first@example.com")
+    second_participant = await create_user(session, "second@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    first_registration = await create_registration(session, hackathon, first_participant)
+    second_registration = await create_registration(session, hackathon, second_participant)
+    resource = await create_resource(session, hackathon, target="individual")
+    item = await create_item(session, resource)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/"
+        "participant-assignments",
+        json={
+            "registration_public_ids": [
+                str(first_registration.public_id),
+                str(second_registration.public_id),
+            ]
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "RESOURCE_ITEMS_INSUFFICIENT"
+    assignments = list(await session.scalars(select(ResourceAssignment)))
+    assert assignments == []
+    await session.refresh(item)
+    assert item.is_assigned is False
+
+
+async def test_organizer_revokes_participant_resource_without_reusing_secret(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = await create_registration(session, hackathon, participant)
+    resource = await create_resource(session, hackathon, target="individual")
+    item = await create_item(session, resource)
+    assignment = ResourceAssignment(
+        resource_item=item,
+        registration=registration,
+        assigned_by=organizer,
+    )
+    item.is_assigned = True
+    session.add(assignment)
+    await session.commit()
+    force_authenticate(organizer)
+    url = (
+        f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/"
+        f"participant-assignments/{registration.public_id}"
+    )
+
+    response = await api_client.delete(url)
+
+    assert response.status_code == 204
+    await session.refresh(assignment)
+    await session.refresh(item)
+    assert assignment.revoked_at is not None
+    assert item.is_assigned is True
+    assert item.is_revoked is True
+
+    repeat_response = await api_client.delete(url)
+    assert repeat_response.status_code == 204
+
+
+async def test_outsider_cannot_list_assign_or_revoke_participant_resources(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    outsider = await create_user(session, "outsider@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = await create_registration(session, hackathon, participant)
+    resource = await create_resource(session, hackathon, target="individual")
+    await create_item(session, resource)
+    await session.commit()
+    force_authenticate(outsider)
+    assignments_url = (
+        f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/"
+        "participant-assignments"
+    )
+
+    responses = [
+        await api_client.get(f"/api/hackathons/{hackathon.public_id}/resources"),
+        await api_client.get(assignments_url),
+        await api_client.post(
+            assignments_url,
+            json={"registration_public_ids": [str(registration.public_id)]},
+        ),
+        await api_client.delete(f"{assignments_url}/{registration.public_id}"),
+    ]
+
+    assert [response.status_code for response in responses] == [403, 403, 403, 403]
+    assert all(response.json()["error_code"] == "PERMISSION_DENIED" for response in responses)
+
+
+async def test_co_organizer_can_bulk_assign_participant_resources(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    co_organizer = await create_user(session, "co-organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    hackathon.co_organizers.append(co_organizer)
+    registration = await create_registration(session, hackathon, participant)
+    resource = await create_resource(session, hackathon, target="individual")
+    await create_item(session, resource)
+    await session.commit()
+    force_authenticate(co_organizer)
+
+    response = await api_client.post(
+        f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/"
+        "participant-assignments",
+        json={"registration_public_ids": [str(registration.public_id)]},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["assignments"][0]["registration_public_id"] == str(
+        registration.public_id
+    )
 
 
 @pytest.mark.parametrize("query", ["limit=0", "limit=101", "offset=-1"])

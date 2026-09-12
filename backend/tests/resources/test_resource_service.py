@@ -91,6 +91,30 @@ async def test_create_resource_normalizes_name_and_commits(service, repository):
     repository.rollback.assert_not_awaited()
 
 
+async def test_create_resource_encrypts_initial_items_in_same_transaction(service, repository):
+    repository.get_hackathon.return_value = make_hackathon()
+    data = ResourceCreate(
+        name="Credits",
+        type="api_key",
+        target="individual",
+        values=["first-secret", "second-secret"],
+    )
+
+    result = await service.create_resource(uuid.uuid4(), data, make_user())
+
+    assert result.item_count == 2
+    items = repository.create_items.await_args.args[0]
+    assert len(items) == 2
+    assert [decrypt_value(item.encrypted_value) for item in items] == [
+        "first-secret",
+        "second-secret",
+    ]
+    assert all(item.resource is result for item in items)
+    repository.create_resource.assert_awaited_once_with(result)
+    repository.create_items.assert_awaited_once_with(items)
+    repository.commit.assert_awaited_once_with()
+
+
 @pytest.mark.parametrize(
     ("hackathon", "error_type"),
     [(None, ResourceNotFoundError), (make_hackathon(organizer_id=99), ResourcePermissionError)],

@@ -20,6 +20,7 @@ class ResourceCreate(BaseModel):
     distribution_mode: DistributionMode = "manual"
     target: ResourceTarget
     metadata: dict = Field(default_factory=dict)
+    values: list[ResourceValue] = Field(default_factory=list, max_length=100)
 
     @field_validator("metadata")
     @classmethod
@@ -28,6 +29,16 @@ class ResourceCreate(BaseModel):
         if len(serialized) > MAX_RESOURCE_METADATA_BYTES:
             raise ValueError(f"Resource metadata cannot exceed {MAX_RESOURCE_METADATA_BYTES} bytes")
         return value
+
+    @field_validator("values")
+    @classmethod
+    def normalize_values(cls, value: list[str]) -> list[str]:
+        normalized = [item.strip() for item in value]
+        if any(not item for item in normalized):
+            raise ValueError("Resource values cannot be empty")
+        if len(set(normalized)) != len(normalized):
+            raise ValueError("Resource values must be unique within an import")
+        return normalized
 
 
 class ResourceItemsImport(BaseModel):
@@ -59,6 +70,17 @@ class ResourceAssignmentCreate(BaseModel):
         return self
 
 
+class ParticipantResourceAssignmentsCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    registration_public_ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
+
+    @field_validator("registration_public_ids")
+    @classmethod
+    def remove_duplicate_registration_ids(cls, value: list[uuid.UUID]) -> list[uuid.UUID]:
+        return list(dict.fromkeys(value))
+
+
 class ResourceResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -69,6 +91,10 @@ class ResourceResponse(BaseModel):
     target: str
     metadata: dict = Field(validation_alias="resource_metadata")
     item_count: int
+
+
+class ResourceInventoryResponse(ResourceResponse):
+    available_item_count: int
 
 
 class ResourceItemResponse(BaseModel):
@@ -93,3 +119,12 @@ class ResourceAssignmentResponse(BaseModel):
     public_id: uuid.UUID
     assigned_at: datetime
     revoked_at: datetime | None
+
+
+class ParticipantResourceAssignmentResponse(ResourceAssignmentResponse):
+    registration_public_id: uuid.UUID
+
+
+class ParticipantResourceAssignmentsResponse(BaseModel):
+    assignments: list[ParticipantResourceAssignmentResponse]
+    already_assigned_registration_public_ids: list[uuid.UUID]

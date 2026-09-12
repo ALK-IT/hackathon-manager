@@ -39,6 +39,27 @@ def test_resource_create_counts_metadata_size_in_utf8_bytes():
         make_resource_create(metadata)
 
 
+def test_resource_create_normalizes_initial_values():
+    data = ResourceCreate(
+        name="API keys",
+        type="api_key",
+        target="individual",
+        values=[" first-secret ", "second-secret"],
+    )
+
+    assert data.values == ["first-secret", "second-secret"]
+
+
+def test_resource_create_rejects_duplicate_initial_values():
+    with pytest.raises(ValidationError):
+        ResourceCreate(
+            name="API keys",
+            type="api_key",
+            target="individual",
+            values=["secret", " secret "],
+        )
+
+
 def test_resource_items_import_accepts_limit_values():
     data = ResourceItemsImport(values=[f"{index:03d}" + "x" * 4093 for index in range(100)])
 

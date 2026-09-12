@@ -45,6 +45,7 @@ class Resource(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     item_count: Mapped[int] = query_expression()
+    available_item_count: Mapped[int] = query_expression()
 
     hackathon: Mapped["Hackathon"] = relationship(back_populates="resources")
     items: Mapped[list["ResourceItem"]] = relationship(

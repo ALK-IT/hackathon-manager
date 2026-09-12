@@ -39,6 +39,12 @@ class ResourceItemUnavailableError(ResourceError):
     detail = "Resource item is already assigned or revoked."
 
 
+class ResourceItemsInsufficientError(ResourceError):
+    status_code = status.HTTP_409_CONFLICT
+    error_code = ErrorCode.RESOURCE_ITEMS_INSUFFICIENT
+    detail = "There are not enough available resource items for the selected participants."
+
+
 class ResourceTargetMismatchError(ResourceError):
     status_code = status.HTTP_409_CONFLICT
     error_code = ErrorCode.RESOURCE_TARGET_MISMATCH
