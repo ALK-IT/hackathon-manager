@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
-from src.common.rate_limit import FixedWindowRateLimiter
+from src.common.rate_limit import SlidingWindowRateLimiter
 from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.constants import CO_ORGANIZER_SEARCH_RESULT_LIMIT
 from src.hackathons.exceptions import (
@@ -35,7 +35,7 @@ class HackathonService:
         self,
         hackathon_repository: HackathonRepository,
         user_repository: UserRepository,
-        co_organizer_search_rate_limiter: FixedWindowRateLimiter,
+        co_organizer_search_rate_limiter: SlidingWindowRateLimiter,
     ):
         self.hackathon_repository = hackathon_repository
         self.user_repository = user_repository

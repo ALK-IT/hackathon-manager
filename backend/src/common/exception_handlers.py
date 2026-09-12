@@ -3,6 +3,7 @@ import logging
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from redis.exceptions import RedisError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.common.errors import (
@@ -104,8 +105,21 @@ async def handle_unexpected_error(_request: Request, exc: Exception) -> JSONResp
     )
 
 
+async def handle_redis_error(_request: Request, exc: RedisError) -> JSONResponse:
+    logger.error(
+        "Redis operation failed",
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
+    return _error_response(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        error_code=ErrorCode.SERVICE_UNAVAILABLE,
+        detail="A required service is temporarily unavailable.",
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(APIError, handle_api_error)
     app.add_exception_handler(RequestValidationError, handle_request_validation_error)
     app.add_exception_handler(StarletteHTTPException, handle_http_exception)
+    app.add_exception_handler(RedisError, handle_redis_error)
     app.add_exception_handler(Exception, handle_unexpected_error)

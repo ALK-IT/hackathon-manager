@@ -5,11 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from src.auth.config import (
-    get_auth_cookie_samesite,
-    get_auth_cookie_secure,
-    get_trust_proxy_headers,
-)
+from src.auth.client import get_client_ip
+from src.auth.config import get_auth_cookie_samesite, get_auth_cookie_secure
 from src.auth.constants import REFRESH_TOKEN_COOKIE_NAME
 from src.auth.dependencies import (
     get_current_user,
@@ -20,12 +17,14 @@ from src.auth.dependencies import (
     unauthorized_exception,
 )
 from src.auth.email import EmailDeliveryError, EmailService
-from src.auth.exceptions import (
-    InvalidAccessTokenError,
-    InvalidActionTokenError,
-    RateLimitError,
-)
+from src.auth.exceptions import InvalidAccessTokenError, InvalidActionTokenError, RateLimitError
 from src.auth.models import User
+from src.auth.rate_limit import (
+    enforce_login_rate_limit,
+    enforce_refresh_rate_limit,
+    enforce_register_rate_limit,
+    enforce_verify_email_rate_limit,
+)
 from src.auth.schemas import (
     ActionTokenRequest,
     EmailActionRequest,
@@ -65,14 +64,9 @@ async def enforce_rate_limits(
 ) -> None:
     try:
         if ip_limit is not None:
-            client_ip = request.client.host if request.client else "unknown"
-            if get_trust_proxy_headers():
-                proxy_ip = request.headers.get("X-Real-IP", "").strip()
-                if proxy_ip:
-                    client_ip = proxy_ip
             await token_service.enforce_rate_limit(
                 f"{scope}:ip",
-                client_ip,
+                get_client_ip(request),
                 ip_limit,
                 RATE_LIMIT_WINDOW,
             )
@@ -107,7 +101,12 @@ def token_response(response: Response, tokens: IssuedTokenPair) -> TokenResponse
     )
 
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(enforce_register_rate_limit)],
+)
 async def register(
     request: Request,
     data: UserCreate,
@@ -120,7 +119,6 @@ async def register(
         request,
         "register",
         identifier=str(data.email),
-        ip_limit=5,
         identifier_limit=3,
     )
     user = await service.register(data)
@@ -137,7 +135,11 @@ async def register(
     return user
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[Depends(enforce_login_rate_limit)],
+)
 async def login(
     request: Request,
     response: Response,
@@ -145,12 +147,6 @@ async def login(
     service: Annotated[UserService, Depends(get_user_service)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
 ) -> TokenResponse:
-    await enforce_rate_limits(
-        token_service,
-        request,
-        "login",
-        ip_limit=10,
-    )
     user = await service.authenticate(form_data.username, form_data.password)
     if user is None:
         await enforce_rate_limits(
@@ -173,7 +169,11 @@ async def login(
     )
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    dependencies=[Depends(enforce_refresh_rate_limit)],
+)
 async def refresh(
     response: Response,
     service: Annotated[UserService, Depends(get_user_service)],
@@ -201,14 +201,16 @@ async def refresh(
     )
 
 
-@router.post("/verify-email", response_model=MessageResponse)
+@router.post(
+    "/verify-email",
+    response_model=MessageResponse,
+    dependencies=[Depends(enforce_verify_email_rate_limit)],
+)
 async def verify_email(
-    request: Request,
     data: ActionTokenRequest,
     service: Annotated[UserService, Depends(get_user_service)],
     token_service: Annotated[TokenService, Depends(get_token_service)],
 ) -> MessageResponse:
-    await enforce_rate_limits(token_service, request, "verify-email", ip_limit=20)
     try:
         public_id = await token_service.consume_action_token(data.token, "email-verification")
     except InvalidActionTokenError as exc:

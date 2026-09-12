@@ -159,6 +159,7 @@ class RegistrationRepository:
             )
             .options(
                 selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
+                selectinload(Registration.user),
                 selectinload(Registration.status_changed_by),
                 selectinload(Registration.team),
             )

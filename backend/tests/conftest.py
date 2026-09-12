@@ -10,13 +10,24 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from src.auth.dependencies import get_current_user, get_optional_current_user
+from src.auth.dependencies import get_current_user, get_email_service, get_optional_current_user
 from src.auth.models import User
 from src.database import get_session, normalize_database_url
 from src.main import app
 from src.models import Base
 
 ForceAuthenticate = Callable[[User | None], None]
+
+
+class DiscardingEmailService:
+    async def send_registration_status_changed(
+        self,
+        recipient: str,
+        hackathon_name: str,
+        hackathon_public_id: str,
+        status: str,
+    ) -> None:
+        pass
 
 
 @pytest.fixture
@@ -52,6 +63,7 @@ async def api_client(session: AsyncSession) -> AsyncIterator[AsyncClient]:
         yield session
 
     app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_email_service] = DiscardingEmailService
 
     try:
         async with AsyncClient(
@@ -61,6 +73,7 @@ async def api_client(session: AsyncSession) -> AsyncIterator[AsyncClient]:
             yield client
     finally:
         app.dependency_overrides.pop(get_session, None)
+        app.dependency_overrides.pop(get_email_service, None)
 
 
 # Helper function for authentication
