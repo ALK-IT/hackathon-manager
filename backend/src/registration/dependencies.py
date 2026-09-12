@@ -6,6 +6,8 @@ from src.auth.email import EmailService
 from src.database import get_session
 from src.hackathon_tasks.repository import TaskRepository
 from src.hackathons.repository import HackathonRepository
+from src.notifications.repository import NotificationRepository
+from src.notifications.service import NotificationService
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
 from src.registration.service import RegistrationQuestionService, RegistrationService
 from src.teams.repository import TeamRepository
@@ -31,5 +33,6 @@ def get_registration_service(
         HackathonRepository(session),
         TeamService(TeamRepository(session), HackathonRepository(session)),
         TaskRepository(session),
+        NotificationService(NotificationRepository(session)),
         email_service,
     )
