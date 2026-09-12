@@ -4,6 +4,7 @@ import { Alert } from '../../../components/ui'
 interface AttendanceQrCodeProps {
   dataUrl: string
   expiresAt: string
+  onExpire?: () => void
 }
 
 function getRemainingSeconds(expiresAt: number, now: number): number {
@@ -16,7 +17,11 @@ function formatRemainingTime(totalSeconds: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`
 }
 
-export function AttendanceQrCode({ dataUrl, expiresAt }: AttendanceQrCodeProps) {
+export function AttendanceQrCode({
+  dataUrl,
+  expiresAt,
+  onExpire,
+}: AttendanceQrCodeProps) {
   const [now, setNow] = useState(() => Date.now())
   const expirationTimestamp = new Date(expiresAt).getTime()
   const remainingSeconds = Number.isNaN(expirationTimestamp)
@@ -32,11 +37,12 @@ export function AttendanceQrCode({ dataUrl, expiresAt }: AttendanceQrCodeProps) 
 
       if (currentTime >= expirationTimestamp) {
         window.clearInterval(intervalId)
+        onExpire?.()
       }
     }, 1000)
 
     return () => window.clearInterval(intervalId)
-  }, [expirationTimestamp])
+  }, [expirationTimestamp, onExpire])
 
   if (remainingSeconds === 0) {
     return (

@@ -14,6 +14,7 @@ describe('AttendanceQrGenerator', () => {
   beforeEach(() => {
     vi.mocked(createCheckInSession).mockReset()
     qrCodeMocks.toDataURL.mockReset()
+    sessionStorage.clear()
   })
 
   afterEach(() => vi.useRealTimers())
@@ -72,5 +73,42 @@ describe('AttendanceQrGenerator', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Kod QR wygasł. Wygeneruj nowy kod.',
     )
+    expect(
+      screen.queryByRole('button', { name: 'Usuń kod QR' }),
+    ).not.toBeInTheDocument()
+    expect(sessionStorage).toHaveLength(0)
+  })
+
+  it('restores an active QR code after remounting and allows removing it', async () => {
+    vi.mocked(createCheckInSession).mockResolvedValue({
+      public_id: 'session-id',
+      token: 'secret-check-in-token',
+      expires_at: '2099-09-08T12:15:00Z',
+      is_active: true,
+    })
+    qrCodeMocks.toDataURL.mockResolvedValue('data:image/png;base64,qr-code')
+    const view = render(
+      <AttendanceQrGenerator hackathonPublicId="hackathon-id" />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wygeneruj kod QR' }))
+    await screen.findByRole('img', {
+      name: 'Kod QR do potwierdzenia obecności',
+    })
+    view.unmount()
+
+    render(<AttendanceQrGenerator hackathonPublicId="hackathon-id" />)
+
+    expect(
+      screen.getByRole('img', {
+        name: 'Kod QR do potwierdzenia obecności',
+      }),
+    ).toHaveAttribute('src', 'data:image/png;base64,qr-code')
+    expect(createCheckInSession).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń kod QR' }))
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    expect(sessionStorage).toHaveLength(0)
   })
 })
