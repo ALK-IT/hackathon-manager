@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Alert, Button } from '../../../components/ui'
 import { createCheckInSession } from '../api/attendanceApi'
 import { getAttendanceErrorMessage } from '../utils/attendanceMessages'
+import { AttendanceQrCode } from './AttendanceQrCode'
 
 interface AttendanceQrGeneratorProps {
   hackathonPublicId: string
@@ -63,10 +64,11 @@ export function AttendanceQrGenerator({
             : 'Wygeneruj kod QR'}
       </Button>
       {qrCodeUrl && expiresAt && (
-        <div className="attendance-qr-result">
-          <img src={qrCodeUrl} alt="Kod QR do potwierdzenia obecności" />
-          <p>Ważny do: {new Date(expiresAt).toLocaleString('pl-PL')}</p>
-        </div>
+        <AttendanceQrCode
+          key={expiresAt}
+          dataUrl={qrCodeUrl}
+          expiresAt={expiresAt}
+        />
       )}
     </section>
   )
