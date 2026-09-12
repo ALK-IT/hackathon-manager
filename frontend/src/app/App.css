@@ -277,6 +277,44 @@ button:disabled {
   gap: 8px;
 }
 
+.attendance-resource-picker {
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+  margin-bottom: 12px;
+}
+
+.attendance-resource-create-form {
+  display: grid;
+  gap: 12px;
+  max-width: 520px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.attendance-resource-create-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  resize: vertical;
+}
+
+.attendance-resource-create-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attendance-resource-picker label {
+  font-weight: 600;
+}
+
+.attendance-resource-picker select {
+  padding: 8px;
+}
+
 .attendance-resource-notice {
   color: #6b7280;
   font-size: 14px;
@@ -362,6 +400,11 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.attendance-resource-status {
+  color: #6b7280;
+  font-size: 12px;
 }
 
 @media (max-width: 560px) {
