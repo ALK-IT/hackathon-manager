@@ -5,10 +5,42 @@ from src.notifications.exceptions import NotificationNotFoundError
 from src.notifications.models import Notification
 from src.notifications.repository import NotificationRepository
 
+STATUS_CHANGED_KIND = "registration_status_changed"
+
 
 class NotificationService:
     def __init__(self, repository: NotificationRepository):
         self.repository = repository
+
+    async def notify_status_changed(
+        self,
+        *,
+        user_id: int,
+        hackathon_name: str,
+        hackathon_public_id: uuid.UUID,
+        status: str,
+    ) -> Notification:
+        """Stage a status notification in the caller's transaction."""
+        status_copy = {
+            "accepted": (
+                "Zgłoszenie zaakceptowane",
+                f"Twoje zgłoszenie na {hackathon_name} zostało zaakceptowane.",
+            ),
+            "rejected": (
+                "Zgłoszenie odrzucone",
+                f"Twoje zgłoszenie na {hackathon_name} zostało odrzucone.",
+            ),
+        }
+        title, message = status_copy[status]
+        notification = Notification(
+            user_id=user_id,
+            kind=STATUS_CHANGED_KIND,
+            title=title,
+            message=message,
+            target_url=f"/hackathons/{hackathon_public_id}",
+        )
+        self.repository.add(notification)
+        return notification
 
     async def list_for_user(
         self,

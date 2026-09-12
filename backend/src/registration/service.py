@@ -11,6 +11,7 @@ from src.hackathons.access import can_manage_hackathon
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
+from src.notifications.service import NotificationService
 from src.registration.exceptions import (
     InvalidPermission,
     InvalidRegistrationQuestionError,
@@ -160,12 +161,14 @@ class RegistrationService:
         hackathon_repository: HackathonRepository,
         team_service: TeamService,
         task_repository: TaskRepository,
+        notification_service: NotificationService,
     ):
         self.registration_repository = registration_repository
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
         self.team_service = team_service
         self.task_repository = task_repository
+        self.notification_service = notification_service
 
     async def list_registrations(
         self,
@@ -381,6 +384,7 @@ class RegistrationService:
             raise RegistrationStatusChangeLockedError()
 
         try:
+            previous_status = registration.status
             if (
                 registration.team_id is not None
                 and registration.status is RegistrationStatus.REJECTED
@@ -395,6 +399,16 @@ class RegistrationService:
                 new_status,
                 current_user,
             )
+            if new_status != previous_status and new_status in {
+                RegistrationStatus.ACCEPTED,
+                RegistrationStatus.REJECTED,
+            }:
+                await self.notification_service.notify_status_changed(
+                    user_id=registration.user_id,
+                    hackathon_name=hackathon.name,
+                    hackathon_public_id=hackathon.public_id,
+                    status=new_status.value,
+                )
             await self.registration_repository.commit()
             return registration
         except Exception:

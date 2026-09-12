@@ -7,6 +7,7 @@ import { HackathonsPage } from './HackathonsPage'
 vi.mock('../components/HackathonList', () => ({
   HackathonList: () => null,
 }))
+vi.mock('../../notifications', () => ({ NotificationBell: () => null }))
 
 const auth: AuthContextValue = {
   user: {
