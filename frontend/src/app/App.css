@@ -107,6 +107,18 @@ button:disabled {
   gap: 16px;
 }
 
+.participant-area-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 8px;
+}
+
+.participant-area-tabs [role='tab'][aria-selected='true'] {
+  font-weight: 600;
+  border-color: #111827;
+}
+
 .participant-task-card {
   box-sizing: border-box;
   width: 100%;
