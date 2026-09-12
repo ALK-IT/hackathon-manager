@@ -46,12 +46,12 @@ class ResourceTargetMismatchError(ResourceError):
 
 
 class ResourceNotAssignedToUserError(ResourceError):
-    status_code = 403
-    error_code = "RESOURCE_NOT_ASSIGNED_TO_USER"
+    status_code = status.HTTP_403_FORBIDDEN
+    error_code = ErrorCode.RESOURCE_NOT_ASSIGNED_TO_USER
     detail = "This resource is not assigned to the current user."
 
 
 class ResourceRevokedError(ResourceError):
-    status_code = 409
-    error_code = "RESOURCE_REVOKED"
+    status_code = status.HTTP_409_CONFLICT
+    error_code = ErrorCode.RESOURCE_REVOKED
     detail = "This resource has been revoked."
