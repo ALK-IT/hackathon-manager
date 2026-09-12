@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
 
+import src.all_models  # noqa: F401
 from src.auth.models import User, UserRole
 from src.auth.utils import hash_password
 from src.database import DATABASE_URL, SessionLocal
@@ -43,6 +44,7 @@ async def get_or_create_user(
     name: str,
     email: str,
     password: str,
+    email_verified_at: datetime,
     role: UserRole = UserRole.USER,
 ) -> User:
     user = await session.scalar(select(User).where(User.email == email))
@@ -52,12 +54,14 @@ async def get_or_create_user(
             name=name,
             email=email,
             password_hash=hash_password(password),
+            email_verified_at=email_verified_at,
             role=role,
         )
         session.add(user)
     else:
         user.name = name
         user.password_hash = hash_password(password)
+        user.email_verified_at = email_verified_at
         user.role = role
     return user
 
@@ -78,16 +82,10 @@ async def seed() -> bool:
             name="Local Admin",
             email=ADMIN_EMAIL,
             password=ADMIN_PASSWORD,
+            email_verified_at=now,
             role=UserRole.ADMIN,
         )
         await session.flush()
-
-        hackathon_public_id = seed_id("hackathon:demo")
-        existing = await session.scalar(
-            select(Hackathon.id).where(Hackathon.public_id == hackathon_public_id)
-        )
-        if existing is not None:
-            return False
 
         participants = [
             await get_or_create_user(
@@ -95,6 +93,7 @@ async def seed() -> bool:
                 name=name,
                 email=email,
                 password=PARTICIPANT_PASSWORD,
+                email_verified_at=now,
             )
             for name, email in (
                 ("Anna Participant", "anna@local.dev"),
@@ -102,6 +101,13 @@ async def seed() -> bool:
                 ("Ola Participant", "ola@local.dev"),
             )
         ]
+
+        hackathon_public_id = seed_id("hackathon:demo")
+        existing = await session.scalar(
+            select(Hackathon.id).where(Hackathon.public_id == hackathon_public_id)
+        )
+        if existing is not None:
+            return False
 
         hackathon = Hackathon(
             public_id=hackathon_public_id,

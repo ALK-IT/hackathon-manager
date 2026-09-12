@@ -206,17 +206,18 @@ async def test_action_token_is_hashed_and_can_only_be_consumed_once(mocker):
 
 async def test_rate_limit_hashes_identifier_and_returns_retry_time(mocker):
     cache = mocker.Mock()
-    cache.eval = mocker.AsyncMock(return_value=[4, 120])
+    script = mocker.AsyncMock(return_value=[0, 120])
+    cache.register_script.return_value = script
     service = TokenService(cache)
 
     with pytest.raises(RateLimitError) as exc_info:
         await service.enforce_rate_limit("forgot-password:email", "Jan@Example.com", 3, 900)
 
     assert exc_info.value.retry_after == 120
-    await_args = cache.eval.await_args
-    key = await_args.args[2]
+    await_args = script.await_args
+    key = await_args.kwargs["keys"][0]
     assert "Jan@Example.com" not in key
-    assert await_args.args[3] == 900
+    assert await_args.kwargs["args"][0] == 900
 
 
 async def test_reset_password_rehashes_password_and_invalidates_sessions(mocker):

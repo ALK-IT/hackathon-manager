@@ -8,7 +8,7 @@ from src.auth.dependencies import get_current_user
 from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
 from src.cache import get_cache
-from src.common.rate_limit import FixedWindowRateLimiter
+from src.common.rate_limit import SlidingWindowRateLimiter
 from src.database import get_session
 from src.hackathons.constants import (
     CO_ORGANIZER_SEARCH_RATE_LIMIT,
@@ -27,7 +27,7 @@ def get_hackathon_service(
     return HackathonService(
         HackathonRepository(session),
         UserRepository(session),
-        FixedWindowRateLimiter(
+        SlidingWindowRateLimiter(
             cache=cache,
             namespace=CO_ORGANIZER_SEARCH_RATE_LIMIT_NAMESPACE,
             limit=CO_ORGANIZER_SEARCH_RATE_LIMIT,

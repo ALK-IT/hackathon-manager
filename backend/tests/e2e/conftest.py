@@ -27,6 +27,15 @@ class DiscardingEmailService:
     async def send_password_reset(self, recipient: str, token: str) -> None:
         pass
 
+    async def send_registration_status_changed(
+        self,
+        recipient: str,
+        hackathon_name: str,
+        hackathon_public_id: str,
+        status: str,
+    ) -> None:
+        pass
+
 
 def _test_redis_url() -> str:
     configured_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
