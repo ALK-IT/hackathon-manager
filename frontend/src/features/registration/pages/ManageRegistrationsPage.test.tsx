@@ -53,6 +53,18 @@ describe('ManageRegistrationsPage', () => {
     expect(screen.getByText('Chcę się nauczyć.')).toBeInTheDocument()
   })
 
+  it('shows the team name in parentheses next to the participant', async () => {
+    vi.mocked(getManagedRegistrations).mockResolvedValue([
+      {
+        ...registration,
+        team: { public_id: 'team-id', name: 'Seed Squad', join_code: 'SEED2026' },
+      },
+    ])
+    renderPage()
+
+    expect(await screen.findByText(/Jan Kowalski \(Seed Squad\) — oczekujące/)).toBeInTheDocument()
+  })
+
   it('accepts the selected registration on the same page', async () => {
     vi.mocked(getManagedRegistrations).mockResolvedValue([registration])
     vi.mocked(updateManagedRegistration).mockResolvedValue({

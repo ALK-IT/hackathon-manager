@@ -15,6 +15,7 @@ from src.registration.models import (
     RegistrationStatus,
 )
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
+from src.teams.models import Team
 
 
 def make_user(
@@ -257,6 +258,36 @@ async def test_get_registrations_by_hackathon_applies_limit_and_offset(
     )
 
     assert result == [registrations[1]]
+
+
+async def test_get_registrations_by_hackathon_groups_teams_and_puts_solo_users_last(
+    session: AsyncSession,
+    organizer: User,
+):
+    hackathon = make_hackathon(organizer)
+    alpha_team = Team(name="Alpha", join_code="ALPHA001", hackathon=hackathon)
+    beta_team = Team(name="Beta", join_code="BETA0001", hackathon=hackathon)
+    beta_registration = Registration(
+        user=make_user("beta@example.com"),
+        hackathon=hackathon,
+        team=beta_team,
+    )
+    solo_registration = Registration(
+        user=make_user("solo@example.com"),
+        hackathon=hackathon,
+    )
+    alpha_registration = Registration(
+        user=make_user("alpha@example.com"),
+        hackathon=hackathon,
+        team=alpha_team,
+    )
+    session.add_all([beta_registration, solo_registration, alpha_registration])
+    await session.flush()
+    repository = RegistrationRepository(session)
+
+    result = await repository.get_by_hackathon(hackathon.public_id, limit=50, offset=0)
+
+    assert result == [alpha_registration, beta_registration, solo_registration]
 
 
 async def test_get_registration_by_hackathon_and_user(
