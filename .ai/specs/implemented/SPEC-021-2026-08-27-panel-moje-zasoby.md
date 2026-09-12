@@ -17,9 +17,9 @@ operacji `reveal`.
 
 ## Rozwiązanie
 
-Chroniona trasa `/my-resources` prezentuje listę zasobów bieżącego użytkownika. Zakładka „Moje
-zasoby” jest widoczna w głównej nawigacji po zalogowaniu. Każda karta pokazuje nazwę zasobu,
-hackathon, typ, źródło przydziału, status i niesekretne metadane.
+Zakładka „Moje zasoby” w strefie uczestnika prezentuje zasoby bieżącego użytkownika ograniczone
+do aktualnego hackathonu. Każda karta pokazuje nazwę zasobu, hackathon, typ, źródło przydziału,
+status i niesekretne metadane. Panel nie jest dostępny jako osobna pozycja głównej nawigacji.
 
 Wartość zasobu jest początkowo zastąpiona maską. Pierwsze kliknięcie „Pokaż” albo „Kopiuj”
 wywołuje `reveal`. Otrzymana wartość pozostaje wyłącznie w stanie komponentu i nie trafia do
@@ -71,8 +71,7 @@ klienckim i nie jest osobno audytowane.
 
 **W zakresie:**
 
-- chroniona trasa i strona `/my-resources`;
-- zakładka w nawigacji zalogowanego użytkownika;
+- zakładka zasobów aktualnego hackathonu w strefie uczestnika;
 - lista zasobów indywidualnych i drużynowych;
 - komponent karty zasobu i komponent bezpiecznej prezentacji wartości;
 - maskowanie, pokazywanie, ukrywanie i kopiowanie;
@@ -93,7 +92,7 @@ klienckim i nie jest osobno audytowane.
 
 ## Wpływ
 
-- **Frontend:** nowy moduł `features/resources`, nawigacja aplikacji oraz chroniona trasa.
+- **Frontend:** moduł `features/resources` oraz zakładka zasobów w chronionej strefie uczestnika.
 - **Backend:** brak zmian w tym branchu; wymagany jest kontrakt z issue #49.
 - **Baza danych / API:** frontend nie zmienia bazy; definiuje oczekiwany format dwóch endpointów.
 - **Bezpieczeństwo:** lista nie zawiera sekretów, reveal jest wykonywany dopiero na jawną akcję
@@ -111,7 +110,8 @@ klienckim i nie jest osobno audytowane.
    aktualne członkostwo i przypisuje audit `viewed` do użytkownika wykonującego operację.
 5. **Stany strony:** wykorzystujemy istniejące `Spinner`, `Alert`, `Button` i `Card`, a elementy
    specyficzne dla zasobów pozostają w module `features/resources`.
-6. **Nawigacja:** panel jest osobną zakładką widoczną dla zalogowanych użytkowników.
+6. **Nawigacja:** panel jest zakładką strefy konkretnego hackathonu, a nie osobną pozycją
+   nawigacji głównej.
 
 ## Alternatywy rozważane
 
@@ -133,3 +133,5 @@ kopiowanie i fallback do ręcznego skopiowania.
 ## Changelog
 
 - 2026-08-27 — opisano i zaimplementowano frontendowy panel „Moje zasoby”.
+- 2026-09-12 — wykorzystano panel również w kontekście pojedynczego hackathonu.
+- 2026-09-12 — usunięto osobną trasę panelu i pozostawiono go wyłącznie w strefie uczestnika.
