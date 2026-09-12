@@ -60,7 +60,8 @@ zgłoszenia uczestnika.
 - indywidualne, idempotentne potwierdzanie obecności;
 - lista obecnych uczestników dla osób zarządzających hackathonem;
 - przegląd wszystkich zaakceptowanych uczestników ze statusem obecności;
-- frontend generujący i skanujący kod QR;
+- frontend generujący i skanujący kod QR, pokazujący pozostały czas ważności i ukrywający
+  wygasły kod;
 - frontendowy panel uczestników pogrupowanych według drużyn;
 - ograniczenie tworzenia sesji i check-inu do czasu trwania hackathonu;
 - testy backendu i frontendu.
@@ -101,3 +102,4 @@ drużynową na później.
 - 2026-09-09 — dodano backendowy przegląd wszystkich zaakceptowanych uczestników ze statusem
   obecności.
 - 2026-09-10 — dodano frontend generowania i skanowania QR oraz panel obecności uczestników.
+- 2026-09-12 — dodano odliczanie ważności kodu QR i czytelny stan po jego wygaśnięciu.
