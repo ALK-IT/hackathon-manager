@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from src.attendance.models import CheckInSession
     from src.hackathon_tasks.models import TaskSubmission
     from src.hackathons.models import Hackathon
+    from src.notifications.models import Notification
     from src.registration.models import Registration
     from src.resources.models import ResourceAssignment, ResourceAuditLog
 
@@ -69,6 +70,11 @@ class User(Base):
     )
     resource_audit_logs: Mapped[list["ResourceAuditLog"]] = relationship(back_populates="user")
     task_submissions: Mapped[list["TaskSubmission"]] = relationship(back_populates="submitted_by")
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     check_in_sessions_created: Mapped[list["CheckInSession"]] = relationship(
         back_populates="created_by"
     )

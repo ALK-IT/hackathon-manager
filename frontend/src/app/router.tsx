@@ -17,8 +17,8 @@ import {
   RegistrationEntryPage,
   RegistrationQuestionsSetupPage,
 } from '../features/registration'
-import { ProfilePage } from '../features/profile'
 import { ManageRegistrationsPage } from '../features/registration/pages/ManageRegistrationsPage'
+import { ProfilePage } from '../features/profile'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { PublicOnlyRoute } from './routes/PublicOnlyRoute'
