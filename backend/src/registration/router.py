@@ -12,7 +12,6 @@ from src.registration.dependencies import (
 from src.registration.schema import (
     ParticipantAreaResponse,
     ProfileHackathonResponse,
-    RegistrationCreate,
     RegistrationDetailResponse,
     RegistrationQuestionBulkCreate,
     RegistrationQuestionCreate,
@@ -111,27 +110,6 @@ async def delete_question(
     )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post(
-    "/hackathons/{hackathon_public_id}/registrations",
-    status_code=status.HTTP_201_CREATED,
-    response_model=RegistrationResponse,
-)
-async def create_registration(
-    hackathon_public_id: uuid.UUID,
-    data: RegistrationCreate,
-    current_user: Annotated[User, Depends(get_current_user)],
-    service: Annotated[
-        RegistrationService,
-        Depends(get_registration_service),
-    ],
-):
-    return await service.create_registration(
-        data=data,
-        hackathon_public_id=hackathon_public_id,
-        current_user=current_user,
-    )
 
 
 @router.get(
