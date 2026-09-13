@@ -134,6 +134,40 @@ async def test_get_question_by_public_id(
     assert result is question
 
 
+async def test_get_by_user_applies_pagination_and_keeps_filtered_total(
+    session: AsyncSession,
+    organizer: User,
+):
+    participant = make_user("participant@example.com")
+    another_participant = make_user("another@example.com")
+    now = datetime.now(UTC)
+    hackathons = [make_hackathon(organizer, name=f"Hackathon {index}") for index in range(4)]
+    for index, hackathon in enumerate(hackathons):
+        hackathon.start_date = now + timedelta(days=index + 1)
+        hackathon.end_date = hackathon.start_date + timedelta(days=1)
+        hackathon.registration_deadline = hackathon.start_date - timedelta(hours=1)
+    hackathons[3].is_deleted = True
+    registrations = [
+        Registration(user=participant, hackathon=hackathon) for hackathon in hackathons
+    ]
+    other_registration = Registration(
+        user=another_participant,
+        hackathon=hackathons[0],
+    )
+    session.add_all([*registrations, other_registration])
+    await session.commit()
+    repository = RegistrationRepository(session)
+
+    result, total = await repository.get_by_user(
+        participant.id,
+        limit=1,
+        offset=1,
+    )
+
+    assert result == [registrations[1]]
+    assert total == 3
+
+
 async def test_get_question_by_public_id_returns_none_when_missing(
     session: AsyncSession,
 ):
