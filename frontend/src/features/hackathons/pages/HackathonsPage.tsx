@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../../../components/ui'
+import { setStoredLanguage, useTranslation } from '../../../i18n/useTranslation'
 import { useAuth } from '../../auth'
 import { HackathonList } from '../components/HackathonList'
 
 export function HackathonsPage() {
-  const { user, isLoading, logout } = useAuth()
+  const { user, isLoading, logout, updateSettings } = useAuth()
+  const { language, t } = useTranslation()
+  const [isChangingLanguage, setIsChangingLanguage] = useState(false)
   const navigate = useNavigate()
 
   async function handleLogout() {
@@ -12,33 +16,57 @@ export function HackathonsPage() {
     navigate('/', { replace: true })
   }
 
+  async function toggleLanguage() {
+    const nextLanguage = language === 'en' ? 'pl' : 'en'
+    if (!user) {
+      setStoredLanguage(nextLanguage)
+      return
+    }
+
+    setIsChangingLanguage(true)
+    try {
+      await updateSettings({ name: user.name, language: nextLanguage })
+    } finally {
+      setIsChangingLanguage(false)
+    }
+  }
+
   return (
     <main className="app-page">
       <header className="page-header">
         <div>
-          <h1>Hackathony</h1>
-          {user && <p>Zalogowano jako: {user.email}</p>}
+          <h1>{t.hackathons}</h1>
+          {user && <p>{t.loggedInAs}: {user.email}</p>}
         </div>
         {user ? (
           <div className="page-header-actions">
-            <span>Rola: {user.role}</span>
-            <Link to="/profile">Mój profil</Link>
+            <span>{t.role}: {user.role}</span>
+            <Link to="/profile">{t.profile}</Link>
             {user.role === 'admin' && (
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => navigate('/hackathons/create')}
               >
-                Utwórz hackathon
+                {t.createHackathon}
               </Button>
             )}
             <Button type="button" variant="ghost" onClick={() => void handleLogout()}>
-              Wyloguj się
+              {t.logout}
             </Button>
           </div>
         ) : (
-          !isLoading && <Link to="/login">Zaloguj się</Link>
+          !isLoading && <Link to="/login">{t.login}</Link>
         )}
+        <Button
+          type="button"
+          variant="ghost"
+          aria-label={t.changeLanguage}
+          disabled={isChangingLanguage}
+          onClick={() => void toggleLanguage()}
+        >
+          ENG / POL
+        </Button>
       </header>
       {!isLoading && <HackathonList />}
     </main>

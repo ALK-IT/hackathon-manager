@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Spinner } from '../../../components/ui'
+import { useTranslation } from '../../../i18n/useTranslation'
 import {
   getManagedRegistrations,
   updateManagedRegistration,
@@ -15,13 +16,9 @@ import {
 
 const PAGE_SIZE = 50
 
-const labels: Record<ManagedStatus, string> = {
-  pending: 'oczekujące',
-  accepted: 'zaakceptowane',
-  rejected: 'odrzucone',
-}
-
 export function ManageRegistrationsPage() {
+  const { language, t } = useTranslation()
+  const labels: Record<ManagedStatus, string> = { pending: t.pending, accepted: t.accepted, rejected: t.rejected }
   const { hackathonPublicId } = useParams()
   const [registrations, setRegistrations] = useState<ManagedRegistration[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -54,14 +51,14 @@ export function ManageRegistrationsPage() {
       })
       .catch((requestError: unknown) => {
         if (!(requestError instanceof Error && requestError.name === 'AbortError')) {
-          setLoadError(getManagedRegistrationsErrorMessage(requestError))
+          setLoadError(getManagedRegistrationsErrorMessage(requestError, language))
         }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [hackathonPublicId, page, reloadKey])
+  }, [hackathonPublicId, language, page, reloadKey])
 
   async function changeStatus(status: 'accepted' | 'rejected') {
     if (!selected) return
@@ -77,7 +74,7 @@ export function ManageRegistrationsPage() {
         ),
       )
     } catch (requestError) {
-      setActionError(getManagedRegistrationStatusErrorMessage(requestError))
+      setActionError(getManagedRegistrationStatusErrorMessage(requestError, language))
       if (isRegistrationStatusChangeLockedError(requestError)) {
         setStatusChangesLocked(true)
       }
@@ -89,12 +86,12 @@ export function ManageRegistrationsPage() {
 
   return (
     <main className="app-page">
-      <Link to="/hackathons">Wróć do hackathonów</Link>
-      <h1>Zgłoszenia</h1>
-      {loading && <Spinner label="Ładowanie zgłoszeń…" />}
+      <Link to="/hackathons">{t.backToHackathons}</Link>
+      <h1>{t.applications}</h1>
+      {loading && <Spinner label={t.loadingApplications} />}
       {loadError && <Alert variant="error">{loadError}</Alert>}
       {actionError && <Alert variant="error">{actionError}</Alert>}
-      {!loading && registrations.length === 0 && <p>Brak zgłoszeń.</p>}
+      {!loading && registrations.length === 0 && <p>{t.noApplications}</p>}
       <div className="hackathon-details-stack">
         {registrations.length > 0 && (
           <Card>
@@ -107,28 +104,28 @@ export function ManageRegistrationsPage() {
                     variant="ghost"
                     onClick={() => setSelectedId(registration.public_id)}
                   >
-                    Obejrzyj zgłoszenie
+                    {t.viewApplication}
                   </Button>
                 </li>
               ))}
             </ul>
-            <nav aria-label="Stronicowanie zgłoszeń">
+            <nav aria-label={t.applicationsPagination}>
               <Button
                 type="button"
                 variant="ghost"
                 disabled={loading || page === 0}
                 onClick={() => setPage((current) => current - 1)}
               >
-                Poprzednia strona
+                {t.previousPage}
               </Button>
-              <span aria-live="polite">Strona {page + 1}</span>
+              <span aria-live="polite">{t.page} {page + 1}</span>
               <Button
                 type="button"
                 variant="ghost"
                 disabled={loading || !hasNextPage}
                 onClick={() => setPage((current) => current + 1)}
               >
-                Następna strona
+                {t.nextPage}
               </Button>
             </nav>
           </Card>
@@ -137,10 +134,10 @@ export function ManageRegistrationsPage() {
           <Card>
             <h2>{selected.user.name}</h2>
             <p>{selected.user.email}</p>
-            <p>Status: {labels[selected.status]}</p>
-            {selected.team && <p>Drużyna: {selected.team.name}</p>}
-            <h3>Odpowiedzi</h3>
-            {selected.answers.length === 0 && <p>Brak odpowiedzi.</p>}
+            <p>{t.status}: {labels[selected.status]}</p>
+            {selected.team && <p>{t.team}: {selected.team.name}</p>}
+            <h3>{t.answers}</h3>
+            {selected.answers.length === 0 && <p>{t.noAnswers}</p>}
             {selected.answers.map((answer) => (
               <div key={answer.question.public_id}>
                 <strong>{answer.question.content}</strong>
@@ -154,7 +151,7 @@ export function ManageRegistrationsPage() {
               }
               onClick={() => changeStatus('accepted')}
             >
-              Akceptuj
+              {t.accept}
             </Button>
             <Button
               type="button"
@@ -164,7 +161,7 @@ export function ManageRegistrationsPage() {
               }
               onClick={() => changeStatus('rejected')}
             >
-              Odrzuć
+              {t.reject}
             </Button>
           </Card>
         )}

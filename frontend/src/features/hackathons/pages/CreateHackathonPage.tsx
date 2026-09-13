@@ -4,6 +4,7 @@ import { Alert, Card } from '../../../components/ui'
 import { createHackathon } from '../api/hackathonsApi'
 import { HackathonForm, type NormalizedHackathonValues } from '../components/HackathonForm'
 import { getCreateHackathonErrorMessage } from '../utils/hackathonMessages'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 const initialValues = {
   name: '',
@@ -17,6 +18,7 @@ const initialValues = {
 }
 
 export function CreateHackathonPage() {
+  const { language, t } = useTranslation()
   const navigate = useNavigate()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -34,7 +36,7 @@ export function CreateHackathonPage() {
       })
       navigate(`/hackathons/${hackathon.public_id}/questions/setup`, { replace: true })
     } catch (error) {
-      setSubmitError(getCreateHackathonErrorMessage(error))
+      setSubmitError(getCreateHackathonErrorMessage(error, language))
     } finally {
       setIsSubmitting(false)
     }
@@ -43,13 +45,13 @@ export function CreateHackathonPage() {
   return (
     <main className="app-page">
       <Card className="create-hackathon-card">
-        <h1>Utwórz hackathon</h1>
+        <h1>{t.createHackathon}</h1>
         {submitError && <Alert variant="error">{submitError}</Alert>}
         <HackathonForm
           initialValues={initialValues}
           isSubmitting={isSubmitting}
-          submitLabel="Utwórz hackathon"
-          submittingLabel="Tworzenie…"
+          submitLabel={t.createHackathon}
+          submittingLabel={t.creating}
           onSubmit={handleSubmit}
           onCancel={() => navigate('/hackathons')}
         />

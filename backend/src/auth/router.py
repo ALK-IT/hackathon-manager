@@ -34,6 +34,7 @@ from src.auth.schemas import (
     UserCreate,
     UserMeRead,
     UserRead,
+    UserSettingsUpdate,
 )
 from src.auth.service import IssuedTokenPair, TokenService, UserService
 
@@ -330,3 +331,12 @@ async def logout(
 @router.get("/me", response_model=UserMeRead)
 async def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     return current_user
+
+
+@router.patch("/me", response_model=UserMeRead)
+async def update_me(
+    data: UserSettingsUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[UserService, Depends(get_user_service)],
+) -> User:
+    return await service.update_settings(current_user, data)

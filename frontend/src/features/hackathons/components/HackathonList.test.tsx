@@ -32,6 +32,7 @@ const anonymousAuth: AuthContextValue = {
   isLoading: false,
   login: vi.fn(),
   register: vi.fn(),
+  updateSettings: vi.fn(),
   logout: vi.fn(),
 }
 
@@ -75,6 +76,7 @@ describe('HackathonList', () => {
         email: 'jan@example.com',
         created_at: '2026-08-26T10:00:00Z',
         role: 'user',
+        language: 'pl',
       },
     }
     const { rerender } = renderHackathonList(authenticatedAuth)

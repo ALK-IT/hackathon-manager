@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Integer, String, func
+from sqlalchemy import CheckConstraint, DateTime, Integer, String, func
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -25,6 +25,9 @@ class UserRole(str, Enum):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint("language IN ('pl', 'en')", name="ck_users_language_supported"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     public_id: Mapped[uuid.UUID] = mapped_column(
@@ -36,6 +39,9 @@ class User(Base):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    language: Mapped[str] = mapped_column(
+        String(2), default="en", server_default="en", nullable=False
+    )
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     auth_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

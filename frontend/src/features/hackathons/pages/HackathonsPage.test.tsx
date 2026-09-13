@@ -15,10 +15,12 @@ const auth: AuthContextValue = {
     email: 'admin@example.com',
     created_at: '2026-08-12T10:00:00Z',
     role: 'admin',
+    language: 'pl',
   },
   isLoading: false,
   login: vi.fn(),
   register: vi.fn(),
+  updateSettings: vi.fn(),
   logout: vi.fn(),
 }
 
@@ -48,5 +50,21 @@ describe('HackathonsPage', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Utwórz hackathon' })).not.toBeInTheDocument()
+  })
+
+  it('uses the saved English language', () => {
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider
+          value={{ ...auth, user: auth.user && { ...auth.user, language: 'en' } }}
+        >
+          <HackathonsPage />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Hackathons' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'My profile' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
   })
 })

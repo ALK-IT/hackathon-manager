@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -46,6 +47,23 @@ class SimpleUserRead(BaseModel):
 
 class UserMeRead(UserRead):
     role: UserRole
+    language: Literal["pl", "en"]
+
+
+class UserSettingsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=3, max_length=100)
+    language: Literal["pl", "en"]
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value: object) -> object:
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                raise ValueError("Name cannot be empty")
+        return value
 
 
 class TokenResponse(BaseModel):
