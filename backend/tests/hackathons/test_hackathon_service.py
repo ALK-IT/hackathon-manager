@@ -202,9 +202,7 @@ async def test_create_hackathon_saves_initial_questions_in_same_transaction(
     data = create_data.model_copy(
         update={
             "questions": [
-                InitialRegistrationQuestion(
-                    content="Why do you want to join?", is_required=True
-                )
+                InitialRegistrationQuestion(content="Why do you want to join?", is_required=True)
             ]
         }
     )
