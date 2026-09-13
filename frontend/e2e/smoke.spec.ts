@@ -7,7 +7,7 @@ interface HackathonPage {
   offset: number
 }
 
-test('frontend dziala, a lista hackathonow jest publiczna', async ({ page }) => {
+test('frontend works, the hackathon list is public and the language can be changed', async ({ page }) => {
   const hackathonsResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url())
     return url.pathname === '/api/hackathons' && response.request().method() === 'GET'
@@ -22,13 +22,16 @@ test('frontend dziala, a lista hackathonow jest publiczna', async ({ page }) => 
   expect(hackathonPage.total).toEqual(expect.any(Number))
   const hackathons = hackathonPage.items
 
-  await expect(page.getByRole('heading', { name: 'Hackathony' })).toBeVisible()
-  await expect(page.getByText('Ładowanie hackathonów…')).toBeHidden()
+  await expect(page.getByRole('heading', { name: 'Hackathons' })).toBeVisible()
+  await expect(page.getByText('Loading hackathons…')).toBeHidden()
   await expect(page.getByRole('alert')).toHaveCount(0)
 
   if (hackathons.length === 0) {
-    await expect(page.getByText('Brak hackathonów do wyświetlenia.')).toBeVisible()
+    await expect(page.getByText('No hackathons to display.')).toBeVisible()
   } else {
     await expect(page.getByRole('link', { name: hackathons[0].name })).toBeVisible()
   }
+
+  await page.getByRole('button', { name: 'Change language' }).click()
+  await expect(page.getByRole('heading', { name: 'Hackathony' })).toBeVisible()
 })
