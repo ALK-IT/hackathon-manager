@@ -189,6 +189,7 @@ VITE_API_URL=http://localhost:8000 npm run dev
 | `REDIS_URL` | produkcja | Adres Redis; lokalnie domyślnie `redis://localhost:6379/0`. |
 | `JWT_SECRET_KEY` | tak | Sekret JWT o długości co najmniej 32 znaków. Wygeneruj np. przez `openssl rand -hex 32`. |
 | `RESOURCE_ENCRYPTION_KEY` | tak | Klucz Fernet służący do szyfrowania wartości zasobów. |
+| `RESOURCE_ENCRYPTION_KEYS` | nie | Klucze Fernet w kolejności `nowy,stary,...`; podczas rotacji zastępują pojedynczy klucz. |
 | `FRONTEND_ORIGINS` | nie | Lista originów CORS oddzielona przecinkami; domyślnie `http://localhost:5173`. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | nie | Czas ważności access tokena; domyślnie `30`. |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | nie | Czas ważności refresh tokena; domyślnie `7`. |

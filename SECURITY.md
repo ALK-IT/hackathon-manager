@@ -28,3 +28,18 @@ Nie zgłaszaj podatności bezpieczeństwa jako publiczny issue. Zamiast tego:
 - Waliduj i sanityzuj wszystkie dane wejściowe (użytkownika, API).
 - Nowe zależności — sprawdź, czy nie mają znanych podatności (`npm audit`, `pip-audit` uruchomią się automatycznie w CI).
 - Zgłaszaj wątpliwości bezpieczeństwa etykietą `security` na issue/PR.
+
+## Rotacja klucza szyfrowania zasobów
+
+`RESOURCE_ENCRYPTION_KEYS` to lista kluczy Fernet oddzielonych przecinkami. Pierwszy klucz
+szyfruje nowe wartości, a pozostałe służą do odszyfrowania starszych danych. Pojedynczy
+`RESOURCE_ENCRYPTION_KEY` pozostaje obsługiwany dla kompatybilności.
+
+1. Wygeneruj nowy klucz: `python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`.
+2. Wdróż backend z `RESOURCE_ENCRYPTION_KEYS=<nowy>,<stary>`. Nie usuwaj starego klucza.
+3. Zrób kopię bazy i uruchom `docker compose exec backend python -m scripts.rotate_resource_encryption`.
+4. Po poprawnej rotacji wdróż konfigurację zawierającą tylko nowy klucz.
+5. Usuń stary klucz z menedżera sekretów po sprawdzeniu odczytu zasobów.
+
+Skrypt przetwarza rekordy partiami w jednej transakcji. Błąd odszyfrowania wycofuje całą
+operację. Do rotacji muszą być skonfigurowane jednocześnie nowy i stary klucz.
