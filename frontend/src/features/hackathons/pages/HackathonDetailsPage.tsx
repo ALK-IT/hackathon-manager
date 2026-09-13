@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Countdown, Spinner } from '../../../components/ui'
 import { useAuth } from '../../auth'
+import { useTranslation } from '../../../i18n/useTranslation'
 import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
 import { CoOrganizerAutocomplete } from '../components/CoOrganizerAutocomplete'
 import { HackathonTaskManager } from '../components/HackathonTaskManager'
@@ -12,6 +13,7 @@ import {
 } from '../utils/hackathonMessages'
 
 export function HackathonDetailsPage() {
+  const { language, t } = useTranslation()
   const navigate = useNavigate()
   const { hackathonPublicId } = useParams()
   const { isLoading: isAuthLoading } = useAuth()
@@ -32,7 +34,7 @@ export function HackathonDetailsPage() {
       if (isAuthLoading) return
 
       if (!hackathonPublicId) {
-        setLoadError('Nieprawidłowy adres hackathonu.')
+        setLoadError(language === 'en' ? 'Invalid hackathon address.' : 'Nieprawidłowy adres hackathonu.')
         setIsLoading(false)
         return
       }
@@ -41,7 +43,7 @@ export function HackathonDetailsPage() {
         setHackathon(await getHackathon(hackathonPublicId, controller.signal))
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') return
-        setLoadError(getHackathonDetailsErrorMessage(error))
+          setLoadError(getHackathonDetailsErrorMessage(error, language))
       } finally {
         if (!controller.signal.aborted) setIsLoading(false)
       }
@@ -49,14 +51,14 @@ export function HackathonDetailsPage() {
 
     void loadHackathon()
     return () => controller.abort()
-  }, [hackathonPublicId, isAuthLoading])
+  }, [hackathonPublicId, isAuthLoading, language])
 
   async function handleAddCoOrganizer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!hackathonPublicId || !hackathon || hackathon.access_level !== 'owner') return
 
     if (!selectedCandidate) {
-      setFieldError('Wybierz użytkownika z listy podpowiedzi.')
+      setFieldError(language === 'en' ? 'Select a user from the suggestions.' : 'Wybierz użytkownika z listy podpowiedzi.')
       return
     }
 
@@ -78,10 +80,10 @@ export function HackathonDetailsPage() {
       setSuccessMessage(
         addedCoOrganizer
           ? `Dodano współorganizatora: ${addedCoOrganizer.name}.`
-          : 'Dodano współorganizatora.',
+          : language === 'en' ? 'Co-organizer added.' : 'Dodano współorganizatora.',
       )
     } catch (error) {
-      setSubmitError(getAddCoOrganizerErrorMessage(error))
+      setSubmitError(getAddCoOrganizerErrorMessage(error, language))
     } finally {
       setIsSubmitting(false)
     }
@@ -90,10 +92,10 @@ export function HackathonDetailsPage() {
   return (
     <main className="app-page">
       <div className="details-back-link">
-        <Link to="/hackathons">Wróć do listy hackathonów</Link>
+        <Link to="/hackathons">{t.backToList}</Link>
       </div>
 
-      {isLoading && <Spinner label="Ładowanie szczegółów hackathonu…" />}
+      {isLoading && <Spinner label={t.loadingDetails} />}
       {loadError && <Alert variant="error">{loadError}</Alert>}
 
       {hackathon && (
@@ -102,16 +104,16 @@ export function HackathonDetailsPage() {
             <h1>{hackathon.name}</h1>
             {hackathon.description && <p>{hackathon.description}</p>}
             <p>
-              Termin: {new Date(hackathon.start_date).toLocaleString('pl-PL')} –{' '}
-              {new Date(hackathon.end_date).toLocaleString('pl-PL')}
+              {t.term}: {new Date(hackathon.start_date).toLocaleString(language === 'en' ? 'en-US' : 'pl-PL')} –{' '}
+              {new Date(hackathon.end_date).toLocaleString(language === 'en' ? 'en-US' : 'pl-PL')}
             </p>
-            <Countdown startDate={hackathon.start_date} endDate={hackathon.end_date} />
-            <p>Rejestracja: {hackathon.registration_open ? 'otwarta' : 'zamknięta'}</p>
-            <p>Organizator: {hackathon.organizer.name}</p>
+            <Countdown startDate={hackathon.start_date} endDate={hackathon.end_date} language={language} />
+            <p>{t.registration}: {hackathon.registration_open ? t.registrationOpen : t.registrationClosed}</p>
+            <p>{t.organizer}: {hackathon.organizer.name}</p>
             <p>
               Maksymalna wielkość drużyny: {hackathon.max_team_size}
             </p>
-            {hackathon.capacity !== null && <p>Limit uczestników: {hackathon.capacity}</p>}
+            {hackathon.capacity !== null && <p>{t.participantLimitLabel}: {hackathon.capacity}</p>}
             {hackathon.registration_open && (
               <Button
                 type="button"
@@ -124,9 +126,9 @@ export function HackathonDetailsPage() {
           </Card>
 
           <Card>
-            <h2>Współorganizatorzy</h2>
+            <h2>{t.coOrganizers}</h2>
             {hackathon.co_organizers.length === 0 ? (
-              <p>Brak współorganizatorów.</p>
+              <p>{t.noCoOrganizers}</p>
             ) : (
               <ul className="co-organizer-list">
                 {hackathon.co_organizers.map((coOrganizer) => (
@@ -157,7 +159,7 @@ export function HackathonDetailsPage() {
                 {submitError && <Alert variant="error">{submitError}</Alert>}
                 {successMessage && <Alert>{successMessage}</Alert>}
                 <Button type="submit" variant="ghost" disabled={isSubmitting}>
-                  {isSubmitting ? 'Dodawanie…' : 'Dodaj współorganizatora'}
+                  {isSubmitting ? t.adding : t.addCoOrganizer}
                 </Button>
               </form>
             )}

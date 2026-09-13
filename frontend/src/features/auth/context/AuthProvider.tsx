@@ -4,6 +4,7 @@ import {
   loginRequest,
   logoutRequest,
   registerRequest,
+  updateUserSettingsRequest,
 } from '../api/authApi'
 import {
   clearAccessToken,
@@ -12,6 +13,8 @@ import {
 } from '../../../lib/api/client'
 import type { RegisterPayload, User } from '../types'
 import { AuthContext, type AuthContextValue } from './AuthContext'
+
+const LANGUAGE_STORAGE_KEY = 'hackathon-manager-language'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -41,6 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  useEffect(() => {
+    const language = user?.language ?? (window.localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'pl' ? 'pl' : 'en')
+    document.documentElement.lang = language
+    if (user?.language) window.localStorage.setItem(LANGUAGE_STORAGE_KEY, user.language)
+  }, [user?.language])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -58,6 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async register(payload: RegisterPayload) {
         await registerRequest(payload)
+      },
+      async updateSettings(payload) {
+        const updatedUser = await updateUserSettingsRequest(payload)
+        setUser(updatedUser)
+        return updatedUser
       },
       async logout() {
         try {

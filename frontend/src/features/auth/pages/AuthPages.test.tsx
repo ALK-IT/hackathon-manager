@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../lib/api/client'
 import { AuthContext, type AuthContextValue } from '../context/AuthContext'
 import { LoginPage } from './LoginPage'
@@ -12,6 +12,7 @@ function renderPage(page: 'login' | 'register', overrides: Partial<AuthContextVa
     isLoading: false,
     login: vi.fn(),
     register: vi.fn(),
+    updateSettings: vi.fn(),
     logout: vi.fn(),
     ...overrides,
   }
@@ -32,6 +33,17 @@ function renderPage(page: 'login' | 'register', overrides: Partial<AuthContextVa
 }
 
 describe('auth pages', () => {
+  afterEach(() => window.localStorage.setItem('hackathon-manager-language', 'pl'))
+
+  it('uses the saved language on public authentication views', () => {
+    window.localStorage.setItem('hackathon-manager-language', 'en')
+    renderPage('login')
+
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByText('Forgot your password?')).toBeInTheDocument()
+  })
+
   it('validates login fields before submission', () => {
     const auth = renderPage('login')
 

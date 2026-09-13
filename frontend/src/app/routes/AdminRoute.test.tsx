@@ -12,10 +12,12 @@ function auth(role: 'user' | 'admin'): AuthContextValue {
       email: 'user@example.com',
       created_at: '2026-08-12T10:00:00Z',
       role,
+      language: 'pl',
     },
     isLoading: false,
     login: vi.fn(),
     register: vi.fn(),
+    updateSettings: vi.fn(),
     logout: vi.fn(),
   }
 }

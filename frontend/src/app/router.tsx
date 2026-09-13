@@ -17,7 +17,7 @@ import {
   RegistrationEntryPage,
   RegistrationQuestionsSetupPage,
 } from '../features/registration'
-import { ProfilePage } from '../features/profile'
+import { ProfilePage, ProfileSettingsPage } from '../features/profile'
 import { ManageRegistrationsPage } from '../features/registration/pages/ManageRegistrationsPage'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
@@ -59,6 +59,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute>
             <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile/settings"
+        element={
+          <ProtectedRoute>
+            <ProfileSettingsPage />
           </ProtectedRoute>
         }
       />
