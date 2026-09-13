@@ -44,7 +44,11 @@ async def test_create_endpoint_returns_hackathon_without_internal_ids(
 
     response = await hackathon_client.post(
         "/api/hackathons",
-        json=create_payload() | {"registration_deadline": requested_deadline},
+        json=create_payload()
+        | {
+            "registration_deadline": requested_deadline,
+            "questions": [{"content": " Why join? ", "is_required": True}],
+        },
     )
 
     assert response.status_code == 201
@@ -66,6 +70,7 @@ async def test_create_endpoint_returns_hackathon_without_internal_ids(
     created_data, created_by = mock_hackathon_service.create_hackathon.await_args.args
     assert created_data.name == "Hackathon AI"
     assert created_data.registration_deadline == datetime.fromisoformat(requested_deadline)
+    assert created_data.questions[0].content == "Why join?"
     assert created_by is admin_user
 
 
