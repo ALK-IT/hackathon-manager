@@ -16,6 +16,18 @@ def _validate_timezone(value: datetime) -> datetime:
     return value
 
 
+class InitialRegistrationQuestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    content: str = Field(min_length=1, max_length=500)
+    is_required: bool = True
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def normalize_content(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
 class HackathonCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -28,6 +40,7 @@ class HackathonCreate(BaseModel):
     capacity: int | None = Field(default=None, ge=1)
     max_team_size: int = Field(ge=1)
     teams_enabled: bool = True
+    questions: list[InitialRegistrationQuestion] = Field(default_factory=list, max_length=50)
 
     @field_validator("name", mode="before")
     @classmethod
