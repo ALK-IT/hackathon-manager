@@ -22,14 +22,13 @@ Każde `TaskSubmission` może otrzymać ocenę punktową od 0 do 10 oraz opcjona
 Zapisywane są także czas wystawienia oceny i osoba oceniająca. Brak wartości `score` oznacza,
 że rozwiązanie nie zostało jeszcze ocenione.
 
-Oceny pozostają robocze i są widoczne wyłącznie właścicielowi hackathonu, współorganizatorom
-oraz administratorom do czasu jawnej publikacji wyników. Moment publikacji jest zapisywany w
-polu `Hackathon.evaluations_published_at`. Po publikacji uczestnik może zobaczyć wyłącznie
-oceny i feedback dotyczące rozwiązań własnej drużyny.
+Ocenianie jest dostępne dopiero po zakończeniu hackathonu (`now >= end_date`). Wcześniejsza
+próba zwraca `409 TASK_EVALUATION_NOT_OPEN`. Podczas wydarzenia organizator może przeglądać
+rozwiązania, a uczestnicy mogą zmieniać linki. Po zakończeniu linki są zablokowane, więc
+nie implementujemy czyszczenia oceny po zmianie linku.
 
-Zmiana linku rozwiązania po jego wcześniejszym ocenieniu unieważnia ocenę: `score`, `feedback`,
-`evaluated_at` i `evaluated_by_id` są czyszczone. Zapobiega to pozostawieniu oceny dotyczącej
-starszej wersji rozwiązania.
+Uczestnik widzi ocenę i feedback własnej drużyny od razu po ich zapisaniu. Osobny etap
+publikacji wyników jest poza zakresem tej wersji.
 
 Widok obecności organizatora zostanie rozszerzony o możliwość rozwinięcia rozwiązań danej
 drużyny. Status check-inu jest informacją pomocniczą i nie wpływa na możliwość podglądu ani
@@ -45,20 +44,21 @@ oceny rozwiązania.
 - `evaluated_at: datetime | None` — ustawiane dopiero podczas zapisu oceny;
 - `evaluated_by_id: int | None` — klucz obcy do `users.id` z `ON DELETE SET NULL`.
 
-`Hackathon` otrzymuje pole:
-
-- `evaluations_published_at: datetime | None` — `None` oznacza wyniki robocze.
+Istniejące pole `Hackathon.evaluations_published_at` z wcześniejszego etapu prac nie jest
+używane w tej wersji. Usunięcie go wymaga osobnej migracji porządkowej.
 
 ## Kontrakt API
 
 - `PATCH /api/hackathons/{hackathon_public_id}/tasks/{task_public_id}/submissions/{submission_public_id}/evaluation`
-  — tworzy albo aktualizuje ocenę rozwiązania;
-- `POST /api/hackathons/{hackathon_public_id}/evaluations/publish` — publikuje wyniki
-  uczestnikom;
+  — tworzy albo aktualizuje ocenę rozwiązania po zakończeniu hackathonu;
 - `GET /api/hackathons/{hackathon_public_id}/task-submissions` — zwraca osobie zarządzającej
   wszystkie rozwiązania hackathonu wraz z zadaniem, drużyną i oceną, bez wykonywania osobnego
   żądania dla każdego zadania;
-- istniejąca strefa uczestnika zwraca ocenę jego drużyny dopiero po publikacji wyników.
+- istniejąca strefa uczestnika zwraca ocenę jego drużyny od razu po zapisaniu oceny.
+
+Zbiorcza odpowiedź zawiera `task` (public_id, title), `team` (public_id, name), autora,
+link, daty i `evaluation`. Brak oceny oznacza `evaluation: null`; wynik `0` jest oceną.
+Wyniki są sortowane po identyfikatorze drużyny, zadania i rozwiązania.
 
 Endpointy zarządzające wykorzystują istniejące `can_manage_hackathon()`. Przy pobieraniu i
 ocenianiu backend sprawdza cały łańcuch `submission → task → hackathon`, aby identyfikatory
@@ -68,17 +68,17 @@ zasobów z różnych hackathonów nie mogły zostać połączone w jednym żąda
 
 **W zakresie:**
 
-- pola oceny, feedbacku, audytu oceniającego i publikacji wyników;
+- pola oceny, feedbacku i audytu oceniającego;
 - migracja Alembic wraz z ograniczeniem zakresu punktów;
 - zapis i edycja oceny przez właściciela, współorganizatora lub administratora;
-- jawna publikacja wyników na poziomie hackathonu;
-- prezentacja uczestnikowi wyłącznie oceny jego drużyny po publikacji;
+- prezentacja uczestnikowi wyłącznie oceny jego drużyny po zapisaniu;
 - zbiorczy odczyt rozwiązań dla panelu organizatora;
 - połączenie rozwiązań drużyn z frontendowym panelem obecności QR;
 - testy modelu, repozytorium, serwisu, endpointów i interfejsu.
 
 **Poza zakresem:**
 
+- oddzielna publikacja i ukrywanie zapisanych ocen;
 - ranking i leaderboard drużyn;
 - automatyczne sumowanie i wyłanianie zwycięzców;
 - definiowanie kryteriów lub wag ocen przez organizatora;
@@ -90,14 +90,14 @@ zasobów z różnych hackathonów nie mogły zostać połączone w jednym żąda
 ## Wpływ
 
 - **Frontend:** panel obecności grupuje dane według drużyn i umożliwia rozwinięcie ich rozwiązań,
-  zapis punktów i feedbacku oraz publikację wyników. Uczestnik widzi ocenę we własnej strefie
-  dopiero po publikacji.
+  zapis punktów i feedbacku po zakończeniu wydarzenia. Uczestnik widzi zapisaną ocenę
+  we własnej strefie.
 - **Backend:** moduł `hackathon_tasks` otrzymuje obsługę ocen, zbiorczy odczyt rozwiązań,
-  kontrolę publikacji oraz czyszczenie nieaktualnej oceny po zmianie linku.
+  oraz blokadę oceniania przed końcem wydarzenia.
 - **Baza danych:** nowe nullable pola w `task_submissions` i `hackathons`, klucz obcy osoby
   oceniającej oraz ograniczenie `score` do zakresu 0–10.
-- **Bezpieczeństwo:** zapis i roboczy odczyt ocen są dostępne wyłącznie zarządzającym, a
-  uczestnik może odczytać tylko opublikowane wyniki własnej drużyny.
+- **Bezpieczeństwo:** zapis ocen i zbiorczy odczyt rozwiązań są dostępne wyłącznie
+  zarządzającym, a uczestnik może odczytać tylko wyniki własnej drużyny.
 
 ## Alternatywy rozważane
 
@@ -111,4 +111,6 @@ zasobów z różnych hackathonów nie mogły zostać połączone w jednym żąda
 
 ## Changelog
 
+- 2026-09-14 — doprecyzowano ocenianie po końcu wydarzenia, bez osobnej publikacji;
+  dodano zbiorczy odczyt i jawne składanie odpowiedzi z oceną.
 - 2026-09-14 — utworzono spec oceny rozwiązań i integracji z panelem obecności QR.
