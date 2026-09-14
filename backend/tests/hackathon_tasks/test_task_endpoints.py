@@ -1,12 +1,15 @@
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
+import pytest
 from httpx import AsyncClient
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.models import User, UserRole
-from src.hackathon_tasks.models import HackathonTask
+from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 from src.hackathons.models import Hackathon
 from src.main import app
 from src.registration.models import Registration, RegistrationStatus
@@ -94,6 +97,7 @@ def test_task_routes_are_registered():
         "/api/hackathons/{hackathon_public_id}/tasks/{task_public_id}",
         "/api/hackathons/{hackathon_public_id}/tasks/{task_public_id}/submission",
         "/api/hackathons/{hackathon_public_id}/tasks/{task_public_id}/submissions",
+        "/api/hackathons/{hackathon_public_id}/tasks/{task_public_id}/submissions/{submission_public_id}/evaluation",
     }.issubset(paths)
 
 
@@ -344,6 +348,218 @@ async def test_team_members_share_one_submission_and_manager_can_list_it(
     )
     assert list_response.status_code == 200
     assert [item["public_id"] for item in list_response.json()] == [submission_public_id]
+
+
+async def test_manager_evaluates_submission_without_changing_its_author(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    team = await create_team_with_participants(session, hackathon, participant)
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
+    submission = TaskSubmission(
+        task=task,
+        team=team,
+        github_url="https://github.com/example/repo",
+        submitted_by=participant,
+    )
+    session.add(submission)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.patch(
+        f"/api/hackathons/{hackathon.public_id}/tasks/{task.public_id}"
+        f"/submissions/{submission.public_id}/evaluation",
+        json={"score": 8.75, "feedback": "Solid implementation."},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["score"] == 8.75
+    assert body["feedback"] == "Solid implementation."
+    assert body["evaluated_by"] == {
+        "public_id": str(organizer.public_id),
+        "name": organizer.name,
+    }
+    assert body["evaluated_at"] is not None
+
+    await session.refresh(submission)
+    assert submission.score == Decimal("8.75")
+    assert submission.feedback == "Solid implementation."
+    assert submission.evaluated_by_id == organizer.id
+    assert submission.evaluated_at is not None
+    assert submission.submitted_by_id == participant.id
+
+
+async def test_co_organizer_can_evaluate_submission(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
+    co_organizer = await create_user(session, "co-organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    hackathon.co_organizers.append(co_organizer)
+    team = await create_team_with_participants(session, hackathon, participant)
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
+    submission = TaskSubmission(
+        task=task,
+        team=team,
+        github_url="https://github.com/example/repo",
+        submitted_by=participant,
+    )
+    session.add(submission)
+    await session.commit()
+    force_authenticate(co_organizer)
+
+    response = await api_client.patch(
+        f"/api/hackathons/{hackathon.public_id}/tasks/{task.public_id}"
+        f"/submissions/{submission.public_id}/evaluation",
+        json={"score": 7.5},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["evaluated_by"]["public_id"] == str(co_organizer.public_id)
+
+
+async def test_participant_cannot_evaluate_submission(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    team = await create_team_with_participants(session, hackathon, participant)
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
+    submission = TaskSubmission(
+        task=task,
+        team=team,
+        github_url="https://github.com/example/repo",
+        submitted_by=participant,
+    )
+    session.add(submission)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.patch(
+        f"/api/hackathons/{hackathon.public_id}/tasks/{task.public_id}"
+        f"/submissions/{submission.public_id}/evaluation",
+        json={"score": 10},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error_code"] == "TASK_PERMISSION_DENIED"
+
+
+async def test_evaluation_rejects_submission_from_another_task(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    team = await create_team_with_participants(session, hackathon, participant)
+    first_task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
+    second_task = HackathonTask(
+        hackathon=hackathon,
+        title="Frontend",
+        description="Build it too.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
+    submission = TaskSubmission(
+        task=first_task,
+        team=team,
+        github_url="https://github.com/example/repo",
+        submitted_by=participant,
+    )
+    session.add_all([second_task, submission])
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.patch(
+        f"/api/hackathons/{hackathon.public_id}/tasks/{second_task.public_id}"
+        f"/submissions/{submission.public_id}/evaluation",
+        json={"score": 8},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error_code"] == "TASK_SUBMISSION_NOT_FOUND"
+
+
+@pytest.mark.parametrize("score", [-0.01, 10.01, 1.234])
+async def test_evaluation_validates_score(
+    score: float,
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
+    hackathon = await create_hackathon(session, organizer)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.patch(
+        f"/api/hackathons/{hackathon.public_id}/tasks/{uuid.uuid4()}"
+        f"/submissions/{uuid.uuid4()}/evaluation",
+        json={"score": score},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
+async def test_database_rejects_score_outside_range(
+    session: AsyncSession,
+):
+    organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    team = await create_team_with_participants(session, hackathon, participant)
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=datetime.now(UTC) - timedelta(minutes=1),
+    )
+    submission = TaskSubmission(
+        task=task,
+        team=team,
+        github_url="https://github.com/example/repo",
+        submitted_by=participant,
+        score=Decimal("10.01"),
+    )
+    session.add(submission)
+
+    with pytest.raises(IntegrityError):
+        await session.commit()
+
+    await session.rollback()
 
 
 async def test_participant_area_contains_description_tasks_and_team_submission(
