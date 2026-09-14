@@ -234,6 +234,136 @@ button:disabled {
   gap: 8px;
 }
 
+.attendance-qr-result {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.attendance-qr-result img {
+  box-sizing: border-box;
+  width: min(280px, 100%);
+  height: auto;
+}
+
+.attendance-scanner-actions {
+  margin-top: 16px;
+}
+
+.attendance-scanner-video {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin-top: 16px;
+  background: #000;
+}
+
+.attendance-scanner-video.is-hidden {
+  display: none;
+}
+
+.attendance-participants {
+  margin-top: 16px;
+}
+
+.attendance-participants-link {
+  margin-top: 24px;
+}
+
+.attendance-participants-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attendance-resource-notice {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.attendance-team-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.attendance-team-group {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.attendance-team-group h2 {
+  margin-top: 0;
+}
+
+.attendance-participants-list {
+  display: grid;
+  gap: 12px;
+  padding-left: 20px;
+}
+
+.attendance-participants-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.attendance-participant-details {
+  display: grid;
+  gap: 4px;
+}
+
+.attendance-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.attendance-presence-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9ca3af;
+}
+
+.attendance-presence-icon {
+  width: 14px;
+  height: 14px;
+  overflow: visible;
+}
+
+.attendance-presence-icon circle {
+  fill: #22c55e;
+}
+
+.attendance-presence-icon path {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.attendance-presence.is-present {
+  color: #15803d;
+}
+
+.attendance-presence.is-present .attendance-presence-dot {
+  background: #22c55e;
+}
+
+.attendance-resource-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 560px) {
   .page-header {
     align-items: flex-start;
@@ -242,6 +372,12 @@ button:disabled {
 
   .hackathons-layout {
     grid-template-columns: 1fr;
+  }
+
+  .attendance-participants-list li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
   }
 }
 
