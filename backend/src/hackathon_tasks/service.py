@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.auth.models import User
 from src.hackathon_tasks.exceptions import (
     InvalidTaskVisibilityDateError,
+    TaskEvaluationNotOpenError,
     TaskNotFoundError,
     TaskPermissionDeniedError,
     TasksNotReleasedError,
@@ -172,7 +173,9 @@ class TaskService:
         data: TaskSubmissionEvaluationUpdate,
         current_user: User,
     ) -> TaskSubmission:
-        await self._get_managed_hackathon(hackathon_public_id, current_user)
+        hackathon = await self._get_managed_hackathon(hackathon_public_id, current_user)
+        if datetime.now(UTC) < hackathon.end_date:
+            raise TaskEvaluationNotOpenError()
         task = await self._get_task(task_public_id, hackathon_public_id)
         submission = await self.repository.get_submission_for_update(submission_public_id, task.id)
         if submission is None:
