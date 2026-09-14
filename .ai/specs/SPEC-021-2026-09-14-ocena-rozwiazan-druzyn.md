@@ -60,6 +60,16 @@ Zbiorcza odpowiedź zawiera `task` (public_id, title), `team` (public_id, name),
 link, daty i `evaluation`. Brak oceny oznacza `evaluation: null`; wynik `0` jest oceną.
 Wyniki są sortowane po identyfikatorze drużyny, zadania i rozwiązania.
 
+Obie listy rozwiązań (`task-submissions` oraz `tasks/{task_public_id}/submissions`)
+zwracają `{items, total, limit, offset}`. Parametr `limit` ma domyślnie 50 i zakres 1–100,
+a `offset` domyślnie 0 i minimum 0. `total` opisuje wszystkie wyniki po filtrowaniu,
+także gdy strona jest pusta. Paginacja odbywa się w bazie danych.
+Zbiorczy endpoint przyjmuje opcjonalne filtry `team_public_id`, `task_public_id` i
+`evaluated` (true — ocenione, false — nieocenione, brak — wszystkie). Filtry łączą się
+przez AND i nie pozwalają wyjść poza wskazany hackathon. Niepasujący UUID zwraca pustą listę.
+Ocena 0 zalicza się do ocenionych. Lista jednego zadania ma stabilne sortowanie
+po `updated_at DESC, id`. Frontend nie korzysta jeszcze z tych dwóch endpointów.
+
 Endpointy zarządzające wykorzystują istniejące `can_manage_hackathon()`. Przy pobieraniu i
 ocenianiu backend sprawdza cały łańcuch `submission → task → hackathon`, aby identyfikatory
 zasobów z różnych hackathonów nie mogły zostać połączone w jednym żądaniu.
