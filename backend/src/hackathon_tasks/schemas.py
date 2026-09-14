@@ -176,6 +176,20 @@ class HackathonTaskSubmissionResponse(TaskSubmissionResponse):
         )
 
 
+class TaskSubmissionListResponse(BaseModel):
+    items: list[TaskSubmissionResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class HackathonTaskSubmissionListResponse(BaseModel):
+    items: list[HackathonTaskSubmissionResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class ParticipantTaskResponse(TaskResponse):
     submission: TaskSubmissionResponse | None = None
 
