@@ -348,7 +348,7 @@ async def test_team_members_share_one_submission_and_manager_can_list_it(
         f"/api/hackathons/{hackathon.public_id}/tasks/{task.public_id}/submissions"
     )
     assert list_response.status_code == 200
-    assert [item["public_id"] for item in list_response.json()] == [submission_public_id]
+    assert [item["public_id"] for item in list_response.json()["items"]] == [submission_public_id]
 
 
 async def test_manager_evaluates_submission_without_changing_its_author(
@@ -761,7 +761,8 @@ async def test_manager_lists_only_requested_hackathon_submissions(
 
     response = await api_client.get(f"/api/hackathons/{event_id}/task-submissions")
     assert response.status_code == 200
-    body = response.json()
+    assert response.json()["total"] == 2
+    body = response.json()["items"]
     assert [item["public_id"] for item in body] == expected_ids
     assert [item["task"]["public_id"] for item in body] == expected_task_ids
     assert body[0]["evaluation"]["score"] == 0
@@ -769,6 +770,44 @@ async def test_manager_lists_only_requested_hackathon_submissions(
     assert body[1]["evaluation"] is None
     assert body[0]["team"]["name"] == "Byte Buccaneers"
     assert "join_code" not in body[0]["team"]
+
+    path = f"/api/hackathons/{event_id}/task-submissions"
+    page = await api_client.get(path, params={"limit": 1, "offset": 1})
+    assert page.json()["total"] == 2
+    assert page.json()["limit"] == 1
+    assert page.json()["offset"] == 1
+    assert [item["public_id"] for item in page.json()["items"]] == expected_ids[1:]
+    past_end = await api_client.get(path, params={"offset": 100})
+    assert past_end.json()["items"] == []
+    assert past_end.json()["total"] == 2
+    for evaluated, expected in (("true", expected_ids[:1]), ("false", expected_ids[1:])):
+        filtered = await api_client.get(path, params={"evaluated": evaluated})
+        assert filtered.status_code == 200
+        assert filtered.json()["total"] == 1
+        assert [item["public_id"] for item in filtered.json()["items"]] == expected
+    filters = {
+        "team_public_id": body[0]["team"]["public_id"],
+        "task_public_id": expected_task_ids[0],
+        "evaluated": "true",
+    }
+    combined = await api_client.get(path, params=filters)
+    assert combined.json()["total"] == 1
+    assert combined.json()["items"][0]["public_id"] == expected_ids[0]
+    for key in ("team_public_id", "task_public_id"):
+        mismatch = await api_client.get(path, params={**filters, key: str(uuid.uuid4())})
+        assert mismatch.json()["total"] == 0
+        assert mismatch.json()["items"] == []
+    foreign_task = await api_client.get(path, params={"task_public_id": str(task.public_id)})
+    assert foreign_task.json()["total"] == 0
+
+    task_path = f"/api/hackathons/{event_id}/tasks/{expected_task_ids[0]}/submissions"
+    task_page = await api_client.get(task_path, params={"limit": 1})
+    assert task_page.status_code == 200
+    assert task_page.json()["total"] == 1
+    assert task_page.json()["items"][0]["public_id"] == expected_ids[0]
+    empty_task_page = await api_client.get(task_path, params={"offset": 1})
+    assert empty_task_page.json()["items"] == []
+    assert empty_task_page.json()["total"] == 1
 
     force_authenticate(participant)
     area = await api_client.get(f"/api/hackathons/{event_id}/participant-area")
@@ -798,10 +837,50 @@ async def test_hackathon_submissions_access_and_empty_results(
     force_authenticate(owner)
     response = await api_client.get(path)
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() == {"items": [], "total": 0, "limit": 50, "offset": 0}
     response = await api_client.get(f"/api/hackathons/{uuid.uuid4()}/task-submissions")
     assert response.status_code == 404
     hackathon.is_deleted = True
     await session.commit()
     response = await api_client.get(path)
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize("suffix", ["task-submissions", "tasks/{task_id}/submissions"])
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}])
+async def test_submission_pagination_validation(
+    suffix: str,
+    params: dict[str, int],
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    owner = await create_user(session, "owner@example.com")
+    force_authenticate(owner)
+    path = suffix.format(task_id=uuid.uuid4())
+    response = await api_client.get(f"/api/hackathons/{uuid.uuid4()}/{path}", params=params)
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"team_public_id": "invalid"},
+        {"task_public_id": "invalid"},
+        {"evaluated": "invalid"},
+    ],
+)
+async def test_submission_filter_validation(
+    params: dict[str, str],
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    owner = await create_user(session, "owner@example.com")
+    force_authenticate(owner)
+    response = await api_client.get(
+        f"/api/hackathons/{uuid.uuid4()}/task-submissions",
+        params=params,
+    )
+    assert response.status_code == 422
