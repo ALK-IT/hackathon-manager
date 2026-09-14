@@ -5,7 +5,10 @@ from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.auth.dependencies import get_current_user, get_optional_current_user
 from src.auth.models import User
-from src.hackathon_tasks.schemas import HackathonTaskSubmissionResponse
+from src.hackathon_tasks.schemas import (
+    HackathonTaskSubmissionListResponse,
+    HackathonTaskSubmissionResponse,
+)
 from src.hackathons.dependencies import get_current_admin, get_hackathon_service
 from src.hackathons.schemas import (
     CoOrganizerAddRequest,
@@ -176,12 +179,32 @@ async def close_registration(
 
 
 @router.get(
-    "/{hackathon_public_id}/task-submissions", response_model=list[HackathonTaskSubmissionResponse]
+    "/{hackathon_public_id}/task-submissions", response_model=HackathonTaskSubmissionListResponse
 )
 async def get_task_submissions(
     hackathon_public_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[HackathonService, Depends(get_hackathon_service)],
-) -> list[HackathonTaskSubmissionResponse]:
-    result = await service.list_submissions(hackathon_public_id, current_user)
-    return [HackathonTaskSubmissionResponse.from_submission(submission) for submission in result]
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    team_public_id: Annotated[uuid.UUID | None, Query()] = None,
+    task_public_id: Annotated[uuid.UUID | None, Query()] = None,
+    evaluated: Annotated[bool | None, Query()] = None,
+) -> HackathonTaskSubmissionListResponse:
+    result, total = await service.list_submissions(
+        hackathon_public_id,
+        current_user,
+        limit=limit,
+        offset=offset,
+        team_public_id=team_public_id,
+        task_public_id=task_public_id,
+        evaluated=evaluated,
+    )
+    return HackathonTaskSubmissionListResponse(
+        items=[
+            HackathonTaskSubmissionResponse.from_submission(submission) for submission in result
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )

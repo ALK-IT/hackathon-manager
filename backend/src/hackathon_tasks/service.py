@@ -160,10 +160,13 @@ class TaskService:
         hackathon_public_id: uuid.UUID,
         task_public_id: uuid.UUID,
         current_user: User,
-    ) -> list[TaskSubmission]:
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[TaskSubmission], int]:
         await self._get_managed_hackathon(hackathon_public_id, current_user)
         task = await self._get_task(task_public_id, hackathon_public_id)
-        return await self.repository.list_submissions(task.id)
+        return await self.repository.list_submissions(task.id, limit=limit, offset=offset)
 
     async def evaluate_submission(
         self,
