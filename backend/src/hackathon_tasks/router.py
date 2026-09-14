@@ -10,6 +10,8 @@ from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 from src.hackathon_tasks.schemas import (
     TaskCreate,
     TaskResponse,
+    TaskSubmissionEvaluationResponse,
+    TaskSubmissionEvaluationUpdate,
     TaskSubmissionResponse,
     TaskSubmissionUpsert,
     TaskUpdate,
@@ -84,3 +86,21 @@ async def list_submissions(
     service: Annotated[TaskService, Depends(get_task_service)],
 ) -> list[TaskSubmission]:
     return await service.list_submissions(hackathon_public_id, task_public_id, current_user)
+
+
+@router.patch(
+    "/{task_public_id}/submissions/{submission_public_id}/evaluation",
+    response_model=TaskSubmissionEvaluationResponse,
+)
+async def evaluate_submission(
+    hackathon_public_id: uuid.UUID,
+    task_public_id: uuid.UUID,
+    submission_public_id: uuid.UUID,
+    data: TaskSubmissionEvaluationUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[TaskService, Depends(get_task_service)],
+) -> TaskSubmissionEvaluationResponse:
+    result = await service.evaluate_submission(
+        hackathon_public_id, task_public_id, submission_public_id, data, current_user
+    )
+    return TaskSubmissionEvaluationResponse.model_validate(result)

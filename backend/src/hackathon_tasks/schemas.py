@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -114,6 +115,26 @@ class TaskSubmissionResponse(BaseModel):
     submitted_by: SubmissionUserResponse | None
     created_at: datetime
     updated_at: datetime
+
+
+class TaskSubmissionEvaluationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    score: Decimal = Field(ge=0, le=10, max_digits=4, decimal_places=2)
+    feedback: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=10_000,
+    )
+
+
+class TaskSubmissionEvaluationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    score: float
+    feedback: str | None
+    evaluated_by: SubmissionUserResponse | None
+    evaluated_at: datetime
 
 
 class ParticipantTaskResponse(TaskResponse):

@@ -91,6 +91,18 @@ class TaskRepository:
         )
         return result.one_or_none()
 
+    async def get_submission_for_update(
+        self, submission_public_id: uuid.UUID, task_id: int
+    ) -> TaskSubmission | None:
+        result = await self.session.scalars(
+            select(TaskSubmission)
+            .where(
+                TaskSubmission.public_id == submission_public_id, TaskSubmission.task_id == task_id
+            )
+            .with_for_update()
+        )
+        return result.one_or_none()
+
     async def list_submissions(self, task_id: int) -> list[TaskSubmission]:
         result = await self.session.scalars(
             select(TaskSubmission)
