@@ -99,13 +99,20 @@ class TeamService:
     async def list_accepted_users(self, team_id: int) -> list[User]:
         return await self.repository.get_members(team_id)
 
-    async def get_all_teams(self, hackathon_public_id: uuid.UUID, user: User) -> list[Team]:
+    async def get_all_teams(
+        self,
+        hackathon_public_id: uuid.UUID,
+        user: User,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Team], int]:
         hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
         if hackathon is None:
             raise HackathonNotFoundError()
         if not can_manage_hackathon(hackathon, user):
             raise TeamPermissionDeniedError()
-        return await self.repository.get_teams(hackathon.id)
+        return await self.repository.get_teams(hackathon.id, limit=limit, offset=offset)
 
     @staticmethod
     def _ensure_teams_enabled(hackathon: Hackathon) -> None:

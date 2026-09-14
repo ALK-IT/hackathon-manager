@@ -52,6 +52,13 @@ class CheckInListItemResponse(BaseModel):
         )
 
 
+class CheckInListResponse(BaseModel):
+    items: list[CheckInListItemResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class AttendanceTeamResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -81,3 +88,10 @@ class AttendanceParticipantResponse(BaseModel):
                 registration.check_in.checked_in_at if registration.check_in is not None else None
             ),
         )
+
+
+class AttendanceParticipantListResponse(BaseModel):
+    items: list[AttendanceParticipantResponse]
+    total: int
+    limit: int
+    offset: int
