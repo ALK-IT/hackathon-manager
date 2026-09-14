@@ -63,3 +63,10 @@ class TeamDetailResponse(BaseModel):
                 for registration in team.registrations
             ],
         )
+
+
+class TeamListResponse(BaseModel):
+    items: list[TeamDetailResponse]
+    total: int
+    limit: int
+    offset: int

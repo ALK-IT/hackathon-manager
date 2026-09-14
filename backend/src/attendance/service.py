@@ -123,26 +123,42 @@ class AttendanceService:
             raise
         return check_in
 
-    async def list_check_ins(self, hackathon_public_id: uuid.UUID, user: User) -> list[CheckIn]:
+    async def list_check_ins(
+        self,
+        hackathon_public_id: uuid.UUID,
+        user: User,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[CheckIn], int]:
         hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
         if hackathon is None:
             raise HackathonNotFoundError()
         if not can_manage_hackathon(hackathon, user):
             raise AttendancePermissionError()
-        return await self.attendance_repository.get_check_ins_by_hackathon(hackathon.id)
+        return await self.attendance_repository.get_check_ins_by_hackathon(
+            hackathon.id,
+            limit=limit,
+            offset=offset,
+        )
 
     async def list_attendance(
         self,
         hackathon_public_id: uuid.UUID,
         user: User,
-    ) -> list[Registration]:
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Registration], int]:
         hackathon = await self.hackathon_repository.get_active_by_public_id(hackathon_public_id)
         if hackathon is None:
             raise HackathonNotFoundError()
         if not can_manage_hackathon(hackathon, user):
             raise AttendancePermissionError()
         return await self.attendance_repository.get_accepted_registrations_with_attendance(
-            hackathon.id
+            hackathon.id,
+            limit=limit,
+            offset=offset,
         )
 
     @staticmethod
