@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.auth.dependencies import get_current_user, get_optional_current_user
 from src.auth.models import User
+from src.hackathon_tasks.schemas import HackathonTaskSubmissionResponse
 from src.hackathons.dependencies import get_current_admin, get_hackathon_service
 from src.hackathons.schemas import (
     CoOrganizerAddRequest,
@@ -172,3 +173,15 @@ async def close_registration(
 ) -> HackathonRegistrationStateRead:
     hackathon = await service.close_registration(public_id, current_user)
     return HackathonRegistrationStateRead.from_hackathon(hackathon)
+
+
+@router.get(
+    "/{hackathon_public_id}/task-submissions", response_model=list[HackathonTaskSubmissionResponse]
+)
+async def get_task_submissions(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> list[HackathonTaskSubmissionResponse]:
+    result = await service.list_submissions(hackathon_public_id, current_user)
+    return [HackathonTaskSubmissionResponse.from_submission(submission) for submission in result]
