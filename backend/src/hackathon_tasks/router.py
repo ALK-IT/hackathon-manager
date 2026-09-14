@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Response, status
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
 from src.hackathon_tasks.dependencies import get_task_service
-from src.hackathon_tasks.models import HackathonTask, TaskSubmission
+from src.hackathon_tasks.models import HackathonTask
 from src.hackathon_tasks.schemas import (
     TaskCreate,
     TaskResponse,
@@ -69,13 +69,14 @@ async def upsert_submission(
     data: TaskSubmissionUpsert,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TaskService, Depends(get_task_service)],
-) -> TaskSubmission:
-    return await service.upsert_submission(
+) -> TaskSubmissionResponse:
+    submission = await service.upsert_submission(
         hackathon_public_id,
         task_public_id,
         data,
         current_user,
     )
+    return TaskSubmissionResponse.from_submission(submission)
 
 
 @router.get("/{task_public_id}/submissions", response_model=list[TaskSubmissionResponse])
@@ -84,8 +85,9 @@ async def list_submissions(
     task_public_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TaskService, Depends(get_task_service)],
-) -> list[TaskSubmission]:
-    return await service.list_submissions(hackathon_public_id, task_public_id, current_user)
+) -> list[TaskSubmissionResponse]:
+    submissions = await service.list_submissions(hackathon_public_id, task_public_id, current_user)
+    return [TaskSubmissionResponse.from_submission(submission) for submission in submissions]
 
 
 @router.patch(

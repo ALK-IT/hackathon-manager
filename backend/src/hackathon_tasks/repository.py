@@ -51,6 +51,7 @@ class TaskRepository:
             .options(
                 selectinload(TaskSubmission.team),
                 selectinload(TaskSubmission.submitted_by),
+                selectinload(TaskSubmission.evaluated_by),
             )
             .order_by(HackathonTask.visible_from, HackathonTask.created_at, HackathonTask.id)
         )
@@ -87,6 +88,7 @@ class TaskRepository:
             .options(
                 selectinload(TaskSubmission.team),
                 selectinload(TaskSubmission.submitted_by),
+                selectinload(TaskSubmission.evaluated_by),
             )
         )
         return result.one_or_none()
@@ -110,6 +112,7 @@ class TaskRepository:
             .options(
                 selectinload(TaskSubmission.team),
                 selectinload(TaskSubmission.submitted_by),
+                selectinload(TaskSubmission.evaluated_by),
             )
             .order_by(TaskSubmission.updated_at.desc(), TaskSubmission.id)
         )
