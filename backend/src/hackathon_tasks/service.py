@@ -10,11 +10,17 @@ from src.hackathon_tasks.exceptions import (
     TaskPermissionDeniedError,
     TasksNotReleasedError,
     TaskSubmissionClosedError,
+    TaskSubmissionNotFoundError,
     TeamRequiredForSubmissionError,
 )
 from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 from src.hackathon_tasks.repository import TaskRepository
-from src.hackathon_tasks.schemas import TaskCreate, TaskSubmissionUpsert, TaskUpdate
+from src.hackathon_tasks.schemas import (
+    TaskCreate,
+    TaskSubmissionEvaluationUpdate,
+    TaskSubmissionUpsert,
+    TaskUpdate,
+)
 from src.hackathons.access import can_manage_hackathon
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
@@ -157,6 +163,30 @@ class TaskService:
         await self._get_managed_hackathon(hackathon_public_id, current_user)
         task = await self._get_task(task_public_id, hackathon_public_id)
         return await self.repository.list_submissions(task.id)
+
+    async def evaluate_submission(
+        self,
+        hackathon_public_id: uuid.UUID,
+        task_public_id: uuid.UUID,
+        submission_public_id: uuid.UUID,
+        data: TaskSubmissionEvaluationUpdate,
+        current_user: User,
+    ) -> TaskSubmission:
+        await self._get_managed_hackathon(hackathon_public_id, current_user)
+        task = await self._get_task(task_public_id, hackathon_public_id)
+        submission = await self.repository.get_submission_for_update(submission_public_id, task.id)
+        if submission is None:
+            raise TaskSubmissionNotFoundError()
+        try:
+            submission.score = data.score
+            submission.feedback = data.feedback
+            submission.evaluated_at = datetime.now(UTC)
+            submission.evaluated_by = current_user
+            await self.repository.commit()
+            return submission
+        except SQLAlchemyError:
+            await self.repository.rollback()
+            raise
 
     async def _get_hackathon(self, public_id: uuid.UUID) -> Hackathon:
         hackathon = await self.hackathon_repository.get_active_by_public_id(public_id)
