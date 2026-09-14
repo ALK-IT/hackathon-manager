@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.auth.models import User
+from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 from src.hackathons.models import Hackathon
 from src.registration.models import Registration, RegistrationStatus
 
@@ -171,6 +172,22 @@ class HackathonRepository:
         )
         result = await self.session.scalars(statement)
         return result.unique().one_or_none()
+
+    async def list_submissions(self, hackathon_id: int) -> list[TaskSubmission]:
+        statement = (
+            select(TaskSubmission)
+            .join(TaskSubmission.task)
+            .where(HackathonTask.hackathon_id == hackathon_id)
+            .options(
+                selectinload(TaskSubmission.task),
+                selectinload(TaskSubmission.team),
+                selectinload(TaskSubmission.submitted_by),
+                selectinload(TaskSubmission.evaluated_by),
+            )
+            .order_by(TaskSubmission.team_id, TaskSubmission.task_id, TaskSubmission.id)
+        )
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
 
     async def add(self, hackathon: Hackathon) -> None:
         self.session.add(hackathon)
