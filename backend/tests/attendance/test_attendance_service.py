@@ -26,8 +26,8 @@ def attendance_repository(mocker):
     repository.create_check_in_session = mocker.AsyncMock()
     repository.get_valid_session_for_update = mocker.AsyncMock()
     repository.get_check_in_by_registration_id = mocker.AsyncMock()
-    repository.get_check_ins_by_hackathon = mocker.AsyncMock(return_value=[])
-    repository.get_accepted_registrations_with_attendance = mocker.AsyncMock(return_value=[])
+    repository.get_check_ins_by_hackathon = mocker.AsyncMock(return_value=([], 0))
+    repository.get_accepted_registrations_with_attendance = mocker.AsyncMock(return_value=([], 0))
     repository.create_check_in = mocker.AsyncMock()
     repository.commit = mocker.AsyncMock()
     repository.rollback = mocker.AsyncMock()
@@ -296,15 +296,17 @@ async def test_list_check_ins_returns_repository_models(
         registration=registration,
     )
     mocker.patch("src.attendance.service.can_manage_hackathon", return_value=True)
-    attendance_repository.get_check_ins_by_hackathon.return_value = [check_in]
+    attendance_repository.get_check_ins_by_hackathon.return_value = ([check_in], 1)
 
     result = await attendance_service.list_check_ins(
         uuid.uuid4(),
         SimpleNamespace(id=20),
     )
 
-    assert len(result) == 1
-    assert result == [check_in]
+    assert result == ([check_in], 1)
+    attendance_repository.get_check_ins_by_hackathon.assert_awaited_once_with(
+        10, limit=50, offset=0
+    )
 
 
 async def test_list_attendance_returns_accepted_registrations(
@@ -314,15 +316,22 @@ async def test_list_attendance_returns_accepted_registrations(
 ):
     registrations = [SimpleNamespace(id=30), SimpleNamespace(id=31)]
     mocker.patch("src.attendance.service.can_manage_hackathon", return_value=True)
-    attendance_repository.get_accepted_registrations_with_attendance.return_value = registrations
+    attendance_repository.get_accepted_registrations_with_attendance.return_value = (
+        registrations,
+        2,
+    )
 
     result = await attendance_service.list_attendance(
         uuid.uuid4(),
         SimpleNamespace(id=20),
     )
 
-    assert result == registrations
-    attendance_repository.get_accepted_registrations_with_attendance.assert_awaited_once_with(10)
+    assert result == (registrations, 2)
+    attendance_repository.get_accepted_registrations_with_attendance.assert_awaited_once_with(
+        10,
+        limit=50,
+        offset=0,
+    )
 
 
 async def test_list_attendance_rejects_user_without_management_permission(
