@@ -93,6 +93,7 @@ async def create_team_with_participants(
 def test_task_routes_are_registered():
     paths = set(app.openapi()["paths"])
     assert {
+        "/api/hackathons/{hackathon_public_id}/task-submissions",
         "/api/hackathons/{hackathon_public_id}/tasks",
         "/api/hackathons/{hackathon_public_id}/tasks/{task_public_id}",
         "/api/hackathons/{hackathon_public_id}/tasks/{task_public_id}/submission",
@@ -357,7 +358,7 @@ async def test_manager_evaluates_submission_without_changing_its_author(
 ):
     organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
     participant = await create_user(session, "participant@example.com")
-    hackathon = await create_hackathon(session, organizer)
+    hackathon = await create_hackathon(session, organizer, ended=True)
     team = await create_team_with_participants(session, hackathon, participant)
     task = HackathonTask(
         hackathon=hackathon,
@@ -407,7 +408,7 @@ async def test_co_organizer_can_evaluate_submission(
     organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
     co_organizer = await create_user(session, "co-organizer@example.com")
     participant = await create_user(session, "participant@example.com")
-    hackathon = await create_hackathon(session, organizer)
+    hackathon = await create_hackathon(session, organizer, ended=True)
     hackathon.co_organizers.append(co_organizer)
     team = await create_team_with_participants(session, hackathon, participant)
     task = HackathonTask(
@@ -478,7 +479,7 @@ async def test_evaluation_rejects_submission_from_another_task(
 ):
     organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
     participant = await create_user(session, "participant@example.com")
-    hackathon = await create_hackathon(session, organizer)
+    hackathon = await create_hackathon(session, organizer, ended=True)
     team = await create_team_with_participants(session, hackathon, participant)
     first_task = HackathonTask(
         hackathon=hackathon,
@@ -666,3 +667,141 @@ async def test_submission_requires_authentication(api_client: AsyncClient):
     )
 
     assert response.status_code == 401
+
+
+async def test_evaluation_is_not_open_during_hackathon(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    team = await create_team_with_participants(session, hackathon, participant)
+    task = HackathonTask(
+        hackathon=hackathon,
+        title="API",
+        description="Build it.",
+        visible_from=hackathon.start_date,
+    )
+    submission = TaskSubmission(
+        task=task,
+        team=team,
+        submitted_by=participant,
+        github_url="https://github.com/example/repo",
+    )
+    session.add(submission)
+    await session.commit()
+    force_authenticate(organizer)
+
+    response = await api_client.patch(
+        f"/api/hackathons/{hackathon.public_id}/tasks/{task.public_id}"
+        f"/submissions/{submission.public_id}/evaluation",
+        json={"score": 0},
+    )
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "TASK_EVALUATION_NOT_OPEN"
+    await session.refresh(submission)
+    assert submission.score is None
+    assert submission.evaluated_at is None
+
+
+@pytest.mark.parametrize("access", ["owner", "co_organizer", "admin"])
+async def test_manager_lists_only_requested_hackathon_submissions(
+    access: str,
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    owner = await create_user(session, "owner@example.com")
+    manager = (
+        owner
+        if access == "owner"
+        else await create_user(
+            session,
+            "manager@example.com",
+            role=UserRole.ADMIN if access == "admin" else UserRole.USER,
+        )
+    )
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, owner, ended=True)
+    if access == "co_organizer":
+        hackathon.co_organizers.append(manager)
+    other_hackathon = await create_hackathon(session, owner, ended=True)
+    submissions = []
+    for event in (hackathon, other_hackathon):
+        team = await create_team_with_participants(session, event, participant)
+        for index in range(2):
+            task = HackathonTask(
+                hackathon=event,
+                title=f"Task {index}",
+                description="Build it.",
+                visible_from=event.start_date,
+            )
+            submission = TaskSubmission(
+                task=task,
+                team=team,
+                submitted_by=participant,
+                github_url="https://github.com/example/repo",
+                score=Decimal(0) if index == 0 else None,
+                feedback="Needs work." if index == 0 else None,
+                evaluated_at=datetime.now(UTC) if index == 0 else None,
+                evaluated_by=owner if index == 0 else None,
+            )
+            session.add(submission)
+            if event is hackathon:
+                submissions.append(submission)
+    await session.commit()
+    event_id = hackathon.public_id
+    expected_ids = [str(item.public_id) for item in submissions]
+    expected_task_ids = [str(item.task.public_id) for item in submissions]
+    # Force queries to load relationships rather than reuse objects built by this test.
+    session.expunge_all()
+    force_authenticate(manager)
+
+    response = await api_client.get(f"/api/hackathons/{event_id}/task-submissions")
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["public_id"] for item in body] == expected_ids
+    assert [item["task"]["public_id"] for item in body] == expected_task_ids
+    assert body[0]["evaluation"]["score"] == 0
+    assert body[0]["evaluation"]["evaluated_by"]["public_id"] == str(owner.public_id)
+    assert body[1]["evaluation"] is None
+    assert body[0]["team"]["name"] == "Byte Buccaneers"
+    assert "join_code" not in body[0]["team"]
+
+    force_authenticate(participant)
+    area = await api_client.get(f"/api/hackathons/{event_id}/participant-area")
+    assert area.status_code == 200
+    assert area.json()["tasks"][0]["submission"]["evaluation"]["score"] == 0
+
+
+async def test_hackathon_submissions_access_and_empty_results(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    owner = await create_user(session, "owner@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, owner)
+    await create_team_with_participants(session, hackathon, participant)
+    await session.commit()
+    path = f"/api/hackathons/{hackathon.public_id}/task-submissions"
+    response = await api_client.get(path)
+    assert response.status_code == 401
+
+    force_authenticate(participant)
+    response = await api_client.get(path)
+    assert response.status_code == 403
+    assert response.json()["error_code"] == "TASK_PERMISSION_DENIED"
+
+    force_authenticate(owner)
+    response = await api_client.get(path)
+    assert response.status_code == 200
+    assert response.json() == []
+    response = await api_client.get(f"/api/hackathons/{uuid.uuid4()}/task-submissions")
+    assert response.status_code == 404
+    hackathon.is_deleted = True
+    await session.commit()
+    response = await api_client.get(path)
+    assert response.status_code == 404
