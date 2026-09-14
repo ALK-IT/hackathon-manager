@@ -1,8 +1,20 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -64,6 +76,10 @@ class TaskSubmission(Base):
     __table_args__ = (
         UniqueConstraint("task_id", "team_id", name="uq_task_submission_task_team"),
         Index("ix_task_submissions_public_id", "public_id", unique=True),
+        CheckConstraint(
+            "score >= 0 AND score <= 10",
+            name="ck_task_submissions_score_range",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -101,6 +117,27 @@ class TaskSubmission(Base):
         nullable=False,
     )
 
+    score: Mapped[Decimal | None] = mapped_column(Numeric(4, 2), nullable=True)
+
+    feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    evaluated_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "users.id",
+            name="fk_task_submissions_evaluated_by_id_users",
+            ondelete="SET NULL",
+        ),
+        index=True,
+        nullable=True,
+    )
+
     task: Mapped["HackathonTask"] = relationship(back_populates="submissions")
     team: Mapped["Team"] = relationship(back_populates="task_submissions")
-    submitted_by: Mapped["User | None"] = relationship(back_populates="task_submissions")
+    submitted_by: Mapped["User | None"] = relationship(
+        back_populates="task_submissions", foreign_keys=[submitted_by_id]
+    )
+    evaluated_by: Mapped["User | None"] = relationship(
+        back_populates="task_evaluations", foreign_keys=[evaluated_by_id]
+    )

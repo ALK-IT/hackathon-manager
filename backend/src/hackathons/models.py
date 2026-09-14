@@ -113,6 +113,10 @@ class Hackathon(Base):
         nullable=False,
     )
 
+    evaluations_published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     organizer: Mapped["User"] = relationship(
         back_populates="organized_hackathons",
         foreign_keys=[organizer_id],
