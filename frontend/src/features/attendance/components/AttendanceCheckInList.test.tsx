@@ -13,7 +13,7 @@ describe('AttendanceCheckInList', () => {
   })
 
   it('displays all accepted participants and their presence status', async () => {
-    vi.mocked(getAttendanceParticipants).mockResolvedValue([
+    vi.mocked(getAttendanceParticipants).mockResolvedValue({ items: [
       {
         participant: {
           public_id: 'present-participant-id',
@@ -38,7 +38,7 @@ describe('AttendanceCheckInList', () => {
         is_present: false,
         checked_in_at: null,
       },
-    ])
+    ], total: 2, limit: 20, offset: 0 })
     render(<AttendanceCheckInList hackathonPublicId="hackathon-id" />)
 
     expect(
@@ -75,12 +75,12 @@ describe('AttendanceCheckInList', () => {
     ).toBeInTheDocument()
     expect(getAttendanceParticipants).toHaveBeenCalledWith(
       'hackathon-id',
-      expect.any(AbortSignal),
+      { limit: 20, offset: 0, signal: expect.any(AbortSignal) },
     )
   })
 
   it('shows an empty state when there are no accepted participants', async () => {
-    vi.mocked(getAttendanceParticipants).mockResolvedValue([])
+    vi.mocked(getAttendanceParticipants).mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 })
     render(<AttendanceCheckInList hackathonPublicId="hackathon-id" />)
 
     expect(
@@ -89,7 +89,7 @@ describe('AttendanceCheckInList', () => {
   })
 
   it('refreshes the participant list on demand', async () => {
-    vi.mocked(getAttendanceParticipants).mockResolvedValue([])
+    vi.mocked(getAttendanceParticipants).mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 })
     render(<AttendanceCheckInList hackathonPublicId="hackathon-id" />)
 
     const refreshButton = await screen.findByRole('button', {
@@ -102,12 +102,12 @@ describe('AttendanceCheckInList', () => {
     )
     expect(getAttendanceParticipants).toHaveBeenLastCalledWith(
       'hackathon-id',
-      undefined,
+      { limit: 20, offset: 0, signal: expect.any(AbortSignal) },
     )
   })
 
   it('shows participants without a team separately', async () => {
-    vi.mocked(getAttendanceParticipants).mockResolvedValue([
+    vi.mocked(getAttendanceParticipants).mockResolvedValue({ items: [
       {
         participant: {
           public_id: 'participant-id',
@@ -120,7 +120,7 @@ describe('AttendanceCheckInList', () => {
         is_present: false,
         checked_in_at: null,
       },
-    ])
+    ], total: 1, limit: 20, offset: 0 })
 
     render(<AttendanceCheckInList hackathonPublicId="hackathon-id" />)
 
