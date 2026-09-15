@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Card, Countdown } from '../../../components/ui'
 import type { Hackathon } from '../types'
+import { useHasEnded } from '../../evaluations/utils'
 
 interface HackathonListItemProps {
   hackathon: Hackathon
@@ -14,6 +15,7 @@ const registrationStatusLabels = {
 
 export function HackathonListItem({ hackathon }: HackathonListItemProps) {
   const navigate = useNavigate()
+  const hasEnded = useHasEnded(hackathon.end_date)
 
   return (
     <li>
@@ -38,10 +40,10 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
             type="button"
             variant="ghost"
             onClick={() =>
-              navigate(`/hackathons/${hackathon.public_id}/participant-area`)
+              navigate(`/hackathons/${hackathon.public_id}/participant-area${hasEnded ? '?view=results' : ''}`)
             }
           >
-            Przejdź do hackathonu
+            {hasEnded ? 'Zobacz wyniki' : 'Przejdź do hackathonu'}
           </Button>
         ) : (
           hackathon.my_registration_status === null &&
