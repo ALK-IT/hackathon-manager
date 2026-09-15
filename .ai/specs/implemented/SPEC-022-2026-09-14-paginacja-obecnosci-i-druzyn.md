@@ -30,14 +30,19 @@ członków każdej zwróconej drużyny. Drużyna nigdy nie jest dzielona między
 - dotychczasowe uprawnienia właściciela, współorganizatora i administratora;
 - testy paginacji, walidacji, izolacji hackathonów i kompletności drużyn.
 
-Poza zakresem: nowe filtry, zmiany check-inów, przypisywanie zasobów, frontend panelu QR.
+Poza zakresem: nowe filtry, zmiany check-inów, przypisywanie zasobów.
 
 ## Wpływ
 
 - **Backend:** zamiast surowej listy zwracana jest strona z metadanymi; brak migracji.
-- **Frontend:** na bazowym main nie ma klienta tych endpointów. Branch panelu QR musi
-  zostać dostosowany przed wspólnym wdrożeniem: odczyt `items`, sterowanie stronami,
-  liczniki z `total`. Operacje „dla wszystkich” nie mogą obejmować tylko bieżącej strony.
+- **Frontend:** panel QR obsługuje strony po 20 elementów oraz widoki „Uczestnicy”
+  i „Drużyny”. Odczytuje `items` i liczniki z `total`, pobiera tylko wybraną stronę.
+  W widoku uczestników grupowanie dotyczy bieżącej strony (z opisem w UI), a widok
+  drużyn pokazuje pełne składy. Odświeżanie zachowuje stronę, chyba że ta już nie istnieje.
+  Zmiana hackathonu/widoku resetuje stronę; wcześniejsze żądania są anulowane.
+  Klient `check-ins` także obsługuje strony, lecz nie ma osobnego widoku w tym panelu.
+  Przyciski zasobów nadal są nieaktywne. Przyszłe operacje „dla wszystkich” muszą
+  objąć pełen zbiór odbiorców po stronie backendu, niezależnie od bieżącej strony.
 - **Bezpieczeństwo:** uprawnienia sprawdzane przed pobraniem i policzeniem wyników;
   licznik uwzględnia wyłącznie wskazany hackathon i dotychczasowe warunki widoczności.
 
@@ -55,3 +60,7 @@ Przy równoległych zmianach danych limit/offset nie gwarantuje niezmiennego obr
 
 Weryfikacja: 71 testów attendance/teams i pełny backend (478 testów) przeszły;
 Black i Ruff bez błędów.
+
+Po integracji panelu QR: 127 testów frontendu, `npm run build` i `npm run lint`
+przeszły. Testy obejmują nawigację stron, odświeżanie, zmniejszenie liczby wyników,
+błędy pobierania, anulowanie nieaktualnych żądań oraz widok pełnych drużyn.
