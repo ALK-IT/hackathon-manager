@@ -54,9 +54,17 @@ export interface TaskSubmissionTeam {
   name: string
 }
 
+export interface TaskSubmissionEvaluation {
+  score: number
+  feedback: string | null
+  evaluated_by: TaskSubmissionUser | null
+  evaluated_at: string
+}
+
 export interface TaskSubmission {
   public_id: string
   github_url: string
+  evaluation: TaskSubmissionEvaluation | null
   team: TaskSubmissionTeam
   submitted_by: TaskSubmissionUser | null
   created_at: string
