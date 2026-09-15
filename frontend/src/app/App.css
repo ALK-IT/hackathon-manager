@@ -358,10 +358,16 @@ button:disabled {
   background: #22c55e;
 }
 
-.attendance-resource-actions {
+.attendance-resource-actions,
+.submission-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.evaluation-feedback {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 560px) {
