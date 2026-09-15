@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Countdown, Spinner } from '../../../components/ui'
 import { AttendanceQrGenerator } from '../../attendance'
+import { useHasEnded } from '../../evaluations/utils'
 import { useAuth } from '../../auth'
 import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
 import { CoOrganizerAutocomplete } from '../components/CoOrganizerAutocomplete'
@@ -26,6 +27,7 @@ export function HackathonDetailsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const hasEnded = useHasEnded(hackathon?.end_date ?? '')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -199,6 +201,12 @@ export function HackathonDetailsPage() {
                 </div>
               </Card>
             )}
+          {hasEnded && (user?.role === 'admin' || hackathon.access_level === 'owner' ||
+            hackathon.access_level === 'co_organizer') && (
+            <Card>
+              <Link to={`/hackathons/${hackathon.public_id}/solutions`}>Oceń rozwiązania</Link>
+            </Card>
+          )}
         </div>
       )}
     </main>
