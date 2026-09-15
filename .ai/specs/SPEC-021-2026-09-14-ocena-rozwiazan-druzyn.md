@@ -68,7 +68,22 @@ Zbiorczy endpoint przyjmuje opcjonalne filtry `team_public_id`, `task_public_id`
 `evaluated` (true — ocenione, false — nieocenione, brak — wszystkie). Filtry łączą się
 przez AND i nie pozwalają wyjść poza wskazany hackathon. Niepasujący UUID zwraca pustą listę.
 Ocena 0 zalicza się do ocenionych. Lista jednego zadania ma stabilne sortowanie
-po `updated_at DESC, id`. Frontend nie korzysta jeszcze z tych dwóch endpointów.
+po `updated_at DESC, id`. Frontend korzysta ze zbiorczego endpointu `task-submissions`.
+
+### Widoki frontendu
+
+- `/hackathons/:id/solutions` — widok organizatora, współorganizatora lub administratora;
+  podczas wydarzenia tylko podgląd, po końcu także formularze ocen 0–10 i feedbacku.
+- Link przy drużynie w panelu obecności wybiera filtr drużyny. Lista ma strony po 20
+  rozwiązań oraz filtry zadania i stanu oceny. Zmiana filtrów resetuje stronę,
+  zapis oceny odświeża wyniki (także przy filtrze „nieocenione”).
+- Strefa uczestnika po końcu wydarzenia udostępnia „Zobacz wyniki” i odświeżanie:
+  zadania, własne linki, oceny oraz feedback. Rozróżniamy brak rozwiązania i brak oceny.
+- Przycisk na kafelku zaakceptowanego uczestnika po końcu prowadzi do wyników.
+- Czas jest sprawdzany lokalnie, bez cyklicznego odpytywania API. Backend pozostaje
+  autorytetem dla uprawnień i dat. Nie zapisujemy rozwiązań ani ocen w localStorage.
+- Indywidualny udział bez drużyny oraz automatyczne tworzenie drużyn jednoosobowych
+  pozostają poza zakresem. Nie zmieniamy backendu zapisów ani zasobów.
 
 Endpointy zarządzające wykorzystują istniejące `can_manage_hackathon()`. Przy pobieraniu i
 ocenianiu backend sprawdza cały łańcuch `submission → task → hackathon`, aby identyfikatory
@@ -120,6 +135,10 @@ zasobów z różnych hackathonów nie mogły zostać połączone w jednym żąda
   prowadzi do liczby żądań zależnej od liczby zadań.
 
 ## Changelog
+
+- 2026-09-15 — dodano frontend podglądu, oceniania i wyników. Weryfikacja:
+  144 testy frontendu, build i ESLint; test przeglądarkowy zapisu oceny oraz
+  odczytu wyników na kontrolowanych atrapach API. Bez zmian backendu i prawdziwych danych.
 
 - 2026-09-14 — doprecyzowano ocenianie po końcu wydarzenia, bez osobnej publikacji;
   dodano zbiorczy odczyt i jawne składanie odpowiedzi z oceną.
