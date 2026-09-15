@@ -110,6 +110,7 @@ describe('HackathonListItem', () => {
             ...hackathon,
             registration_open: false,
             my_registration_status: 'accepted',
+            end_date: new Date(Date.now() + 3600000).toISOString(),
           }}
         />
         <Location />
@@ -138,6 +139,19 @@ describe('HackathonListItem', () => {
     expect(
       screen.queryByRole('button', { name: 'Przejdź do hackathonu' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('links an accepted participant to results after the end', () => {
+    function Location() {
+      const location = useLocation()
+      return <output>{location.pathname}{location.search}</output>
+    }
+    render(<MemoryRouter>
+      <HackathonListItem hackathon={{ ...hackathon, end_date: new Date(Date.now() - 1000).toISOString(), my_registration_status: 'accepted' }} />
+      <Location />
+    </MemoryRouter>)
+    fireEvent.click(screen.getByRole('button', { name: 'Zobacz wyniki' }))
+    expect(screen.getByText(`/hackathons/${hackathon.public_id}/participant-area?view=results`)).toBeInTheDocument()
   })
 
   it('shows a rejected status without registration or participant area buttons', () => {
