@@ -1,0 +1,51 @@
+import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { describe, expect, it, vi } from 'vitest'
+import { getAttendanceParticipants, getAttendanceTeams } from '../api/attendanceApi'
+import { AttendanceParticipantsPage } from './AttendanceParticipantsPage'
+
+vi.mock('../api/attendanceApi', () => ({
+  getAttendanceParticipants: vi.fn(),
+  getAttendanceTeams: vi.fn(),
+}))
+
+describe('AttendanceParticipantsPage', () => {
+  it('displays attendance in a separate hackathon view', async () => {
+    vi.mocked(getAttendanceParticipants).mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 })
+
+    render(
+      <MemoryRouter initialEntries={['/hackathons/hackathon-id/attendance']}>
+        <Routes>
+          <Route
+            path="/hackathons/:hackathonPublicId/attendance"
+            element={<AttendanceParticipantsPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(
+      screen.getByRole('heading', { name: 'Uczestnicy' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Wróć do hackathonu' })).toHaveAttribute(
+      'href',
+      '/hackathons/hackathon-id',
+    )
+    expect(
+      await screen.findByText('Brak zaakceptowanych uczestników.'),
+    ).toBeInTheDocument()
+
+    vi.mocked(getAttendanceTeams).mockResolvedValue({
+      items: [{ public_id: 'team', name: 'Alpha', participants: [
+        { public_id: 'one', name: 'Jan' }, { public_id: 'two', name: 'Anna' },
+      ] }], total: 1, limit: 20, offset: 0,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Drużyny' }))
+    await screen.findByRole('heading', { name: 'Alpha' })
+    expect(screen.getByText('Jan')).toBeInTheDocument()
+    expect(screen.getByText('Anna')).toBeInTheDocument()
+    expect(screen.getByText('Łącznie: 1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Następna strona' })).toBeDisabled()
+    expect(getAttendanceTeams).toHaveBeenCalledWith('hackathon-id', expect.objectContaining({ limit: 20, offset: 0 }))
+  })
+})

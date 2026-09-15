@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -52,36 +52,53 @@ class AttendanceRepository:
     async def get_check_ins_by_hackathon(
         self,
         hackathon_id: int,
-    ) -> list[CheckIn]:
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[CheckIn], int]:
+        total = await self.session.scalar(
+            select(func.count(CheckIn.id))
+            .join(CheckIn.registration)
+            .where(Registration.hackathon_id == hackathon_id)
+        )
         statement = (
             select(CheckIn)
             .join(CheckIn.registration)
             .where(Registration.hackathon_id == hackathon_id)
             .options(selectinload(CheckIn.registration).selectinload(Registration.user))
-            .order_by(CheckIn.checked_in_at)
+            .order_by(CheckIn.checked_in_at, CheckIn.id)
+            .limit(limit)
+            .offset(offset)
         )
         result = await self.session.scalars(statement)
-        return list(result.all())
+        return list(result.all()), int(total or 0)
 
     async def get_accepted_registrations_with_attendance(
         self,
         hackathon_id: int,
-    ) -> list[Registration]:
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Registration], int]:
+        filters = (
+            Registration.hackathon_id == hackathon_id,
+            Registration.status == RegistrationStatus.ACCEPTED,
+        )
+        total = await self.session.scalar(select(func.count(Registration.id)).where(*filters))
         statement = (
             select(Registration)
-            .where(
-                Registration.hackathon_id == hackathon_id,
-                Registration.status == RegistrationStatus.ACCEPTED,
-            )
+            .where(*filters)
             .options(
                 selectinload(Registration.user),
                 selectinload(Registration.team),
                 selectinload(Registration.check_in),
             )
             .order_by(Registration.id)
+            .limit(limit)
+            .offset(offset)
         )
         result = await self.session.scalars(statement)
-        return list(result.all())
+        return list(result.all()), int(total or 0)
 
     async def commit(self) -> None:
         await self.session.commit()

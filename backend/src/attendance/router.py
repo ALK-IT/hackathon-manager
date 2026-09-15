@@ -1,12 +1,14 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.attendance.dependencies import get_attendance_service
 from src.attendance.schemas import (
+    AttendanceParticipantListResponse,
     AttendanceParticipantResponse,
     CheckInListItemResponse,
+    CheckInListResponse,
     CheckInRequest,
     CheckInResponse,
     SessionCreateRequest,
@@ -41,33 +43,57 @@ async def create_check_in_session(
 
 @router.get(
     "/hackathons/{hackathon_public_id}/check-ins",
-    response_model=list[CheckInListItemResponse],
+    response_model=CheckInListResponse,
     status_code=status.HTTP_200_OK,
 )
 async def list_check_ins(
     hackathon_public_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AttendanceService, Depends(get_attendance_service)],
-) -> list[CheckInListItemResponse]:
-    check_ins = await service.list_check_ins(hackathon_public_id, current_user)
-    return [CheckInListItemResponse.from_check_in(check_in) for check_in in check_ins]
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> CheckInListResponse:
+    check_ins, total = await service.list_check_ins(
+        hackathon_public_id,
+        current_user,
+        limit=limit,
+        offset=offset,
+    )
+    return CheckInListResponse(
+        items=[CheckInListItemResponse.from_check_in(check_in) for check_in in check_ins],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get(
     "/hackathons/{hackathon_public_id}/attendance",
-    response_model=list[AttendanceParticipantResponse],
+    response_model=AttendanceParticipantListResponse,
     status_code=status.HTTP_200_OK,
 )
 async def list_attendance(
     hackathon_public_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[AttendanceService, Depends(get_attendance_service)],
-) -> list[AttendanceParticipantResponse]:
-    registrations = await service.list_attendance(hackathon_public_id, current_user)
-    return [
-        AttendanceParticipantResponse.from_registration(registration)
-        for registration in registrations
-    ]
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> AttendanceParticipantListResponse:
+    registrations, total = await service.list_attendance(
+        hackathon_public_id,
+        current_user,
+        limit=limit,
+        offset=offset,
+    )
+    return AttendanceParticipantListResponse(
+        items=[
+            AttendanceParticipantResponse.from_registration(registration)
+            for registration in registrations
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.put(
