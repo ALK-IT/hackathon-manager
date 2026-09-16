@@ -37,5 +37,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-018 | Odliczanie na publicznej stronie hackathonu | Zaimplementowany | [implemented/SPEC-018-2026-08-26-odliczanie-hackathonu.md](implemented/SPEC-018-2026-08-26-odliczanie-hackathonu.md) |
 | SPEC-019 | Potwierdzanie obecności uczestników kodem QR | Zaimplementowany | [implemented/SPEC-019-2026-09-07-potwierdzanie-obecnosci-qr.md](implemented/SPEC-019-2026-09-07-potwierdzanie-obecnosci-qr.md) |
 | SPEC-020 | Rate limiting endpointów auth | Zaimplementowany | [implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md](implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md) |
+| SPEC-021 | Powiadomienia w aplikacji | Zaimplementowany | [implemented/SPEC-021-2026-09-11-powiadomienia-w-aplikacji.md](implemented/SPEC-021-2026-09-11-powiadomienia-w-aplikacji.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

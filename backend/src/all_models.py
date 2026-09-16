@@ -2,6 +2,7 @@ from src.attendance.models import CheckIn, CheckInSession
 from src.auth.models import User
 from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 from src.hackathons.models import Hackathon
+from src.notifications.models import Notification
 from src.registration.models import (
     Registration,
     RegistrationAnswer,
@@ -15,6 +16,7 @@ __all__ = [
     "CheckInSession",
     "Hackathon",
     "HackathonTask",
+    "Notification",
     "Registration",
     "RegistrationAnswer",
     "RegistrationQuestion",
