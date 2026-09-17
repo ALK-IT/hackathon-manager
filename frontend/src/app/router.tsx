@@ -22,6 +22,7 @@ import { ManageRegistrationsPage } from '../features/registration/pages/ManageRe
 import { ProfilePage } from '../features/profile'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
+import { RequireHackathonManager } from './routes/RequireHackathonManager'
 import { PublicOnlyRoute } from './routes/PublicOnlyRoute'
 
 export function AppRouter() {
@@ -120,7 +121,9 @@ export function AppRouter() {
         path="/hackathons/:hackathonPublicId/attendance"
         element={
           <ProtectedRoute>
-            <AttendanceParticipantsPage />
+            <RequireHackathonManager>
+              <AttendanceParticipantsPage />
+            </RequireHackathonManager>
           </ProtectedRoute>
         }
       />
