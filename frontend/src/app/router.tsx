@@ -6,6 +6,7 @@ import {
   ResetPasswordPage,
   VerifyEmailPage,
 } from '../features/auth'
+import { AttendanceParticipantsPage } from '../features/attendance'
 import {
   CreateHackathonPage,
   EditHackathonPage,
@@ -21,6 +22,7 @@ import { ManageRegistrationsPage } from '../features/registration/pages/ManageRe
 import { ProfilePage } from '../features/profile'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
+import { RequireHackathonManager } from './routes/RequireHackathonManager'
 import { PublicOnlyRoute } from './routes/PublicOnlyRoute'
 
 export function AppRouter() {
@@ -112,6 +114,16 @@ export function AppRouter() {
         element={
           <ProtectedRoute>
             <ParticipantAreaPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hackathons/:hackathonPublicId/attendance"
+        element={
+          <ProtectedRoute>
+            <RequireHackathonManager>
+              <AttendanceParticipantsPage />
+            </RequireHackathonManager>
           </ProtectedRoute>
         }
       />

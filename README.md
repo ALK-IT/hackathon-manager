@@ -91,7 +91,7 @@ CodeQL, gitleaks (skan sekretów) i audyt zależności (`npm audit` / `pip-audit
 
 - Docker z Docker Compose — zalecany wariant uruchomienia całego projektu,
 - Python 3.12 — wymagany przy uruchamianiu backendu poza Dockerem,
-- Node.js 22 i npm — wymagane przy uruchamianiu frontendu poza Dockerem.
+- Node.js 24 i npm — wymagane przy uruchamianiu frontendu poza Dockerem.
 
 ### Docker Compose (zalecane)
 
