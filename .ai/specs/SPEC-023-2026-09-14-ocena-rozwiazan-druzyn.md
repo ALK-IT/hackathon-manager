@@ -44,8 +44,11 @@ oceny rozwiązania.
 - `evaluated_at: datetime | None` — ustawiane dopiero podczas zapisu oceny;
 - `evaluated_by_id: int | None` — klucz obcy do `users.id` z `ON DELETE SET NULL`.
 
-Istniejące pole `Hackathon.evaluations_published_at` z wcześniejszego etapu prac nie jest
-używane w tej wersji. Usunięcie go wymaga osobnej migracji porządkowej.
+Pole `Hackathon.evaluations_published_at` z wcześniejszego etapu prac zostało usunięte
+z modelu i osobną migracją porządkową. Nie zmieniamy już zastosowanej migracji oceniania.
+Migracja scalająca łączy heady `0022` (powiadomienia) i `a5daab672728` (ocenianie),
+a następująca po niej migracja usuwa nieużywaną kolumnę. Downgrade przywraca kolumnę,
+ale nie odtwarza ewentualnych wcześniejszych wartości.
 
 ## Kontrakt API
 
@@ -104,7 +107,7 @@ zasobów z różnych hackathonów nie mogły zostać połączone w jednym żąda
   we własnej strefie.
 - **Backend:** moduł `hackathon_tasks` otrzymuje obsługę ocen, zbiorczy odczyt rozwiązań,
   oraz blokadę oceniania przed końcem wydarzenia.
-- **Baza danych:** nowe nullable pola w `task_submissions` i `hackathons`, klucz obcy osoby
+- **Baza danych:** nowe nullable pola w `task_submissions`, klucz obcy osoby
   oceniającej oraz ograniczenie `score` do zakresu 0–10.
 - **Bezpieczeństwo:** zapis ocen i zbiorczy odczyt rozwiązań są dostępne wyłącznie
   zarządzającym, a uczestnik może odczytać tylko wyniki własnej drużyny.
@@ -120,6 +123,9 @@ zasobów z różnych hackathonów nie mogły zostać połączone w jednym żąda
   prowadzi do liczby żądań zależnej od liczby zadań.
 
 ## Changelog
+
+- 2026-09-18 — scalono historię migracji powiadomień i oceniania; usunięto nieużywane
+  pole publikacji wyników z modelu oraz dodano migrację usuwającą kolumnę.
 
 - 2026-09-14 — doprecyzowano ocenianie po końcu wydarzenia, bez osobnej publikacji;
   dodano zbiorczy odczyt i jawne składanie odpowiedzi z oceną.
