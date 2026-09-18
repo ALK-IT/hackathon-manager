@@ -87,6 +87,7 @@ services:
       - EMAIL_FROM=${EMAIL_FROM:-no-reply@hackathon-manager.local}
       # Local development fallback only; override this key in deployed environments.
       - RESOURCE_ENCRYPTION_KEY=${RESOURCE_ENCRYPTION_KEY:-9pCSQ_fFpSdZmaSE0l3uR4vNc-KJ9gNJp0stKVSHQX8=} # gitleaks:allow
+      - RESOURCE_ENCRYPTION_KEYS=${RESOURCE_ENCRYPTION_KEYS:-}
     volumes:
       - ./backend:/app
     depends_on:
