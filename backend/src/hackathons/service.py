@@ -27,7 +27,7 @@ from src.hackathons.exceptions import (
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
 from src.hackathons.schemas import CoOrganizerAddRequest, HackathonCreate, HackathonUpdate
-from src.registration.models import RegistrationStatus
+from src.registration.models import RegistrationQuestion, RegistrationStatus
 
 
 class HackathonService:
@@ -82,9 +82,12 @@ class HackathonService:
             raise AdminRequiredError
 
         hackathon = Hackathon(
-            **data.model_dump(),
+            **data.model_dump(exclude={"questions"}),
             organizer=user,
             co_organizers=[],
+            questions=[
+                RegistrationQuestion(**question.model_dump()) for question in data.questions
+            ],
             registration_open=True,
             is_deleted=False,
         )

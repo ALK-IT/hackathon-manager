@@ -12,9 +12,9 @@ hackathonu, mimo że backend udostępniał już wymagane endpointy.
 
 ## Rozwiązanie
 
-Po utworzeniu hackathonu administrator jest kierowany na stronę konfiguracji pytań. Może dodać
-wiele pytań, oznaczyć je jako wymagane, usunąć pozycje przed zapisem albo pominąć ten krok.
-Pytania są wysyłane jednym żądaniem do istniejącego endpointu zbiorczego.
+Administrator konfiguruje pytania bezpośrednio w formularzu tworzenia hackathonu. Hackathon
+i jego pytania są zapisywane atomowo w jednej transakcji, dzięki czemu ustawienie otwarcia
+rejestracji na bieżący moment nie blokuje późniejszego żądania zapisu pytań.
 
 Kafelek hackathonu pokazuje przycisk `Ustawienia`, gdy `access_level` ma wartość `owner` lub
 `co_organizer`. Strona ustawień pobiera aktualne dane i zapisuje zmiany przez `PATCH`.
@@ -25,9 +25,8 @@ normalizacja danych oraz walidacja nie są powielane.
 
 **W zakresie:**
 
-- przekierowanie z tworzenia hackathonu do konfiguracji pytań;
-- dodawanie, usuwanie i oznaczanie pytań jako wymaganych przed zbiorczym zapisem;
-- możliwość pominięcia konfiguracji pytań;
+- dodawanie, usuwanie i oznaczanie pytań jako wymaganych w formularzu tworzenia;
+- atomowe tworzenie hackathonu i początkowych pytań;
 - edycja nazwy, opisu, terminów, limitu uczestników i maksymalnej wielkości drużyny;
 - dostęp do ustawień dla właściciela i współorganizatora;
 - wspólny formularz tworzenia i edycji hackathonu;
@@ -37,16 +36,16 @@ normalizacja danych oraz walidacja nie są powielane.
 
 - zmiana pytań po otwarciu rejestracji;
 - edycja istniejącego pytania po jego zapisaniu;
-- nowe endpointy lub zmiany modelu bazy danych;
+- zmiany modelu bazy danych;
 - zarządzanie zgłoszeniami uczestników.
 
 ## Wpływ
 
 - **Frontend:** nowe strony konfiguracji pytań i ustawień, wspólny `HackathonForm` oraz warunkowy
   przycisk na kafelku hackathonu.
-- **Backend:** bez zmian; frontend używa istniejących endpointów pytań i hackathonów.
-- **API:** `POST /api/hackathons/{id}/questions/bulk`, `GET /api/hackathons/{id}` oraz
-  `PATCH /api/hackathons/{id}`.
+- **Backend:** `HackathonCreate` przyjmuje opcjonalną listę początkowych pytań.
+- **API:** `POST /api/hackathons` tworzy hackathon razem z pytaniami; istniejące endpointy
+  odczytu i edycji pozostają bez zmian.
 - **Baza danych:** bez zmian.
 
 ## Alternatywy rozważane
@@ -60,3 +59,4 @@ istniejący endpoint zbiorczy, aby ograniczyć kod klienta i liczbę operacji si
 - 2026-08-22 — dodano konfigurację pytań po utworzeniu hackathonu.
 - 2026-08-22 — dodano edycję ustawień dla właściciela i współorganizatora.
 - 2026-08-22 — wydzielono wspólny formularz tworzenia i edycji.
+- 2026-09-13 — przeniesiono pytania do formularza tworzenia i zapisano je atomowo z hackathonem.
