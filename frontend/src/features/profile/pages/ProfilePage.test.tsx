@@ -6,6 +6,7 @@ import { getProfileHackathons } from '../api/profileApi'
 import { ProfilePage } from './ProfilePage'
 
 vi.mock('../api/profileApi', () => ({ getProfileHackathons: vi.fn() }))
+vi.mock('../../notifications', () => ({ NotificationBell: () => null }))
 
 const auth: AuthContextValue = {
   user: {
