@@ -1,4 +1,4 @@
-# SPEC-021: Rotacja kluczy szyfrowania zasobów
+# SPEC-022: Rotacja kluczy szyfrowania zasobów
 
 **Status:** Zaimplementowany
 **Data:** 2026-09-13

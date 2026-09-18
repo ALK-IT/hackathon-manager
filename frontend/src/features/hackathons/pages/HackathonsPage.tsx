@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../../../components/ui'
 import { useAuth } from '../../auth'
+import { NotificationBell } from '../../notifications'
 import { HackathonList } from '../components/HackathonList'
 
 export function HackathonsPage() {
@@ -21,6 +22,7 @@ export function HackathonsPage() {
         </div>
         {user ? (
           <div className="page-header-actions">
+            <NotificationBell />
             <span>Rola: {user.role}</span>
             <Link to="/profile">Mój profil</Link>
             {user.role === 'admin' && (

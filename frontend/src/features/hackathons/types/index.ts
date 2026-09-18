@@ -46,6 +46,7 @@ export interface CreateHackathonPayload {
   registration_deadline?: string
   capacity?: number
   max_team_size: number
+  questions?: Array<{ content: string; is_required: boolean }>
 }
 
 export interface UpdateHackathonPayload extends Omit<

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Countdown, Spinner } from '../../../components/ui'
+import { AttendanceQrGenerator } from '../../attendance'
 import { useAuth } from '../../auth'
 import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
 import { CoOrganizerAutocomplete } from '../components/CoOrganizerAutocomplete'
@@ -10,11 +11,12 @@ import {
   getAddCoOrganizerErrorMessage,
   getHackathonDetailsErrorMessage,
 } from '../utils/hackathonMessages'
+import { isHackathonInProgress } from '../utils/hackathonTime'
 
 export function HackathonDetailsPage() {
   const navigate = useNavigate()
   const { hackathonPublicId } = useParams()
-  const { isLoading: isAuthLoading } = useAuth()
+  const { user, isLoading: isAuthLoading } = useAuth()
   const [hackathon, setHackathon] = useState<HackathonDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -173,6 +175,30 @@ export function HackathonDetailsPage() {
               />
             </Card>
           )}
+
+          {isHackathonInProgress(hackathon.start_date, hackathon.end_date) &&
+            (user?.role === 'admin' ||
+              hackathon.access_level === 'owner' ||
+              hackathon.access_level === 'co_organizer') && (
+              <Card>
+                <AttendanceQrGenerator
+                  hackathonPublicId={hackathon.public_id}
+                />
+                <div className="attendance-participants-link">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() =>
+                      navigate(
+                        `/hackathons/${hackathon.public_id}/attendance`,
+                      )
+                    }
+                  >
+                    Pokaż uczestników
+                  </Button>
+                </div>
+              </Card>
+            )}
         </div>
       )}
     </main>

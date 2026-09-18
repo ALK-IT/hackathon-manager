@@ -101,7 +101,9 @@ export function ManageRegistrationsPage() {
             <ul>
               {registrations.map((registration) => (
                 <li key={registration.public_id}>
-                  {registration.user.name} — {labels[registration.status]}{' '}
+                  {registration.user.name}
+                  {registration.team && ` (${registration.team.name})`} —{' '}
+                  {labels[registration.status]}{' '}
                   <Button
                     type="button"
                     variant="ghost"

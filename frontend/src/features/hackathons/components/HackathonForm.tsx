@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '../../../components/ui'
 import { FormField } from '../../auth/components/FormField'
 import {
@@ -26,6 +26,7 @@ interface HackathonFormProps {
   registrationDeadlineRequired?: boolean
   onSubmit: (values: NormalizedHackathonValues) => void | Promise<void>
   onCancel: () => void
+  children?: ReactNode
 }
 
 function toLocalDateTime(date: Date): string {
@@ -41,6 +42,7 @@ export function HackathonForm({
   registrationDeadlineRequired = false,
   onSubmit,
   onCancel,
+  children,
 }: HackathonFormProps) {
   const [values, setValues] = useState(initialValues)
   const [errors, setErrors] = useState<HackathonFormErrors>({})
@@ -156,6 +158,7 @@ export function HackathonForm({
         required
         onChange={(event) => updateValue('maxTeamSize', event.target.value)}
       />
+      {children}
       <div className="form-actions">
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? submittingLabel : submitLabel}

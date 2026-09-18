@@ -27,7 +27,12 @@ from src.hackathons.exceptions import (
     RegistrationDeadlinePassedError,
 )
 from src.hackathons.repository import HackathonRepository
-from src.hackathons.schemas import CoOrganizerAddRequest, HackathonCreate, HackathonUpdate
+from src.hackathons.schemas import (
+    CoOrganizerAddRequest,
+    HackathonCreate,
+    HackathonUpdate,
+    InitialRegistrationQuestion,
+)
 from src.hackathons.service import HackathonService
 from src.registration.models import RegistrationStatus
 from tests.hackathons.factories import NOW, HackathonFactory, UserFactory
@@ -186,6 +191,29 @@ async def test_admin_can_create_hackathon(
     repository.add.assert_awaited_once_with(hackathon)
     repository.commit.assert_awaited_once_with()
     repository.rollback.assert_not_awaited()
+
+
+async def test_create_hackathon_saves_initial_questions_in_same_transaction(
+    repository: HackathonRepository,
+    admin_user: User,
+    create_data: HackathonCreate,
+):
+    service = make_service(repository)
+    data = create_data.model_copy(
+        update={
+            "questions": [
+                InitialRegistrationQuestion(content="Why do you want to join?", is_required=True)
+            ]
+        }
+    )
+
+    hackathon = await service.create_hackathon(data, admin_user)
+
+    assert len(hackathon.questions) == 1
+    assert hackathon.questions[0].content == "Why do you want to join?"
+    assert hackathon.questions[0].is_required is True
+    repository.add.assert_awaited_once_with(hackathon)
+    repository.commit.assert_awaited_once_with()
 
 
 async def test_regular_user_cannot_create_hackathon(
