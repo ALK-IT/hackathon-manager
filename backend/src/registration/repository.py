@@ -13,6 +13,7 @@ from src.registration.models import (
     RegistrationQuestion,
     RegistrationStatus,
 )
+from src.teams.models import Team
 
 
 class RegistrationQuestionRepository:
@@ -91,6 +92,8 @@ class RegistrationRepository:
         result = await self.session.execute(
             select(Registration)
             .join(Registration.hackathon)
+            .join(Registration.user)
+            .outerjoin(Registration.team)
             .where(Hackathon.public_id == hackathon_public_id)
             .options(
                 selectinload(Registration.hackathon).selectinload(Hackathon.co_organizers),
@@ -99,7 +102,11 @@ class RegistrationRepository:
                 selectinload(Registration.team),
                 selectinload(Registration.answers).selectinload(RegistrationAnswer.question),
             )
-            .order_by(Registration.id)
+            .order_by(
+                Team.name.asc().nulls_last(),
+                User.name.asc(),
+                Registration.id,
+            )
             .limit(limit)
             .offset(offset)
         )

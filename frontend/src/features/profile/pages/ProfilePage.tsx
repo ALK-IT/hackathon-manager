@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { useTranslation } from '../../../i18n/useTranslation'
 import { useAuth } from '../../auth'
+import { NotificationBell } from '../../notifications'
 import { getProfileHackathons } from '../api/profileApi'
 import type { ProfileHackathon } from '../types'
 
@@ -63,6 +64,7 @@ export function ProfilePage() {
     <main className="app-page profile-page">
       <nav className="profile-nav" aria-label={t.profileNavigation}>
         <Link to="/hackathons">{t.backToHackathons}</Link>
+        <NotificationBell />
       </nav>
 
       <Card className="profile-hero">
