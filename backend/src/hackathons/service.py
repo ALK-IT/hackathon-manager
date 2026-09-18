@@ -7,6 +7,9 @@ from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
 from src.common.rate_limit import SlidingWindowRateLimiter
 from src.common.sqlalchemy import get_integrity_error_constraint
+from src.hackathon_tasks.exceptions import TaskPermissionDeniedError
+from src.hackathon_tasks.models import TaskSubmission
+from src.hackathons.access import can_manage_hackathon
 from src.hackathons.constants import CO_ORGANIZER_SEARCH_RESULT_LIMIT
 from src.hackathons.exceptions import (
     AdminRequiredError,
@@ -75,6 +78,29 @@ class HackathonService:
             user.id,
             limit=limit,
             offset=offset,
+        )
+
+    async def list_submissions(
+        self,
+        hackathon_public_id: uuid.UUID,
+        user: User,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        team_public_id: uuid.UUID | None = None,
+        task_public_id: uuid.UUID | None = None,
+        evaluated: bool | None = None,
+    ) -> tuple[list[TaskSubmission], int]:
+        hackathon = await self.get_hackathon(hackathon_public_id)
+        if not can_manage_hackathon(hackathon, user):
+            raise TaskPermissionDeniedError()
+        return await self.hackathon_repository.list_submissions(
+            hackathon.id,
+            limit=limit,
+            offset=offset,
+            team_public_id=team_public_id,
+            task_public_id=task_public_id,
+            evaluated=evaluated,
         )
 
     async def create_hackathon(self, data: HackathonCreate, user: User) -> Hackathon:

@@ -69,7 +69,9 @@ class User(Base):
         back_populates="assigned_by"
     )
     resource_audit_logs: Mapped[list["ResourceAuditLog"]] = relationship(back_populates="user")
-    task_submissions: Mapped[list["TaskSubmission"]] = relationship(back_populates="submitted_by")
+    task_submissions: Mapped[list["TaskSubmission"]] = relationship(
+        back_populates="submitted_by", foreign_keys="TaskSubmission.submitted_by_id"
+    )
     notifications: Mapped[list["Notification"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -77,4 +79,7 @@ class User(Base):
     )
     check_in_sessions_created: Mapped[list["CheckInSession"]] = relationship(
         back_populates="created_by"
+    )
+    task_evaluations: Mapped[list["TaskSubmission"]] = relationship(
+        back_populates="evaluated_by", foreign_keys="TaskSubmission.evaluated_by_id"
     )

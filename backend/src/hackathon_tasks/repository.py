@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import false, select
+from sqlalchemy import false, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -51,6 +51,7 @@ class TaskRepository:
             .options(
                 selectinload(TaskSubmission.team),
                 selectinload(TaskSubmission.submitted_by),
+                selectinload(TaskSubmission.evaluated_by),
             )
             .order_by(HackathonTask.visible_from, HackathonTask.created_at, HackathonTask.id)
         )
@@ -87,21 +88,42 @@ class TaskRepository:
             .options(
                 selectinload(TaskSubmission.team),
                 selectinload(TaskSubmission.submitted_by),
+                selectinload(TaskSubmission.evaluated_by),
             )
         )
         return result.one_or_none()
 
-    async def list_submissions(self, task_id: int) -> list[TaskSubmission]:
+    async def get_submission_for_update(
+        self, submission_public_id: uuid.UUID, task_id: int
+    ) -> TaskSubmission | None:
+        result = await self.session.scalars(
+            select(TaskSubmission)
+            .where(
+                TaskSubmission.public_id == submission_public_id, TaskSubmission.task_id == task_id
+            )
+            .with_for_update()
+        )
+        return result.one_or_none()
+
+    async def list_submissions(
+        self, task_id: int, *, limit: int = 50, offset: int = 0
+    ) -> tuple[list[TaskSubmission], int]:
+        total = await self.session.scalar(
+            select(func.count(TaskSubmission.id)).where(TaskSubmission.task_id == task_id)
+        )
         result = await self.session.scalars(
             select(TaskSubmission)
             .where(TaskSubmission.task_id == task_id)
             .options(
                 selectinload(TaskSubmission.team),
                 selectinload(TaskSubmission.submitted_by),
+                selectinload(TaskSubmission.evaluated_by),
             )
             .order_by(TaskSubmission.updated_at.desc(), TaskSubmission.id)
+            .limit(limit)
+            .offset(offset)
         )
-        return list(result.all())
+        return list(result.all()), int(total or 0)
 
     async def add_task(self, task: HackathonTask) -> HackathonTask:
         self.session.add(task)

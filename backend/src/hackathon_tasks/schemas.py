@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -105,6 +106,26 @@ class SubmissionTeamResponse(BaseModel):
     name: str
 
 
+class TaskSubmissionEvaluationUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    score: Decimal = Field(ge=0, le=10, max_digits=4, decimal_places=2)
+    feedback: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=10_000,
+    )
+
+
+class TaskSubmissionEvaluationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    score: float
+    feedback: str | None
+    evaluated_by: SubmissionUserResponse | None
+    evaluated_at: datetime
+
+
 class TaskSubmissionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -114,6 +135,59 @@ class TaskSubmissionResponse(BaseModel):
     submitted_by: SubmissionUserResponse | None
     created_at: datetime
     updated_at: datetime
+    evaluation: TaskSubmissionEvaluationResponse | None
+
+    @classmethod
+    def from_submission(cls, submission: TaskSubmission) -> "TaskSubmissionResponse":
+        return cls(
+            public_id=submission.public_id,
+            github_url=submission.github_url,
+            team=SubmissionTeamResponse.model_validate(submission.team),
+            submitted_by=(
+                SubmissionUserResponse.model_validate(submission.submitted_by)
+                if submission.submitted_by is not None
+                else None
+            ),
+            created_at=submission.created_at,
+            updated_at=submission.updated_at,
+            evaluation=(
+                TaskSubmissionEvaluationResponse.model_validate(submission)
+                if submission.score is not None
+                else None
+            ),
+        )
+
+
+class SubmissionTaskResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    public_id: uuid.UUID
+    title: str
+
+
+class HackathonTaskSubmissionResponse(TaskSubmissionResponse):
+    task: SubmissionTaskResponse
+
+    @classmethod
+    def from_submission(cls, submission: TaskSubmission) -> "HackathonTaskSubmissionResponse":
+        return cls(
+            **TaskSubmissionResponse.from_submission(submission).model_dump(),
+            task=SubmissionTaskResponse.model_validate(submission.task),
+        )
+
+
+class TaskSubmissionListResponse(BaseModel):
+    items: list[TaskSubmissionResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class HackathonTaskSubmissionListResponse(BaseModel):
+    items: list[HackathonTaskSubmissionResponse]
+    total: int
+    limit: int
+    offset: int
 
 
 class ParticipantTaskResponse(TaskResponse):
@@ -133,7 +207,7 @@ class ParticipantTaskResponse(TaskResponse):
             created_at=task.created_at,
             updated_at=task.updated_at,
             submission=(
-                TaskSubmissionResponse.model_validate(submission)
+                TaskSubmissionResponse.from_submission(submission)
                 if submission is not None
                 else None
             ),
