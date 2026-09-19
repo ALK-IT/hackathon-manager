@@ -17,7 +17,7 @@ const resource: MyResource = {
 function renderCard(item: MyResource = resource) {
   return render(
     <MemoryRouter>
-      <ResourceCard resource={item} />
+      <ResourceCard resource={item} hackathonPublicId="hackathon-id" />
     </MemoryRouter>,
   )
 }

@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getMyResources } from '../api/resourcesApi'
+import { getMyResources, revealResourceValue } from '../api/resourcesApi'
 import type { MyResource } from '../types'
 import { HackathonResourcesPanel } from './HackathonResourcesPanel'
 
@@ -31,7 +31,10 @@ const resources: MyResource[] = [
 ]
 
 describe('HackathonResourcesPanel', () => {
-  beforeEach(() => vi.mocked(getMyResources).mockReset())
+  beforeEach(() => {
+    vi.mocked(getMyResources).mockReset()
+    vi.mocked(revealResourceValue).mockReset()
+  })
 
   it('shows only resources assigned for the selected hackathon', async () => {
     vi.mocked(getMyResources).mockResolvedValue(resources)
@@ -49,6 +52,31 @@ describe('HackathonResourcesPanel', () => {
     )
     expect(screen.getByRole('button', { name: 'Pokaż' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Kopiuj' })).toBeInTheDocument()
+    expect(getMyResources).toHaveBeenCalledWith('hackathon-id', expect.any(AbortSignal))
+  })
+
+  it('passes the selected hackathon when revealing a resource', async () => {
+    vi.mocked(getMyResources).mockResolvedValue([resources[0]])
+    vi.mocked(revealResourceValue).mockResolvedValue('revealed-secret')
+    render(<HackathonResourcesPanel hackathonPublicId="hackathon-id" />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Pokaż' }))
+
+    expect(await screen.findByText('revealed-secret')).toBeInTheDocument()
+    expect(revealResourceValue).toHaveBeenCalledWith('current-resource-id', 'hackathon-id')
+  })
+
+  it('fetches resources again with the new hackathon context', async () => {
+    vi.mocked(getMyResources).mockResolvedValueOnce([resources[0]])
+      .mockResolvedValueOnce([resources[1]])
+    const { rerender } = render(<HackathonResourcesPanel hackathonPublicId="hackathon-id" />)
+    await screen.findByRole('heading', { name: resources[0].name })
+
+    rerender(<HackathonResourcesPanel hackathonPublicId="other-hackathon-id" />)
+
+    expect(await screen.findByRole('heading', { name: resources[1].name })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: resources[0].name })).not.toBeInTheDocument()
+    expect(getMyResources).toHaveBeenLastCalledWith('other-hackathon-id', expect.any(AbortSignal))
   })
 
   it('shows an empty state for a hackathon without assigned resources', async () => {

@@ -5,6 +5,7 @@ import { ResourceSecret } from './ResourceSecret'
 
 interface ResourceCardProps {
   resource: MyResource
+  hackathonPublicId: string
 }
 
 const targetLabels = {
@@ -18,7 +19,7 @@ function formatMetadataValue(value: ResourceMetadataValue): string {
   return String(value)
 }
 
-export function ResourceCard({ resource }: ResourceCardProps) {
+export function ResourceCard({ resource, hackathonPublicId }: ResourceCardProps) {
   const metadata = Object.entries(resource.metadata)
 
   return (
@@ -49,7 +50,9 @@ export function ResourceCard({ resource }: ResourceCardProps) {
         {resource.is_revoked ? (
           <Alert variant="error">Zasób został cofnięty przez organizatora.</Alert>
         ) : (
-          <ResourceSecret onReveal={() => revealResourceValue(resource.public_id)} />
+          <ResourceSecret
+            onReveal={() => revealResourceValue(resource.public_id, hackathonPublicId)}
+          />
         )}
       </Card>
     </li>

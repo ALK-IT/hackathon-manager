@@ -4,6 +4,7 @@ import { ResourceCard } from './ResourceCard'
 const meta: Meta<typeof ResourceCard> = {
   title: 'Resources/ResourceCard',
   component: ResourceCard,
+  args: { hackathonPublicId: 'hackathon-id' },
   tags: ['autodocs'],
 }
 export default meta

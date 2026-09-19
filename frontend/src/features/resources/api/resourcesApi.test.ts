@@ -10,9 +10,9 @@ describe('resourcesApi', () => {
   it('gets resources assigned to the current user', () => {
     const controller = new AbortController()
 
-    getMyResources(controller.signal)
+    getMyResources('hackathon/id', controller.signal)
 
-    expect(apiRequest).toHaveBeenCalledWith('/api/my-resources', {
+    expect(apiRequest).toHaveBeenCalledWith('/api/my-resources?hackathon=hackathon%2Fid', {
       signal: controller.signal,
     })
   })
@@ -20,8 +20,8 @@ describe('resourcesApi', () => {
   it('reveals the selected resource item', async () => {
     vi.mocked(apiRequest).mockResolvedValue({ value: 'secret-key' })
 
-    await expect(revealResourceValue('item/id')).resolves.toBe('secret-key')
-    expect(apiRequest).toHaveBeenCalledWith('/api/resource-items/item%2Fid/reveal', {
+    await expect(revealResourceValue('item/id', 'hackathon/id')).resolves.toBe('secret-key')
+    expect(apiRequest).toHaveBeenCalledWith('/api/resource-items/item%2Fid/reveal?hackathon=hackathon%2Fid', {
       method: 'POST',
     })
   })

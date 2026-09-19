@@ -25,7 +25,10 @@ export function HackathonResourcesPanel({
       setError(null)
 
       try {
-        const assignedResources = await getMyResources(controller.signal)
+        const assignedResources = await getMyResources(
+          hackathonPublicId,
+          controller.signal,
+        )
         setResources(
           assignedResources.filter(
             (resource) => resource.hackathon.public_id === hackathonPublicId,
@@ -69,7 +72,11 @@ export function HackathonResourcesPanel({
       {!isLoading && !error && resources.length > 0 && (
         <ul className="resource-list">
           {resources.map((resource) => (
-            <ResourceCard key={resource.public_id} resource={resource} />
+            <ResourceCard
+              key={resource.public_id}
+              resource={resource}
+              hackathonPublicId={hackathonPublicId}
+            />
           ))}
         </ul>
       )}
