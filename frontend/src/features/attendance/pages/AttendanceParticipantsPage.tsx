@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Alert, Card } from '../../../components/ui'
+import { Alert, Button, Card } from '../../../components/ui'
 import { AttendanceCheckInList } from '../components/AttendanceCheckInList'
+import { AttendanceTeamsList } from '../components/AttendanceTeamsList'
 
 export function AttendanceParticipantsPage() {
   const { hackathonPublicId } = useParams()
+  const [view, setView] = useState<'participants' | 'teams'>('participants')
 
   return (
     <main className="app-page">
@@ -20,7 +23,16 @@ export function AttendanceParticipantsPage() {
           są oznaczone jako obecne.
         </p>
         {hackathonPublicId ? (
-          <AttendanceCheckInList hackathonPublicId={hackathonPublicId} />
+          <>
+            <nav aria-label="Widok listy">
+              <Button type="button" variant="ghost" aria-pressed={view === 'participants'}
+                onClick={() => setView('participants')}>Uczestnicy</Button>
+              <Button type="button" variant="ghost" aria-pressed={view === 'teams'}
+                onClick={() => setView('teams')}>Drużyny</Button>
+            </nav>
+            {view === 'participants' ? <AttendanceCheckInList hackathonPublicId={hackathonPublicId} />
+              : <AttendanceTeamsList hackathonPublicId={hackathonPublicId} />}
+          </>
         ) : (
           <Alert variant="error">Nieprawidłowy adres hackathonu.</Alert>
         )}
