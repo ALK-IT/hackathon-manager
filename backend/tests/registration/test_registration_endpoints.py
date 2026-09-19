@@ -138,11 +138,14 @@ async def test_user_lists_all_own_hackathons_with_status(
 
     assert response.status_code == 200
     body = response.json()
-    assert {item["registration_public_id"] for item in body} == {
+    assert body["total"] == 2
+    assert body["limit"] == 50
+    assert body["offset"] == 0
+    assert {item["registration_public_id"] for item in body["items"]} == {
         str(accepted_registration.public_id),
         str(pending_registration.public_id),
     }
-    hackathons_by_id = {item["hackathon_public_id"]: item for item in body}
+    hackathons_by_id = {item["hackathon_public_id"]: item for item in body["items"]}
     assert hackathons_by_id[str(accepted_hackathon.public_id)]["status"] == "accepted"
     assert hackathons_by_id[str(pending_hackathon.public_id)]["status"] == "pending"
 
@@ -177,12 +180,72 @@ async def test_profile_hackathons_does_not_expose_another_users_registration(
     response = await api_client.get("/api/profile/hackathons")
 
     assert response.status_code == 200
-    returned_registration_ids = {item["registration_public_id"] for item in response.json()}
-    returned_hackathon_ids = {item["hackathon_public_id"] for item in response.json()}
+    body = response.json()
+    returned_registration_ids = {item["registration_public_id"] for item in body["items"]}
+    returned_hackathon_ids = {item["hackathon_public_id"] for item in body["items"]}
     assert returned_registration_ids == {str(own_registration.public_id)}
     assert str(another_users_registration.public_id) not in returned_registration_ids
     assert returned_hackathon_ids == {str(own_hackathon.public_id)}
     assert str(another_users_hackathon.public_id) not in returned_hackathon_ids
+
+
+async def test_profile_hackathons_applies_pagination_and_returns_total(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathons = [await create_hackathon(session, organizer) for _ in range(3)]
+    for index, hackathon in enumerate(hackathons):
+        hackathon.start_date += timedelta(days=index)
+        hackathon.end_date += timedelta(days=index)
+        hackathon.registration_deadline += timedelta(days=index)
+    registrations = [
+        Registration(user=participant, hackathon=hackathon) for hackathon in hackathons
+    ]
+    session.add_all(registrations)
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.get("/api/profile/hackathons?limit=1&offset=1")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [
+            {
+                "registration_public_id": str(registrations[1].public_id),
+                "hackathon_public_id": str(hackathons[1].public_id),
+                "name": hackathons[1].name,
+                "description": hackathons[1].description,
+                "start_date": hackathons[1].start_date.isoformat().replace("+00:00", "Z"),
+                "end_date": hackathons[1].end_date.isoformat().replace("+00:00", "Z"),
+                "status": "pending",
+                "team": None,
+                "status_changed_at": None,
+            }
+        ],
+        "total": 3,
+        "limit": 1,
+        "offset": 1,
+    }
+
+
+@pytest.mark.parametrize("query", ["limit=0", "limit=101", "offset=-1"])
+async def test_profile_hackathons_validates_pagination(
+    query: str,
+    api_client: AsyncClient,
+    force_authenticate: ForceAuthenticate,
+    session: AsyncSession,
+):
+    user = await create_user(session, "participant@example.com")
+    await session.commit()
+    force_authenticate(user)
+
+    response = await api_client.get(f"/api/profile/hackathons?{query}")
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
 
 
 async def test_admin_creates_question(
