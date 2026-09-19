@@ -135,6 +135,7 @@ def registration_repository(mocker):
     repository = mocker.Mock()
     repository.get_active_by_public_id = mocker.AsyncMock()
     repository.get_by_hackathon = mocker.AsyncMock(return_value=[])
+    repository.get_by_user = mocker.AsyncMock(return_value=([], 0))
     repository.get_by_hackathon_and_user = mocker.AsyncMock()
     repository.create = mocker.AsyncMock()
     repository.update_status = mocker.AsyncMock()
@@ -201,6 +202,28 @@ def registration_service(
         task_repository=task_repository,
         notification_service=notification_service,
         email_service=email_service,
+    )
+
+
+async def test_list_my_hackathons_forwards_pagination(
+    registration_service,
+    registration_repository,
+):
+    current_user = make_user()
+    expected = ([SimpleNamespace(id=1)], 3)
+    registration_repository.get_by_user.return_value = expected
+
+    result = await registration_service.list_my_hackathons(
+        current_user,
+        limit=1,
+        offset=2,
+    )
+
+    assert result == expected
+    registration_repository.get_by_user.assert_awaited_once_with(
+        current_user.id,
+        limit=1,
+        offset=2,
     )
 
 
