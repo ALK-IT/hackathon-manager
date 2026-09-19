@@ -11,3 +11,10 @@ export interface ProfileHackathon {
   team: { public_id: string; name: string } | null
   status_changed_at: string | null
 }
+
+export interface ProfileHackathonListResponse {
+  items: ProfileHackathon[]
+  total: number
+  limit: number
+  offset: number
+}
