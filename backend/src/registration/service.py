@@ -200,8 +200,14 @@ class RegistrationService:
     async def list_my_hackathons(
         self,
         current_user: User,
-    ) -> list[Registration]:
-        return await self.registration_repository.get_by_user(current_user.id)
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Registration], int]:
+        return await self.registration_repository.get_by_user(
+            current_user.id,
+            limit=limit,
+            offset=offset,
+        )
 
     async def get_my_registration(
         self,
