@@ -7,8 +7,10 @@ import { getParticipantArea } from '../api/registrationApi'
 import { ParticipantTaskCard } from '../components/ParticipantTaskCard'
 import type { ParticipantArea } from '../types'
 import { getParticipantAreaErrorMessage } from '../utils/registrationMessages'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 export function ParticipantAreaPage() {
+  const { language, t } = useTranslation()
   const { hackathonPublicId } = useParams()
   const [participantArea, setParticipantArea] = useState<ParticipantArea | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -20,7 +22,7 @@ export function ParticipantAreaPage() {
 
     async function loadParticipantArea() {
       if (!hackathonPublicId) {
-        setLoadError('Nieprawidłowy adres hackathonu.')
+        setLoadError(language === 'en' ? 'Invalid hackathon address.' : 'Nieprawidłowy adres hackathonu.')
         setIsLoading(false)
         return
       }
@@ -31,7 +33,7 @@ export function ParticipantAreaPage() {
         )
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') return
-        setLoadError(getParticipantAreaErrorMessage(error))
+        setLoadError(getParticipantAreaErrorMessage(error, language))
       } finally {
         if (!controller.signal.aborted) setIsLoading(false)
       }
@@ -39,15 +41,15 @@ export function ParticipantAreaPage() {
 
     void loadParticipantArea()
     return () => controller.abort()
-  }, [hackathonPublicId])
+  }, [hackathonPublicId, language])
 
   return (
     <main className="app-page">
       <div className="details-back-link">
-        <Link to="/hackathons">Wróć do listy hackathonów</Link>
+        <Link to="/hackathons">{t.backToList}</Link>
       </div>
 
-      {isLoading && <Spinner label="Ładowanie strefy uczestnika…" />}
+      {isLoading && <Spinner label={t.loadingParticipantArea} />}
       {loadError && <Alert variant="error">{loadError}</Alert>}
 
       {participantArea && (
@@ -57,8 +59,8 @@ export function ParticipantAreaPage() {
             <p>{participantArea.description}</p>
             {participantArea.team ? (
               <section aria-labelledby="participant-team-heading">
-                <h2 id="participant-team-heading">Drużyna: {participantArea.team.name}</h2>
-                <h3>Członkowie</h3>
+                <h2 id="participant-team-heading">{language === 'en' ? 'Team' : 'Drużyna'}: {participantArea.team.name}</h2>
+                <h3>{t.members}</h3>
                 <ul className="participant-list">
                   {participantArea.team.members.map((member) => (
                     <li key={member.public_id}>{member.name}</li>
@@ -66,7 +68,7 @@ export function ParticipantAreaPage() {
                 </ul>
               </section>
             ) : (
-              <p>Nie należysz do żadnej drużyny.</p>
+              <p>{t.noTeam}</p>
             )}
           </Card>
 
@@ -83,7 +85,7 @@ export function ParticipantAreaPage() {
           )}
 
           <section aria-labelledby="participant-tasks-heading">
-            <h2 id="participant-tasks-heading">Zadania</h2>
+            <h2 id="participant-tasks-heading">{t.tasks}</h2>
             {participantArea.tasks.length > 0 ? (
               <div className="participant-task-list">
                 {participantArea.tasks.map((task) => (
@@ -97,7 +99,7 @@ export function ParticipantAreaPage() {
                 ))}
               </div>
             ) : (
-              <p>Nie opublikowano jeszcze żadnych zadań.</p>
+              <p>{t.noPublishedTasks}</p>
             )}
           </section>
         </div>

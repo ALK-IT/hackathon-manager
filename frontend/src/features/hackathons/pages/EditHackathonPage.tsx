@@ -8,6 +8,7 @@ import {
   getUpdateHackathonErrorMessage,
 } from '../utils/hackathonMessages'
 import type { HackathonFormValues } from '../utils/validation'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 const localDate = (value: string) => {
   const date = new Date(value)
@@ -17,6 +18,7 @@ const localDate = (value: string) => {
 }
 
 export function EditHackathonPage() {
+  const { language, t } = useTranslation()
   const { hackathonPublicId } = useParams()
   const navigate = useNavigate()
   const [form, setForm] = useState<HackathonFormValues | null>(null)
@@ -41,11 +43,11 @@ export function EditHackathonPage() {
       )
       .catch((requestError: unknown) => {
         if (!(requestError instanceof Error && requestError.name === 'AbortError')) {
-          setError(getHackathonDetailsErrorMessage(requestError))
+          setError(getHackathonDetailsErrorMessage(requestError, language))
         }
       })
     return () => controller.abort()
-  }, [hackathonPublicId])
+  }, [hackathonPublicId, language])
 
   async function save(values: NormalizedHackathonValues) {
     if (!hackathonPublicId || !values.registration_deadline) return
@@ -58,7 +60,7 @@ export function EditHackathonPage() {
       })
       navigate(`/hackathons/${hackathonPublicId}`, { replace: true })
     } catch (requestError) {
-      setError(getUpdateHackathonErrorMessage(requestError))
+      setError(getUpdateHackathonErrorMessage(requestError, language))
     } finally {
       setSaving(false)
     }
@@ -67,15 +69,15 @@ export function EditHackathonPage() {
   return (
     <main className="app-page">
       <Card className="create-hackathon-card">
-        <h1>Ustawienia hackathonu</h1>
-        {!form && !error && <Spinner label="Ładowanie ustawień…" />}
+        <h1>{t.hackathonSettings}</h1>
+        {!form && !error && <Spinner label={t.loadingSettings} />}
         {error && <Alert variant="error">{error}</Alert>}
         {form && (
           <HackathonForm
             initialValues={form}
             isSubmitting={saving}
-            submitLabel="Zapisz ustawienia"
-            submittingLabel="Zapisywanie…"
+            submitLabel={t.saveHackathonSettings}
+            submittingLabel={t.saving}
             registrationDeadlineRequired
             onSubmit={save}
             onCancel={() => navigate(-1)}

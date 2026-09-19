@@ -6,9 +6,11 @@ import { getRegisterErrorMessage } from '../utils/authMessages'
 import { validateRegister, type RegisterErrors } from '../utils/validation'
 import { AuthPageLayout } from '../components/AuthPageLayout'
 import { FormField } from '../components/FormField'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 export function RegisterPage() {
   const { register } = useAuth()
+  const { language, t } = useTranslation()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -20,7 +22,7 @@ export function RegisterPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const validationErrors = validateRegister(name, email, password, confirmPassword)
+    const validationErrors = validateRegister(name, email, password, confirmPassword, language)
     setErrors(validationErrors)
     if (Object.keys(validationErrors).length > 0) return
 
@@ -30,7 +32,7 @@ export function RegisterPage() {
       await register({ name: name.trim(), email: email.trim().toLowerCase(), password })
       navigate('/login', { replace: true, state: { registered: true } })
     } catch (error) {
-      setSubmitError(getRegisterErrorMessage(error))
+      setSubmitError(getRegisterErrorMessage(error, language))
     } finally {
       setIsSubmitting(false)
     }
@@ -38,16 +40,16 @@ export function RegisterPage() {
 
   return (
     <AuthPageLayout
-      title="Rejestracja"
-      footerText="Masz już konto?"
-      footerLinkText="Zaloguj się"
+      title={t.registrationTitle}
+      footerText={t.haveAccount}
+      footerLinkText={t.login}
       footerLinkTo="/login"
     >
       {submitError && <Alert variant="error">{submitError}</Alert>}
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <FormField
           id="register-name"
-          label="Nazwa"
+          label={t.username}
           autoComplete="name"
           value={name}
           error={errors.name}
@@ -55,7 +57,7 @@ export function RegisterPage() {
         />
         <FormField
           id="register-email"
-          label="E-mail"
+          label={t.email}
           type="email"
           autoComplete="email"
           value={email}
@@ -64,7 +66,7 @@ export function RegisterPage() {
         />
         <FormField
           id="register-password"
-          label="Hasło"
+          label={t.password}
           type="password"
           autoComplete="new-password"
           value={password}
@@ -73,7 +75,7 @@ export function RegisterPage() {
         />
         <FormField
           id="register-confirm-password"
-          label="Powtórz hasło"
+          label={t.confirmPassword}
           type="password"
           autoComplete="new-password"
           value={confirmPassword}
@@ -81,7 +83,7 @@ export function RegisterPage() {
           onChange={(event) => setConfirmPassword(event.target.value)}
         />
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Tworzenie konta…' : 'Utwórz konto'}
+          {isSubmitting ? t.creatingAccount : t.createAccount}
         </Button>
       </form>
     </AuthPageLayout>

@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getCurrentUserRequest,
   loginRequest,
   logoutRequest,
   registerRequest,
+  updateUserSettingsRequest,
 } from '../api/authApi'
 import {
   clearAccessToken,
@@ -20,6 +21,7 @@ vi.mock('../api/authApi', () => ({
   loginRequest: vi.fn(),
   logoutRequest: vi.fn(),
   registerRequest: vi.fn(),
+  updateUserSettingsRequest: vi.fn(),
 }))
 
 vi.mock('../../../lib/api/client', () => ({
@@ -34,6 +36,7 @@ const user: User = {
   email: 'jan@example.com',
   created_at: '2026-08-10T10:00:00Z',
   role: 'user',
+  language: 'pl',
 }
 
 function Consumer() {
@@ -43,6 +46,12 @@ function Consumer() {
       <span>{auth.isLoading ? 'loading' : (auth.user?.email ?? 'anonymous')}</span>
       <button type="button" onClick={() => void auth.login('jan@example.com', 'password123')}>
         login
+      </button>
+      <button
+        type="button"
+        onClick={() => void auth.updateSettings({ name: 'John Smith', language: 'en' })}
+      >
+        update
       </button>
     </div>
   )
@@ -54,6 +63,7 @@ describe('AuthProvider', () => {
     vi.mocked(loginRequest).mockReset()
     vi.mocked(logoutRequest).mockReset()
     vi.mocked(registerRequest).mockReset()
+    vi.mocked(updateUserSettingsRequest).mockReset()
     vi.mocked(clearAccessToken).mockReset()
     vi.mocked(refreshAccessToken).mockReset()
     vi.mocked(setAccessToken).mockReset()
@@ -91,5 +101,28 @@ describe('AuthProvider', () => {
 
     expect(await screen.findByText('jan@example.com')).toBeInTheDocument()
     expect(setAccessToken).toHaveBeenCalledWith('access-token')
+  })
+
+  it('updates the current user and document language', async () => {
+    const updatedUser = { ...user, name: 'John Smith', language: 'en' as const }
+    vi.mocked(refreshAccessToken).mockResolvedValue(true)
+    vi.mocked(getCurrentUserRequest).mockResolvedValue(user)
+    vi.mocked(updateUserSettingsRequest).mockResolvedValue(updatedUser)
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    )
+    await screen.findByText('jan@example.com')
+    fireEvent.click(screen.getByRole('button', { name: 'update' }))
+
+    await waitFor(() => {
+      expect(updateUserSettingsRequest).toHaveBeenCalledWith({
+        name: 'John Smith',
+        language: 'en',
+      })
+      expect(document.documentElement.lang).toBe('en')
+    })
   })
 })
