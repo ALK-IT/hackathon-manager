@@ -42,7 +42,9 @@ describe('RequireHackathonManager', () => {
     vi.resetAllMocks()
     auth.user = { public_id: 'user', role: 'user' }
     auth.isLoading = false
-    vi.mocked(getAttendanceParticipants).mockResolvedValue([])
+    vi.mocked(getAttendanceParticipants).mockResolvedValue({
+      items: [], total: 0, limit: 50, offset: 0,
+    })
   })
 
   it.each(['owner', 'co_organizer'] as const)('allows %s to load attendance', async (access_level) => {
