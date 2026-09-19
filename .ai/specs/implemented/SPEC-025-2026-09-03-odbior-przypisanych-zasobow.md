@@ -1,4 +1,4 @@
-# SPEC-014: Odbiór i odsłanianie przypisanych zasobów
+# SPEC-025: Odbiór i odsłanianie przypisanych zasobów
 
 **Status:** Zaimplementowany
 **Data:** 2026-09-03

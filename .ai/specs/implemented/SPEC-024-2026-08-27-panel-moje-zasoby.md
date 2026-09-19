@@ -1,4 +1,4 @@
-# SPEC-013: Frontendowy panel „Moje zasoby”
+# SPEC-024: Frontendowy panel „Moje zasoby”
 
 **Status:** Zaimplementowany
 **Data:** 2026-08-27
