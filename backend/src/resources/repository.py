@@ -126,7 +126,9 @@ class ResourceRepository:
             .joinedload(Resource.hackathon)
         )
 
-    async def list_assignments_for_user(self, user_id: int) -> list[ResourceAssignment]:
+    async def list_assignments_for_user(
+        self, user_id: int, hackathon_public_id: uuid.UUID
+    ) -> list[ResourceAssignment]:
         result = await self.session.scalars(
             select(ResourceAssignment)
             .join(ResourceAssignment.resource_item)
@@ -134,6 +136,7 @@ class ResourceRepository:
             .join(Resource.hackathon)
             .options(self._with_resource_context())
             .where(
+                Hackathon.public_id == hackathon_public_id,
                 Hackathon.is_deleted.is_(False),
                 self._is_assigned_to_user(user_id),
             )
@@ -145,6 +148,7 @@ class ResourceRepository:
         self,
         item_public_id: uuid.UUID,
         user_id: int,
+        hackathon_public_id: uuid.UUID,
     ) -> ResourceAssignment | None:
         return await self.session.scalar(
             select(ResourceAssignment)
@@ -154,6 +158,7 @@ class ResourceRepository:
             .options(self._with_resource_context())
             .where(
                 ResourceItem.public_id == item_public_id,
+                Hackathon.public_id == hackathon_public_id,
                 Hackathon.is_deleted.is_(False),
                 self._is_assigned_to_user(user_id),
             )

@@ -173,13 +173,18 @@ class ResourceService:
 
         return assignment
 
-    async def list_my_resources(self, current_user: User) -> list[ResourceAssignment]:
-        return await self.repository.list_assignments_for_user(current_user.id)
+    async def list_my_resources(
+        self, current_user: User, hackathon_public_id: uuid.UUID
+    ) -> list[ResourceAssignment]:
+        return await self.repository.list_assignments_for_user(current_user.id, hackathon_public_id)
 
-    async def reveal_item(self, item_public_id: uuid.UUID, current_user: User) -> str:
+    async def reveal_item(
+        self, item_public_id: uuid.UUID, current_user: User, hackathon_public_id: uuid.UUID
+    ) -> str:
         assignment = await self.repository.get_assignment_for_user(
             item_public_id,
             current_user.id,
+            hackathon_public_id,
         )
         if assignment is None:
             raise ResourceNotAssignedToUserError()

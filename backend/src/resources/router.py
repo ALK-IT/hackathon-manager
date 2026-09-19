@@ -46,8 +46,9 @@ def _my_resource_response(assignment: ResourceAssignment) -> MyResourceResponse:
 async def list_my_resources(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ResourceService, Depends(get_resource_service)],
+    hackathon_public_id: Annotated[uuid.UUID, Query(alias="hackathon")],
 ) -> list[MyResourceResponse]:
-    assignments = await service.list_my_resources(current_user)
+    assignments = await service.list_my_resources(current_user, hackathon_public_id)
     return [_my_resource_response(assignment) for assignment in assignments]
 
 
@@ -59,8 +60,9 @@ async def reveal_resource_item(
     resource_item_public_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[ResourceService, Depends(get_resource_service)],
+    hackathon_public_id: Annotated[uuid.UUID, Query(alias="hackathon")],
 ) -> ResourceRevealResponse:
-    value = await service.reveal_item(resource_item_public_id, current_user)
+    value = await service.reveal_item(resource_item_public_id, current_user, hackathon_public_id)
     return ResourceRevealResponse(value=value)
 
 
