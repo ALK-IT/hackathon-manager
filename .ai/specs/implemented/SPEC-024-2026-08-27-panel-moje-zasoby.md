@@ -31,7 +31,10 @@ zdarzenia `viewed`.
 
 ### Lista zasobów
 
-`GET /api/my-resources`
+`GET /api/my-resources?hackathon={hackathon_public_id}`
+
+Parametr `hackathon` jest wymagany. Backend ogranicza listę do wybranego hackathonu
+oraz przypisań zalogowanego użytkownika; frontend nie pobiera zasobów innych hackathonów.
 
 ```json
 [
@@ -55,7 +58,10 @@ zwraca jawnej wartości.
 
 ### Ujawnienie wartości
 
-`POST /api/resource-items/{resource_item_public_id}/reveal`
+`POST /api/resource-items/{resource_item_public_id}/reveal?hackathon={hackathon_public_id}`
+
+Odsłanianie również wymaga kontekstu aktualnie oglądanego hackathonu i weryfikuje go
+na backendzie razem z uprawnieniami użytkownika (szczegóły w SPEC-025).
 
 ```json
 {

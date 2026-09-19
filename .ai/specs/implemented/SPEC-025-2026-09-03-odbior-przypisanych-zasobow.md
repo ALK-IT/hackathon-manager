@@ -12,13 +12,23 @@ drużynie. Sekret nie może być pobierany razem z listą.
 
 ## Rozwiązanie
 
-`GET /api/my-resources` zwraca metadane przypisanych egzemplarzy bez ich wartości. Dostęp
+`GET /api/my-resources?hackathon={hackathon_public_id}` zwraca metadane przypisanych egzemplarzy bez ich wartości. Dostęp
 indywidualny wynika z zaakceptowanego zgłoszenia użytkownika, a drużynowy z aktualnego,
 zaakceptowanego zgłoszenia przypisanego do danej drużyny.
 
-`POST /api/resource-items/{resource_item_public_id}/reveal` ponownie sprawdza uprawnienia,
+`POST /api/resource-items/{resource_item_public_id}/reveal?hackathon={hackathon_public_id}` ponownie sprawdza uprawnienia,
 odrzuca zasób cofnięty, odszyfrowuje wartość i zapisuje zdarzenie `viewed` w audycie. Lista
 zasobów nie zapisuje zdarzenia i nigdy nie odszyfrowuje wartości.
+
+Oba endpointy wymagają parametru `hackathon` typu UUID. Brak lub niepoprawna wartość
+daje `422 VALIDATION_ERROR`. Repozytorium ogranicza zapytania jednocześnie do hackathonu
+i bieżącego użytkownika (także przy przydziale drużynowym). Lista dla obcego lub
+nieistniejącego hackathonu jest pusta. Odsłanianie zasobu z innego hackathonu daje
+`403 RESOURCE_NOT_ASSIGNED_TO_USER`, bez odszyfrowania i bez audytu `viewed`.
+Zakończenie hackathonu samo w sobie nie odbiera dostępu; nadal obowiązują reguły
+przydziału, statusu zgłoszenia, cofnięcia zasobu oraz soft-delete hackathonu.
+Frontend przekazuje kontekst do listy i odsłaniania; lokalny filtr jest wyłącznie
+dodatkowym zabezpieczeniem widoku, a nie podstawą izolacji danych.
 
 ## Zakres
 
