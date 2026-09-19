@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { useAuth } from '../../auth'
+import { NotificationBell } from '../../notifications'
 import { getProfileHackathons } from '../api/profileApi'
 import type { ProfileHackathon, RegistrationStatus } from '../types'
 
@@ -98,6 +99,7 @@ export function ProfilePage() {
     <main className="app-page profile-page">
       <nav className="profile-nav" aria-label="Nawigacja profilu">
         <Link to="/hackathons">← Wszystkie hackathony</Link>
+        <NotificationBell />
       </nav>
 
       <Card className="profile-hero">
