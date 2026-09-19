@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -113,21 +113,32 @@ class RegistrationRepository:
 
         return list(result.scalars().all())
 
-    async def get_by_user(self, user_id: int) -> list[Registration]:
-        result = await self.session.execute(
+    async def get_by_user(
+        self,
+        user_id: int,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Registration], int]:
+        filters = (
+            Registration.user_id == user_id,
+            Hackathon.is_deleted.is_(False),
+        )
+        total = await self.session.scalar(
+            select(func.count(Registration.id)).join(Registration.hackathon).where(*filters)
+        )
+        result = await self.session.scalars(
             select(Registration)
             .join(Registration.hackathon)
-            .where(
-                Registration.user_id == user_id,
-                Hackathon.is_deleted.is_(False),
-            )
+            .where(*filters)
             .options(
                 selectinload(Registration.hackathon),
                 selectinload(Registration.team),
             )
-            .order_by(Hackathon.start_date.desc())
+            .order_by(Hackathon.start_date.desc(), Registration.id.desc())
+            .limit(limit)
+            .offset(offset)
         )
-        return list(result.scalars().all())
+        return list(result.all()), int(total or 0)
 
     async def get_by_hackathon_and_user(
         self, hackathon_public_id: uuid.UUID, user_public_id: uuid.UUID

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Alert, Card, Spinner } from '../../../components/ui'
+import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { useAuth } from '../../auth'
 import { NotificationBell } from '../../notifications'
 import { getProfileHackathons } from '../api/profileApi'
@@ -27,18 +27,26 @@ const statusLabels: Record<RegistrationStatus, string> = {
   rejected: 'Odrzucony',
 }
 
+const PROFILE_HACKATHONS_PAGE_SIZE = 12
+
 export function ProfilePage() {
   const { user } = useAuth()
   const [hackathons, setHackathons] = useState<ProfileHackathon[]>([])
+  const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
     let active = true
-    getProfileHackathons(controller.signal)
-      .then((items) => {
-        if (active) setHackathons(items)
+    getProfileHackathons(PROFILE_HACKATHONS_PAGE_SIZE, 0, controller.signal)
+      .then((response) => {
+        if (active) {
+          setHackathons(response.items)
+          setTotal(response.total)
+        }
       })
       .catch((requestError: unknown) => {
         if (
@@ -56,6 +64,34 @@ export function ProfilePage() {
       controller.abort()
     }
   }, [])
+
+  async function loadMoreHackathons() {
+    setIsLoadingMore(true)
+    setLoadMoreError(null)
+    try {
+      const response = await getProfileHackathons(
+        PROFILE_HACKATHONS_PAGE_SIZE,
+        hackathons.length,
+      )
+      setHackathons((current) => {
+        const knownRegistrationIds = new Set(
+          current.map((hackathon) => hackathon.registration_public_id),
+        )
+        return [
+          ...current,
+          ...response.items.filter(
+            (hackathon) =>
+              !knownRegistrationIds.has(hackathon.registration_public_id),
+          ),
+        ]
+      })
+      setTotal(response.total)
+    } catch {
+      setLoadMoreError('Nie udało się pobrać kolejnych hackathonów.')
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }
 
   if (!user) return null
 
@@ -85,7 +121,7 @@ export function ProfilePage() {
             <span className="profile-eyebrow">Twoje wydarzenia</span>
             <h2 id="accepted-heading">Hackathony, na które aplikujesz</h2>
           </div>
-          {!isLoading && !error && <span className="profile-count">{hackathons.length}</span>}
+          {!isLoading && !error && <span className="profile-count">{total}</span>}
         </div>
 
         {isLoading && <div className="profile-state"><Spinner /> Pobieramy hackathony…</div>}
@@ -121,6 +157,18 @@ export function ProfilePage() {
             </Link>
           ))}
         </div>
+        {loadMoreError && <Alert variant="error">{loadMoreError}</Alert>}
+        {!isLoading && !error && hackathons.length < total && (
+          <div className="profile-load-more">
+            <Button
+              variant="ghost"
+              disabled={isLoadingMore}
+              onClick={() => void loadMoreHackathons()}
+            >
+              {isLoadingMore ? 'Pobieranie…' : 'Pokaż więcej'}
+            </Button>
+          </div>
+        )}
       </section>
     </main>
   )
