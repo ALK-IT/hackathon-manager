@@ -1,4 +1,4 @@
-# SPEC-021: Ustawienia użytkownika
+# SPEC-023: Ustawienia użytkownika
 
 **Status:** Zaimplementowany
 **Data:** 2026-09-12

@@ -11,6 +11,7 @@ from src.registration.dependencies import (
 )
 from src.registration.schema import (
     ParticipantAreaResponse,
+    ProfileHackathonListResponse,
     ProfileHackathonResponse,
     RegistrationDetailResponse,
     RegistrationQuestionBulkCreate,
@@ -32,27 +33,38 @@ router = APIRouter(
 
 @router.get(
     "/profile/hackathons",
-    response_model=list[ProfileHackathonResponse],
+    response_model=ProfileHackathonListResponse,
 )
 async def list_my_hackathons(
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[RegistrationService, Depends(get_registration_service)],
-) -> list[ProfileHackathonResponse]:
-    registrations = await service.list_my_hackathons(current_user)
-    return [
-        ProfileHackathonResponse(
-            registration_public_id=registration.public_id,
-            hackathon_public_id=registration.hackathon.public_id,
-            name=registration.hackathon.name,
-            description=registration.hackathon.description,
-            start_date=registration.hackathon.start_date,
-            end_date=registration.hackathon.end_date,
-            status=registration.status,
-            team=registration.team,
-            status_changed_at=registration.status_changed_at,
-        )
-        for registration in registrations
-    ]
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ProfileHackathonListResponse:
+    registrations, total = await service.list_my_hackathons(
+        current_user,
+        limit=limit,
+        offset=offset,
+    )
+    return ProfileHackathonListResponse(
+        items=[
+            ProfileHackathonResponse(
+                registration_public_id=registration.public_id,
+                hackathon_public_id=registration.hackathon.public_id,
+                name=registration.hackathon.name,
+                description=registration.hackathon.description,
+                start_date=registration.hackathon.start_date,
+                end_date=registration.hackathon.end_date,
+                status=registration.status,
+                team=registration.team,
+                status_changed_at=registration.status_changed_at,
+            )
+            for registration in registrations
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get(

@@ -408,6 +408,11 @@ button:disabled {
 .profile-password-settings { padding-top: 20px; border-top: 1px solid #eceef3; }
 .profile-password-settings h3 { margin: 0 0 8px; }
 .profile-password-settings p { margin: 0 0 16px; color: #697181; }
+.profile-load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
 .accepted-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .accepted-card-link { color: inherit; text-decoration: none; }
 .accepted-card { box-sizing: border-box; height: 100%; padding: 24px !important; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }

@@ -16,12 +16,15 @@ function initials(name: string) {
     .toUpperCase()
 }
 
+const PROFILE_HACKATHONS_PAGE_SIZE = 12
 export function ProfilePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { language: currentLanguage, t } = useTranslation()
   const [hackathons, setHackathons] = useState<ProfileHackathon[]>([])
+  const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const dateFormatter = new Intl.DateTimeFormat(currentLanguage === 'pl' ? 'pl-PL' : 'en-US', {
     day: 'numeric',
@@ -33,13 +36,17 @@ export function ProfilePage() {
     accepted: t.profileAccepted,
     rejected: t.profileRejected,
   }
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
     let active = true
-    getProfileHackathons(controller.signal)
-      .then((items) => {
-        if (active) setHackathons(items)
+    getProfileHackathons(PROFILE_HACKATHONS_PAGE_SIZE, 0, controller.signal)
+      .then((response) => {
+        if (active) {
+          setHackathons(response.items)
+          setTotal(response.total)
+        }
       })
       .catch((requestError: unknown) => {
         if (
@@ -57,6 +64,34 @@ export function ProfilePage() {
       controller.abort()
     }
   }, [t.profileLoadError])
+
+  async function loadMoreHackathons() {
+    setIsLoadingMore(true)
+    setLoadMoreError(null)
+    try {
+      const response = await getProfileHackathons(
+        PROFILE_HACKATHONS_PAGE_SIZE,
+        hackathons.length,
+      )
+      setHackathons((current) => {
+        const knownRegistrationIds = new Set(
+          current.map((hackathon) => hackathon.registration_public_id),
+        )
+        return [
+          ...current,
+          ...response.items.filter(
+            (hackathon) =>
+              !knownRegistrationIds.has(hackathon.registration_public_id),
+          ),
+        ]
+      })
+      setTotal(response.total)
+    } catch {
+      setLoadMoreError(t.profileLoadMoreError)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }
 
   if (!user) return null
 
@@ -91,7 +126,7 @@ export function ProfilePage() {
             <span className="profile-eyebrow">{t.yourEvents}</span>
             <h2 id="accepted-heading">{t.appliedHackathons}</h2>
           </div>
-          {!isLoading && !error && <span className="profile-count">{hackathons.length}</span>}
+          {!isLoading && !error && <span className="profile-count">{total}</span>}
         </div>
 
         {isLoading && <div className="profile-state"><Spinner /> {t.loadingProfile}</div>}
@@ -127,6 +162,18 @@ export function ProfilePage() {
             </Link>
           ))}
         </div>
+        {loadMoreError && <Alert variant="error">{loadMoreError}</Alert>}
+        {!isLoading && !error && hackathons.length < total && (
+          <div className="profile-load-more">
+            <Button
+              variant="ghost"
+              disabled={isLoadingMore}
+              onClick={() => void loadMoreHackathons()}
+            >
+              {isLoadingMore ? t.loadingMore : t.showMore}
+            </Button>
+          </div>
+        )}
       </section>
     </main>
   )

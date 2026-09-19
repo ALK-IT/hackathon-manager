@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../../auth'
@@ -33,8 +33,8 @@ describe('ProfilePage', () => {
   })
 
   it('shows user data and accepted hackathons', async () => {
-    vi.mocked(getProfileHackathons).mockResolvedValue([
-      {
+    vi.mocked(getProfileHackathons).mockResolvedValue({
+      items: [{
         registration_public_id: 'registration-1',
         hackathon_public_id: 'hackathon-1',
         name: 'Build the Future',
@@ -44,8 +44,11 @@ describe('ProfilePage', () => {
         status: 'accepted',
         team: { public_id: 'team-1', name: 'Pixel Pioneers' },
         status_changed_at: '2026-08-20T10:00:00Z',
-      },
-    ])
+      }],
+      total: 1,
+      limit: 12,
+      offset: 0,
+    })
 
     render(
       <MemoryRouter>
@@ -62,7 +65,12 @@ describe('ProfilePage', () => {
   })
 
   it('shows an empty state when the user has no accepted hackathons', async () => {
-    vi.mocked(getProfileHackathons).mockResolvedValue([])
+    vi.mocked(getProfileHackathons).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 12,
+      offset: 0,
+    })
 
     render(
       <MemoryRouter>
@@ -76,7 +84,12 @@ describe('ProfilePage', () => {
   })
 
   it('opens settings from the profile button', async () => {
-    vi.mocked(getProfileHackathons).mockResolvedValue([])
+    vi.mocked(getProfileHackathons).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 12,
+      offset: 0,
+    })
     function CurrentPath() {
       return <output>{useLocation().pathname}</output>
     }
@@ -91,5 +104,56 @@ describe('ProfilePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ustawienia' }))
     expect(screen.getByText('/profile/settings')).toBeInTheDocument()
+  })
+
+  it('loads the next page without replacing visible hackathons', async () => {
+    const firstHackathon = {
+      registration_public_id: 'registration-1',
+      hackathon_public_id: 'hackathon-1',
+      name: 'Pierwszy hackathon',
+      description: '',
+      start_date: '2026-09-12T09:00:00Z',
+      end_date: '2026-09-13T18:00:00Z',
+      status: 'pending' as const,
+      team: null,
+      status_changed_at: null,
+    }
+    const secondHackathon = {
+      ...firstHackathon,
+      registration_public_id: 'registration-2',
+      hackathon_public_id: 'hackathon-2',
+      name: 'Drugi hackathon',
+    }
+    vi.mocked(getProfileHackathons)
+      .mockResolvedValueOnce({
+        items: [firstHackathon],
+        total: 2,
+        limit: 12,
+        offset: 0,
+      })
+      .mockResolvedValueOnce({
+        items: [secondHackathon],
+        total: 2,
+        limit: 12,
+        offset: 1,
+      })
+
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={auth}>
+          <ProfilePage />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Pierwszy hackathon')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Pokaż więcej' }))
+
+    expect(await screen.findByText('Drugi hackathon')).toBeInTheDocument()
+    expect(screen.getByText('Pierwszy hackathon')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(getProfileHackathons).toHaveBeenLastCalledWith(12, 1),
+    )
+    expect(screen.queryByRole('button', { name: 'Pokaż więcej' })).not.toBeInTheDocument()
   })
 })
