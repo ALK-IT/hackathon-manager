@@ -7,6 +7,7 @@ from src.auth.models import User, UserRole
 from src.auth.repository import UserRepository
 from src.common.rate_limit import SlidingWindowRateLimiter
 from src.common.sqlalchemy import get_integrity_error_constraint
+from src.hackathons.access import can_manage_hackathon
 from src.hackathons.constants import CO_ORGANIZER_SEARCH_RESULT_LIMIT
 from src.hackathons.exceptions import (
     AdminRequiredError,
@@ -14,6 +15,7 @@ from src.hackathons.exceptions import (
     CoOrganizerSearchRateLimitExceededError,
     CoOrganizerUserNotFoundError,
     HackathonNotFoundError,
+    HackathonSummaryPermissionError,
     InvalidConfirmNameError,
     InvalidDateRangeError,
     InvalidRegistrationDeadlineError,
@@ -76,6 +78,18 @@ class HackathonService:
             limit=limit,
             offset=offset,
         )
+
+    async def hackathon_summary(
+        self,
+        public_id: uuid.UUID,
+        user: User,
+    ) -> tuple[int, int, int]:
+        hackathon = await self.hackathon_repository.get_active_by_public_id(public_id)
+        if hackathon is None:
+            raise HackathonNotFoundError()
+        if not can_manage_hackathon(hackathon, user):
+            raise HackathonSummaryPermissionError()
+        return await self.hackathon_repository.hackathon_summary(hackathon.id)
 
     async def create_hackathon(self, data: HackathonCreate, user: User) -> Hackathon:
         if user.role != UserRole.ADMIN:

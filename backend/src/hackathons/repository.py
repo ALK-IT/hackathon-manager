@@ -4,6 +4,7 @@ from sqlalchemy import and_, func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.attendance.models import CheckIn
 from src.auth.models import User
 from src.hackathons.models import Hackathon
 from src.registration.models import Registration, RegistrationStatus
@@ -171,6 +172,23 @@ class HackathonRepository:
         )
         result = await self.session.scalars(statement)
         return result.unique().one_or_none()
+
+    async def hackathon_summary(self, hackathon_id: int) -> tuple[int, int, int]:
+        result = await self.session.execute(
+            select(
+                func.count(Registration.id),
+                func.count(Registration.team_id.distinct()),
+                func.count(CheckIn.id),
+            )
+            .select_from(Registration)
+            .outerjoin(Registration.check_in)
+            .where(
+                Registration.hackathon_id == hackathon_id,
+                Registration.status == RegistrationStatus.ACCEPTED,
+            )
+        )
+        accepted, teams, present = result.one()
+        return accepted, teams, present
 
     async def add(self, hackathon: Hackathon) -> None:
         self.session.add(hackathon)
