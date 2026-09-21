@@ -6,6 +6,7 @@ import { AttendanceParticipantsPage } from './AttendanceParticipantsPage'
 
 vi.mock('../api/attendanceApi', () => ({
   getAttendanceParticipants: vi.fn(),
+  getAttendanceSummary: vi.fn().mockResolvedValue({ accepted: 0, teams: 0, present: 0, absent: 0 }),
 }))
 
 describe('AttendanceParticipantsPage', () => {
