@@ -1,9 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Card, Countdown } from '../../../components/ui'
 import type { Hackathon } from '../types'
+import { AttendanceSummaryPanel } from '../../attendance/components/AttendanceSummaryPanel'
 
 interface HackathonListItemProps {
   hackathon: Hackathon
+  isAdmin?: boolean
 }
 
 const registrationStatusLabels = {
@@ -12,12 +14,15 @@ const registrationStatusLabels = {
   rejected: 'odrzucone',
 } as const
 
-export function HackathonListItem({ hackathon }: HackathonListItemProps) {
+export function HackathonListItem({ hackathon, isAdmin = false }: HackathonListItemProps) {
   const navigate = useNavigate()
+  const canSeeSummary = isAdmin || hackathon.access_level === 'owner' ||
+    hackathon.access_level === 'co_organizer'
 
   return (
     <li>
-      <Card>
+      <Card className={canSeeSummary ? 'hackathon-card-with-summary' : undefined}>
+        <div>
         <h3>
           <Link to={`/hackathons/${hackathon.public_id}`}>{hackathon.name}</Link>
         </h3>
@@ -71,6 +76,12 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
               Ustawienia
             </Button>
           </>
+        )}
+        </div>
+        {canSeeSummary && (
+          <aside className="hackathon-card-summary" aria-label={`Podsumowanie: ${hackathon.name}`}>
+            <AttendanceSummaryPanel hackathonPublicId={hackathon.public_id} />
+          </aside>
         )}
       </Card>
     </li>

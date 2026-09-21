@@ -77,7 +77,11 @@ export function HackathonList() {
           <>
             <ul className="hackathon-list">
               {hackathons.map((hackathon) => (
-                <HackathonListItem key={hackathon.public_id} hackathon={hackathon} />
+                <HackathonListItem
+                  key={hackathon.public_id}
+                  hackathon={hackathon}
+                  isAdmin={user?.role === 'admin'}
+                />
               ))}
             </ul>
             <nav aria-label="Stronicowanie hackathonów">

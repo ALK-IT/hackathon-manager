@@ -34,5 +34,6 @@ describe('AttendanceParticipantsPage', () => {
     expect(
       await screen.findByText('Brak zaakceptowanych uczestników.'),
     ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Podsumowanie' })).toBeInTheDocument()
   })
 })
