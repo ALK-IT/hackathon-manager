@@ -23,7 +23,11 @@ nie odbiera już potwierdzonej obecności. Zgłoszenia pending/rejected są pomi
 ## Zakres
 
 Backend, schemat odpowiedzi, autoryzacja, testy integracyjne i komponent frontendowy
-`AttendanceSummaryPanel` nad listą uczestników. Liczniki pobierane są przy wejściu
+`AttendanceSummaryPanel` po prawej stronie kafelka hackathonu na głównej liście,
+wyłącznie dla właściciela, współorganizatora lub administratora. Na wąskim ekranie
+podsumowanie jest pod informacjami hackathonu. Ten sam komponent jest także nad
+listą uczestników w widoku obecności/QR check-in. Nie ma go w szczegółach hackathonu.
+Liczniki pobierane są przy wejściu
 do widoku i na żądanie przyciskiem „Odśwież podsumowanie”, bez pollingu.
 Komponent ma osobne stany ładowania/błędu i ponawianie żądania; błąd podsumowania
 nie blokuje listy. Zmiana hackathonu anuluje stare żądanie i resetuje liczniki.
