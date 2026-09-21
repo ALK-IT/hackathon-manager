@@ -39,5 +39,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-020 | Rate limiting endpointów auth | Zaimplementowany | [implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md](implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md) |
 | SPEC-021 | Powiadomienia w aplikacji | Zaimplementowany | [implemented/SPEC-021-2026-09-11-powiadomienia-w-aplikacji.md](implemented/SPEC-021-2026-09-11-powiadomienia-w-aplikacji.md) |
 | SPEC-022 | Rotacja kluczy szyfrowania zasobów | Zaimplementowany | [implemented/SPEC-022-2026-09-13-rotacja-kluczy-zasobow.md](implemented/SPEC-022-2026-09-13-rotacja-kluczy-zasobow.md) |
+| SPEC-027 | Podsumowanie uczestnictwa w hackathonie | Zaimplementowany | [implemented/SPEC-027-2026-09-21-podsumowanie-hackathonu.md](implemented/SPEC-027-2026-09-21-podsumowanie-hackathonu.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).
