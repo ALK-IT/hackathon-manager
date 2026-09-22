@@ -3,6 +3,11 @@ from functools import cache
 
 from cryptography.fernet import Fernet, MultiFernet
 
+from src.common.runtime_secrets import (
+    LOCAL_RESOURCE_ENCRYPTION_KEY,
+    validate_runtime_secret,
+)
+
 
 def get_resource_encryption_keys() -> list[bytes]:
     configured = os.environ.get("RESOURCE_ENCRYPTION_KEYS", "").strip()
@@ -32,4 +37,10 @@ def get_resource_fernet() -> MultiFernet:
 
 
 def validate_resource_configuration() -> None:
+    keys = get_resource_encryption_keys()
+    validate_runtime_secret(
+        "RESOURCE_ENCRYPTION_KEYS/RESOURCE_ENCRYPTION_KEY",
+        [key.decode("ascii") for key in keys],
+        {LOCAL_RESOURCE_ENCRYPTION_KEY},
+    )
     get_resource_fernet()

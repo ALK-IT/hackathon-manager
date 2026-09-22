@@ -2,6 +2,7 @@ import asyncio
 import logging
 import smtplib
 import ssl
+from collections.abc import Awaitable
 from email.message import EmailMessage
 from urllib.parse import urlencode
 
@@ -23,6 +24,15 @@ def _email_header_text(value: str) -> str:
 
 class EmailDeliveryError(Exception):
     pass
+
+
+async def deliver_email(send_operation: Awaitable[None]) -> bool:
+    try:
+        await send_operation
+    except EmailDeliveryError:
+        logger.warning("Authentication email delivery failed", exc_info=True)
+        return False
+    return True
 
 
 class EmailService:
