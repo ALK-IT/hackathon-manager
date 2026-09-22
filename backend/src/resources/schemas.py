@@ -95,6 +95,14 @@ class ResourceAssignmentResponse(BaseModel):
     revoked_at: datetime | None
 
 
+class ResourceAssignmentManageResponse(ResourceAssignmentResponse):
+    resource_public_id: uuid.UUID
+    resource_name: str
+    resource_item_public_id: uuid.UUID
+    registration_public_id: uuid.UUID | None
+    team_public_id: uuid.UUID | None
+
+
 class MyResourceHackathonResponse(BaseModel):
     public_id: uuid.UUID
     name: str

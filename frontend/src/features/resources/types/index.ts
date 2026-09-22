@@ -35,3 +35,21 @@ export interface ResourceImportResponse {
   resource: ManagedResource
   imported_count: number
 }
+
+export interface ManagedResourceItem {
+  public_id: string
+  resource_public_id: string
+  is_assigned: boolean
+  is_revoked: boolean
+}
+
+export interface ManagedResourceAssignment {
+  public_id: string
+  resource_public_id: string
+  resource_name: string
+  resource_item_public_id: string
+  registration_public_id: string | null
+  team_public_id: string | null
+  assigned_at: string
+  revoked_at: string | null
+}

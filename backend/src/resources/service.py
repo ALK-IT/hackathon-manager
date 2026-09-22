@@ -1,5 +1,6 @@
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -69,6 +70,22 @@ class ResourceService:
             await self.repository.rollback()
             raise
         return resource
+
+    async def list_resources(self, hackathon_public_id, current_user):
+        await self._get_owned_hackathon(hackathon_public_id, current_user)
+        return await self.repository.list_resources(hackathon_public_id)
+
+    async def delete_resource(self, hackathon_public_id, resource_public_id, current_user):
+        await self._get_owned_hackathon(hackathon_public_id, current_user)
+        resource = await self.repository.get_resource(hackathon_public_id, resource_public_id)
+        if resource is None:
+            raise ResourceNotFoundError()
+        await self.repository.delete_resource(resource)
+        await self.repository.commit()
+
+    async def list_assignments(self, hackathon_public_id, current_user):
+        await self._get_owned_hackathon(hackathon_public_id, current_user)
+        return await self.repository.list_assignments(hackathon_public_id)
 
     async def import_items(
         self,
@@ -177,6 +194,20 @@ class ResourceService:
         self, current_user: User, hackathon_public_id: uuid.UUID
     ) -> list[ResourceAssignment]:
         return await self.repository.list_assignments_for_user(current_user.id, hackathon_public_id)
+
+    async def revoke_assignment(
+        self, hackathon_public_id: uuid.UUID, assignment_public_id: uuid.UUID, current_user: User
+    ):
+        await self._get_owned_hackathon(hackathon_public_id, current_user)
+        assignment = await self.repository.get_assignment_for_hackathon(
+            hackathon_public_id, assignment_public_id
+        )
+        if assignment is None:
+            raise ResourceNotFoundError()
+        assignment.revoked_at = datetime.now(UTC)
+        assignment.resource_item.is_revoked = True
+        await self.repository.commit()
+        return assignment
 
     async def reveal_item(
         self, item_public_id: uuid.UUID, current_user: User, hackathon_public_id: uuid.UUID

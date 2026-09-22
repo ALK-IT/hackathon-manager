@@ -11,6 +11,7 @@ from src.resources.schemas import (
     MyResourceHackathonResponse,
     MyResourceResponse,
     ResourceAssignmentCreate,
+    ResourceAssignmentManageResponse,
     ResourceAssignmentResponse,
     ResourceCreate,
     ResourceImportResponse,
@@ -22,6 +23,31 @@ from src.resources.schemas import (
 from src.resources.service import ResourceImportResult, ResourceService
 
 router = APIRouter(prefix="/api", tags=["resources"])
+
+
+def _manage_assignment_response(assignment: ResourceAssignment) -> ResourceAssignmentManageResponse:
+    item = assignment.resource_item
+    return ResourceAssignmentManageResponse(
+        public_id=assignment.public_id,
+        assigned_at=assignment.assigned_at,
+        revoked_at=assignment.revoked_at,
+        resource_public_id=item.resource.public_id,
+        resource_name=item.resource.name,
+        resource_item_public_id=item.public_id,
+        registration_public_id=(
+            assignment.registration.public_id if assignment.registration else None
+        ),
+        team_public_id=assignment.team.public_id if assignment.team else None,
+    )
+
+
+@router.get("/hackathons/{hackathon_public_id}/resources", response_model=list[ResourceResponse])
+async def list_resources(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ResourceService, Depends(get_resource_service)],
+):
+    return await service.list_resources(hackathon_public_id, current_user)
 
 
 def _my_resource_response(assignment: ResourceAssignment) -> MyResourceResponse:
@@ -148,3 +174,44 @@ async def assign_resource_item(
         data,
         current_user,
     )
+
+
+@router.get(
+    "/hackathons/{hackathon_public_id}/resource-assignments",
+    response_model=list[ResourceAssignmentManageResponse],
+)
+async def list_resource_assignments(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ResourceService, Depends(get_resource_service)],
+):
+    return [
+        _manage_assignment_response(item)
+        for item in await service.list_assignments(hackathon_public_id, current_user)
+    ]
+
+
+@router.post(
+    "/hackathons/{hackathon_public_id}/resource-assignments/{assignment_public_id}/revoke",
+    response_model=ResourceAssignmentResponse,
+)
+async def revoke_resource_assignment(
+    hackathon_public_id: uuid.UUID,
+    assignment_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ResourceService, Depends(get_resource_service)],
+):
+    return await service.revoke_assignment(hackathon_public_id, assignment_public_id, current_user)
+
+
+@router.delete(
+    "/hackathons/{hackathon_public_id}/resources/{resource_public_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_resource(
+    hackathon_public_id: uuid.UUID,
+    resource_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[ResourceService, Depends(get_resource_service)],
+):
+    await service.delete_resource(hackathon_public_id, resource_public_id, current_user)

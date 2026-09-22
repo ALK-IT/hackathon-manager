@@ -4,7 +4,7 @@ import { getAttendanceParticipants } from '../api/attendanceApi'
 import type { AttendanceParticipant } from '../types'
 import { getAttendanceErrorMessage } from '../utils/attendanceMessages'
 import { AttendanceTeamGroup } from './AttendanceTeamGroup'
-import { ResourceCreateForm } from '../../resources/components/ResourceCreateForm'
+import { ResourceManager } from '../../resources/components/ResourceManager'
 
 interface AttendanceCheckInListProps {
   hackathonPublicId: string
@@ -89,7 +89,7 @@ export function AttendanceCheckInList({
         </Button>
       </div>
 
-      <ResourceCreateForm hackathonPublicId={hackathonPublicId} />
+      <ResourceManager hackathonPublicId={hackathonPublicId} />
 
       <div aria-live="polite">
         {isLoading && participants === null && <p>Ładowanie uczestników…</p>}
@@ -104,6 +104,7 @@ export function AttendanceCheckInList({
                 key={team.publicId}
                 name={team.name}
                 participants={team.participants}
+                hackathonPublicId={hackathonPublicId}
               />
             ))}
           </div>
