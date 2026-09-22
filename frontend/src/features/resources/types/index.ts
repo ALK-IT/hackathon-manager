@@ -20,3 +20,18 @@ export interface MyResource {
 export interface ResourceRevealResponse {
   value: string
 }
+
+export interface ManagedResource {
+  public_id: string
+  name: string
+  type: ResourceType
+  distribution_mode: 'manual'
+  target: ResourceTarget
+  metadata: Record<string, ResourceMetadataValue>
+  item_count: number
+}
+
+export interface ResourceImportResponse {
+  resource: ManagedResource
+  imported_count: number
+}
