@@ -32,6 +32,9 @@ użytkownika. Dostęp otrzymuje wyłącznie osoba ze statusem `accepted`. Odpowi
 podstawowe dane hackathonu oraz opcjonalną drużynę. Lista członków drużyny obejmuje tylko osoby
 z zaakceptowanymi zgłoszeniami.
 
+W strefie uczestnika dostępna jest również zakładka „Moje zasoby”. Pokazuje ona wyłącznie
+zasoby przypisane użytkownikowi lub jego drużynie dla aktualnie otwartego hackathonu.
+
 ## Endpointy i kontrakty API
 
 ### Lista hackathonów
@@ -94,13 +97,14 @@ Dla zaakceptowanego uczestnika bez drużyny pole `team` ma wartość `null`.
 - nawigacja zaakceptowanego uczestnika do strefy uczestnika;
 - chroniony endpoint strefy uczestnika;
 - prezentacja drużyny i zaakceptowanych członków;
+- zakładka z zasobami przypisanymi w kontekście bieżącego hackathonu;
 - obsługa uczestnika zaakceptowanego bez drużyny;
 - testy repozytorium, serwisu, endpointów i komponentów frontendu.
 
 **Poza zakresem:**
 
 - komunikacja i czat drużynowy;
-- zasoby, harmonogram oraz materiały dostępne po wejściu do hackathonu;
+- harmonogram oraz materiały dostępne po wejściu do hackathonu;
 - zmiana drużyny z poziomu strefy uczestnika;
 - zaproszenia nowych członków i usuwanie członków;
 - wyświetlanie danych osób oczekujących lub odrzuconych;
@@ -150,9 +154,11 @@ Testy obejmują:
 - błąd dla użytkownika bez zgłoszenia;
 - odpowiedź dla uczestnika bez drużyny;
 - filtrowanie członków drużyny do zaakceptowanych zgłoszeń;
-- prezentację statusu, przycisku i danych drużyny we frontendzie.
+- prezentację statusu, przycisku i danych drużyny we frontendzie;
+- filtrowanie i prezentację zasobów bieżącego hackathonu w strefie uczestnika.
 
 ## Changelog
 
 - 2026-08-26 — opisano zaimplementowaną strefę uczestnika i status zgłoszenia na liście
   hackathonów.
+- 2026-09-12 — dodano zakładkę zasobów bieżącego hackathonu w strefie uczestnika.
