@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Spinner } from '../../../components/ui'
 import { useAuth } from '../../auth'
-import { getHackathons } from '../api/hackathonsApi'
+import { deleteHackathon, getHackathons } from '../api/hackathonsApi'
 import type { Hackathon, HackathonFilters as Filters } from '../types'
 import { HackathonFilters } from './HackathonFilters'
 import { HackathonListItem } from './HackathonListItem'
@@ -52,6 +52,14 @@ export function HackathonList() {
     setPage(0)
   }
 
+  async function removeHackathon(hackathon: Hackathon) {
+    await deleteHackathon(hackathon.public_id, hackathon.name)
+    setHackathons((current) =>
+      current.filter((item) => item.public_id !== hackathon.public_id),
+    )
+    setTotal((current) => Math.max(0, current - 1))
+  }
+
   return (
     <div className="hackathons-layout">
       <HackathonFilters filters={filters} onChange={changeFilters} />
@@ -77,7 +85,11 @@ export function HackathonList() {
           <>
             <ul className="hackathon-list">
               {hackathons.map((hackathon) => (
-                <HackathonListItem key={hackathon.public_id} hackathon={hackathon} />
+                <HackathonListItem
+                  key={hackathon.public_id}
+                  hackathon={hackathon}
+                  onDelete={removeHackathon}
+                />
               ))}
             </ul>
             <nav aria-label="Stronicowanie hackathonów">

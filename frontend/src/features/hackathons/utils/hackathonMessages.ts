@@ -33,6 +33,20 @@ export function getUpdateHackathonErrorMessage(error: unknown): string {
   return 'Nie udało się zapisać ustawień hackathonu. Spróbuj ponownie.'
 }
 
+export function getDeleteHackathonErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 404) {
+      return 'Hackathon nie istnieje albo nie masz uprawnień do jego usunięcia.'
+    }
+    if (error.errorCode === 'INVALID_CONFIRM_NAME') {
+      return 'Wpisana nazwa nie jest zgodna z nazwą hackathonu.'
+    }
+    return error.message
+  }
+
+  return 'Nie udało się usunąć hackathonu. Spróbuj ponownie.'
+}
+
 export function getAddCoOrganizerErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.errorCode === 'CO_ORGANIZER_USER_NOT_FOUND') {

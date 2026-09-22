@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Button, Card, Countdown } from '../../../components/ui'
+import { Alert, Button, Card, Countdown } from '../../../components/ui'
 import type { Hackathon } from '../types'
+import { getDeleteHackathonErrorMessage } from '../utils/hackathonMessages'
 
 interface HackathonListItemProps {
   hackathon: Hackathon
+  onDelete?: (hackathon: Hackathon) => Promise<void>
 }
 
 const registrationStatusLabels = {
@@ -12,8 +15,33 @@ const registrationStatusLabels = {
   rejected: 'odrzucone',
 } as const
 
-export function HackathonListItem({ hackathon }: HackathonListItemProps) {
+export function HackathonListItem({ hackathon, onDelete }: HackathonListItemProps) {
   const navigate = useNavigate()
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function handleDelete() {
+    if (!window.confirm('Czy na pewno chcesz usunąć ten hackathon?')) return
+
+    const confirmedName = window.prompt(
+      `Aby potwierdzić usunięcie, wpisz nazwę hackathonu: ${hackathon.name}`,
+    )
+    if (confirmedName === null) return
+    if (confirmedName.trim() !== hackathon.name) {
+      setDeleteError('Wpisana nazwa nie jest zgodna z nazwą hackathonu.')
+      return
+    }
+
+    setDeleteError(null)
+    setIsDeleting(true)
+    try {
+      await onDelete?.(hackathon)
+    } catch (error) {
+      setDeleteError(getDeleteHackathonErrorMessage(error))
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <li>
@@ -71,6 +99,17 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
               Ustawienia
             </Button>
           </>
+        )}
+        {deleteError && <Alert variant="error">{deleteError}</Alert>}
+        {hackathon.access_level === 'owner' && onDelete && (
+          <Button
+            type="button"
+            variant="danger"
+            disabled={isDeleting}
+            onClick={() => void handleDelete()}
+          >
+            {isDeleting ? 'Usuwanie…' : 'Usuń hackathon'}
+          </Button>
         )}
       </Card>
     </li>
