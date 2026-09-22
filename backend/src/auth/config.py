@@ -8,6 +8,10 @@ from src.auth.constants import (
 )
 from src.common.runtime_secrets import LOCAL_JWT_SECRET_KEY, validate_runtime_secret
 
+EMAIL_VERIFICATION_TTL = 24 * 60 * 60
+PASSWORD_RESET_TTL = 30 * 60
+RATE_LIMIT_WINDOW = 5 * 60
+
 
 @dataclass(frozen=True)
 class AuthRateLimitSettings:
