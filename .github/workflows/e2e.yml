@@ -11,8 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Wygeneruj klucz szyfrowania dla E2E
-        run: echo "RESOURCE_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')" >> "$GITHUB_ENV"
+      - name: Wygeneruj sekrety dla E2E
+        run: |
+          echo "ENV=test" >> "$GITHUB_ENV"
+          echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          echo "RESOURCE_ENCRYPTION_KEY=$(openssl rand -base64 32 | tr '+/' '-_')" >> "$GITHUB_ENV"
 
       - name: Uruchom caly stack (docker compose)
         run: docker compose up -d --build
