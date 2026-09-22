@@ -98,8 +98,12 @@ CodeQL, gitleaks (skan sekretów) i audyt zależności (`npm audit` / `pip-audit
 Uruchom wszystkie usługi wraz z migracjami bazy:
 
 ```bash
-docker compose up --build
+ENV=local docker compose up --build
 ```
+
+`ENV=local` jawnie zezwala na publiczne klucze deweloperskie z Compose i powoduje zapisanie
+ostrzeżenia w logach backendu. Bez ustawienia `ENV` aplikacja przyjmuje tryb `production` i odmawia
+startu ze znanymi kluczami lokalnymi.
 
 Po uruchomieniu dostępne są:
 
@@ -132,7 +136,7 @@ Hasło administratora można zmienić przez `SEED_ADMIN_PASSWORD`, np.
 Seed jest przeznaczony wyłącznie do lokalnego developmentu, odmawia działania na zdalnej bazie
 i nie uruchamia się automatycznie.
 
-Zatrzymanie: `docker compose down`. Rebuild po zmianie zależności: `docker compose up --build`.
+Zatrzymanie: `docker compose down`. Rebuild po zmianie zależności: `ENV=local docker compose up --build`.
 
 Skrypt seedujący jest idempotentny. Tworzy konta `admin@local.dev` / `Admin123!` oraz
 `anna@local.dev` / `Participant123!`. Hasło administratora można nadpisać zmienną
@@ -164,6 +168,7 @@ pip install -r requirements-dev.txt
 
 export DATABASE_URL='postgresql+asyncpg://hackathon:hackathon@localhost:5432/hackathon_manager'
 export REDIS_URL='redis://localhost:6379/0'
+export ENV='local'
 export JWT_SECRET_KEY='local-development-secret-key-at-least-32-characters'
 export RESOURCE_ENCRYPTION_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
 
@@ -185,6 +190,7 @@ VITE_API_URL=http://localhost:8000 npm run dev
 
 | Zmienna | Wymagana | Wartość lokalna / opis |
 |---|---:|---|
+| `ENV` | tak | Środowisko aplikacji. Ustaw `local` tylko lokalnie; brak wartości jest traktowany jak `production`. |
 | `DATABASE_URL` | produkcja | Adres PostgreSQL; lokalnie domyślnie `postgresql+asyncpg://hackathon:hackathon@localhost:5432/hackathon_manager`. |
 | `REDIS_URL` | produkcja | Adres Redis; lokalnie domyślnie `redis://localhost:6379/0`. |
 | `JWT_SECRET_KEY` | tak | Sekret JWT o długości co najmniej 32 znaków. Wygeneruj np. przez `openssl rand -hex 32`. |
@@ -258,7 +264,7 @@ Odpala się automatycznie w CI (workflow `e2e`, niewymagany do mergu — informa
 - **Backend** — Railway, automatyczny deploy po merge do `main` (workflow `deploy-backend`). Wymaga jednorazowego setupu w Railway:
   1. Serwis backendu: **Settings → Source → Root Directory** = `backend`.
   2. W projekcie Railway dodaj: **+ New → Database → Add PostgreSQL** i **Add Redis** (osobne serwisy, `docker-compose.yml` obowiązuje tylko lokalnie).
-  3. Serwis backendu → **Variables** → `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`, `REDIS_URL` = `${{Redis.REDIS_URL}}`, `JWT_SECRET_KEY` = losowy sekret wygenerowany przez `openssl rand -hex 32`.
+  3. Serwis backendu → **Variables** → ustaw `ENV=production`, `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`, `REDIS_URL` = `${{Redis.REDIS_URL}}`, `JWT_SECRET_KEY` = losowy sekret wygenerowany przez `openssl rand -hex 32` oraz `RESOURCE_ENCRYPTION_KEY` = klucz wygenerowany poleceniem podanym wyżej.
 
 Wymagane sekrety repozytorium (Settings → Secrets and variables → Actions):
 
