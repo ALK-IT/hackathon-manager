@@ -1,10 +1,8 @@
-import logging
 import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
-from src.auth.email import EmailDeliveryError, EmailService
 from src.auth.models import User
 from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathon_tasks.repository import TaskRepository
@@ -13,7 +11,6 @@ from src.hackathons.access import can_manage_hackathon
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
-from src.notifications.service import NotificationService
 from src.registration.exceptions import (
     InvalidPermission,
     InvalidRegistrationQuestionError,
@@ -41,9 +38,11 @@ from src.registration.schema import (
     RegistrationQuestionBulkCreate,
     RegistrationQuestionCreate,
 )
+from src.registration.status_notifications import (
+    RegistrationStatusChanged,
+    RegistrationStatusChangedHandler,
+)
 from src.teams.service import TeamService
-
-logger = logging.getLogger(__name__)
 
 
 def _ensure_questions_editable(hackathon: Hackathon) -> None:
@@ -165,16 +164,14 @@ class RegistrationService:
         hackathon_repository: HackathonRepository,
         team_service: TeamService,
         task_repository: TaskRepository,
-        notification_service: NotificationService,
-        email_service: EmailService,
+        status_changed_handler: RegistrationStatusChangedHandler,
     ):
         self.registration_repository = registration_repository
         self.question_repository = question_repository
         self.hackathon_repository = hackathon_repository
         self.team_service = team_service
         self.task_repository = task_repository
-        self.notification_service = notification_service
-        self.email_service = email_service
+        self.status_changed_handler = status_changed_handler
 
     async def list_registrations(
         self,
@@ -396,8 +393,8 @@ class RegistrationService:
             raise RegistrationStatusChangeLockedError()
 
         status_changed = registration.status is not new_status
+        event: RegistrationStatusChanged | None = None
         try:
-            previous_status = registration.status
             if (
                 registration.team_id is not None
                 and registration.status is RegistrationStatus.REJECTED
@@ -412,34 +409,22 @@ class RegistrationService:
                 new_status,
                 current_user,
             )
-            if new_status != previous_status and new_status in {
-                RegistrationStatus.ACCEPTED,
-                RegistrationStatus.REJECTED,
-            }:
-                await self.notification_service.notify_status_changed(
+            if status_changed:
+                event = RegistrationStatusChanged(
+                    registration_public_id=registration.public_id,
                     user_id=registration.user_id,
+                    recipient_email=registration.user.email,
                     hackathon_name=hackathon.name,
                     hackathon_public_id=hackathon.public_id,
-                    status=new_status.value,
+                    status=new_status,
                 )
+                await self.status_changed_handler.before_commit(event)
             await self.registration_repository.commit()
         except Exception:
             await self.registration_repository.rollback()
             raise
 
-        if status_changed:
-            try:
-                await self.email_service.send_registration_status_changed(
-                    registration.user.email,
-                    hackathon.name,
-                    str(hackathon.public_id),
-                    new_status.value,
-                )
-            except EmailDeliveryError:
-                logger.warning(
-                    "Registration status email delivery failed",
-                    extra={"registration_public_id": str(registration.public_id)},
-                    exc_info=True,
-                )
+        if event is not None:
+            await self.status_changed_handler.after_commit(event)
 
         return registration

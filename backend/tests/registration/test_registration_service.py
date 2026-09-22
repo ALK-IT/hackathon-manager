@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from src.auth.email import EmailDeliveryError
 from src.auth.models import User, UserRole
 from src.hackathons.exceptions import HackathonNotFoundError
 from src.hackathons.models import Hackathon
@@ -28,6 +27,7 @@ from src.registration.schema import (
     RegistrationQuestionCreate,
 )
 from src.registration.service import RegistrationQuestionService, RegistrationService
+from src.registration.status_notifications import RegistrationStatusChanged
 from src.teams.exceptions import TeamFullError
 from src.teams.models import Team
 from src.teams.schemas import TeamCreateRequest, TeamJoinRequest
@@ -171,17 +171,11 @@ def task_repository(mocker):
 
 
 @pytest.fixture
-def notification_service(mocker):
-    service = mocker.Mock()
-    service.notify_status_changed = mocker.AsyncMock()
-    return service
-
-
-@pytest.fixture
-def email_service(mocker):
-    service = mocker.Mock()
-    service.send_registration_status_changed = mocker.AsyncMock()
-    return service
+def status_changed_handler(mocker):
+    handler = mocker.Mock()
+    handler.before_commit = mocker.AsyncMock()
+    handler.after_commit = mocker.AsyncMock()
+    return handler
 
 
 @pytest.fixture
@@ -191,8 +185,7 @@ def registration_service(
     hackathon_repository,
     team_service,
     task_repository,
-    notification_service,
-    email_service,
+    status_changed_handler,
 ):
     return RegistrationService(
         registration_repository=registration_repository,
@@ -200,8 +193,7 @@ def registration_service(
         hackathon_repository=hackathon_repository,
         team_service=team_service,
         task_repository=task_repository,
-        notification_service=notification_service,
-        email_service=email_service,
+        status_changed_handler=status_changed_handler,
     )
 
 
@@ -1029,8 +1021,7 @@ async def test_update_status_rejects_changes_exactly_at_hackathon_end(
 async def test_update_status_allows_changes_just_before_hackathon_end(
     registration_service,
     registration_repository,
-    notification_service,
-    email_service,
+    status_changed_handler,
 ):
     boundary = datetime(2026, 9, 1, 12, tzinfo=UTC)
     hackathon = make_hackathon()
@@ -1060,18 +1051,16 @@ async def test_update_status_allows_changes_just_before_hackathon_end(
     assert result.status is RegistrationStatus.ACCEPTED
     registration_repository.update_status.assert_awaited_once()
     registration_repository.commit.assert_awaited_once_with()
-    notification_service.notify_status_changed.assert_awaited_once_with(
+    expected_event = RegistrationStatusChanged(
+        registration_public_id=registration.public_id,
         user_id=99,
+        recipient_email="participant@example.com",
         hackathon_name=hackathon.name,
         hackathon_public_id=hackathon.public_id,
-        status="accepted",
+        status=RegistrationStatus.ACCEPTED,
     )
-    email_service.send_registration_status_changed.assert_awaited_once_with(
-        "participant@example.com",
-        hackathon.name,
-        str(hackathon.public_id),
-        "accepted",
-    )
+    status_changed_handler.before_commit.assert_awaited_once_with(expected_event)
+    status_changed_handler.after_commit.assert_awaited_once_with(expected_event)
 
 
 @pytest.mark.parametrize("access_kind", ["admin", "organizer", "co_organizer"])
@@ -1080,8 +1069,7 @@ async def test_authorized_user_can_update_status(
     registration_service,
     registration_repository,
     team_service,
-    notification_service,
-    email_service,
+    status_changed_handler,
 ):
     organizer_id = 10
     co_organizer_id = 20
@@ -1128,21 +1116,23 @@ async def test_authorized_user_can_update_status(
     registration_repository.commit.assert_awaited_once_with()
     registration_repository.rollback.assert_not_awaited()
     team_service.ensure_member_can_be_activated.assert_not_awaited()
-    notification_service.notify_status_changed.assert_awaited_once_with(
+    expected_event = RegistrationStatusChanged(
+        registration_public_id=registration.public_id,
         user_id=99,
+        recipient_email="participant@example.com",
         hackathon_name="AI Hackathon",
         hackathon_public_id=registration.hackathon.public_id,
-        status="accepted",
+        status=RegistrationStatus.ACCEPTED,
     )
-    email_service.send_registration_status_changed.assert_awaited_once()
+    status_changed_handler.before_commit.assert_awaited_once_with(expected_event)
+    status_changed_handler.after_commit.assert_awaited_once_with(expected_event)
 
 
 async def test_reactivating_rejected_team_member_checks_available_place(
     registration_service,
     registration_repository,
     team_service,
-    notification_service,
-    email_service,
+    status_changed_handler,
 ):
     registration = SimpleNamespace(
         public_id=uuid.uuid4(),
@@ -1174,15 +1164,14 @@ async def test_reactivating_rejected_team_member_checks_available_place(
     team_service.ensure_member_can_be_activated.assert_awaited_once_with(40, 4)
     assert result.status is RegistrationStatus.ACCEPTED
     registration_repository.commit.assert_awaited_once_with()
-    notification_service.notify_status_changed.assert_awaited_once()
-    email_service.send_registration_status_changed.assert_awaited_once()
+    status_changed_handler.before_commit.assert_awaited_once()
+    status_changed_handler.after_commit.assert_awaited_once()
 
 
 async def test_update_status_does_not_notify_when_status_is_unchanged(
     registration_service,
     registration_repository,
-    notification_service,
-    email_service,
+    status_changed_handler,
 ):
     registration = SimpleNamespace(
         status=RegistrationStatus.ACCEPTED,
@@ -1202,16 +1191,15 @@ async def test_update_status_does_not_notify_when_status_is_unchanged(
         make_user(user_id=10),
     )
 
-    notification_service.notify_status_changed.assert_not_awaited()
-    email_service.send_registration_status_changed.assert_not_awaited()
+    status_changed_handler.before_commit.assert_not_awaited()
+    status_changed_handler.after_commit.assert_not_awaited()
     registration_repository.commit.assert_awaited_once_with()
 
 
-async def test_update_status_succeeds_when_email_delivery_fails(
+async def test_update_status_dispatches_rejection_notification(
     registration_service,
     registration_repository,
-    notification_service,
-    email_service,
+    status_changed_handler,
 ):
     registration = SimpleNamespace(
         public_id=uuid.uuid4(),
@@ -1231,8 +1219,6 @@ async def test_update_status_succeeds_when_email_delivery_fails(
     registration_repository.update_status.side_effect = lambda item, status, _changed_by: (
         setattr(item, "status", status) or item
     )
-    email_service.send_registration_status_changed.side_effect = EmailDeliveryError()
-
     result = await registration_service.update_status(
         uuid.uuid4(),
         RegistrationStatus.REJECTED,
@@ -1242,7 +1228,8 @@ async def test_update_status_succeeds_when_email_delivery_fails(
     assert result.status is RegistrationStatus.REJECTED
     registration_repository.commit.assert_awaited_once_with()
     registration_repository.rollback.assert_not_awaited()
-    notification_service.notify_status_changed.assert_awaited_once()
+    status_changed_handler.before_commit.assert_awaited_once()
+    status_changed_handler.after_commit.assert_awaited_once()
 
 
 async def test_reactivating_rejected_team_member_rolls_back_when_team_is_full(
@@ -1306,12 +1293,14 @@ async def test_update_status_rolls_back_repository_error(
 async def test_update_status_rolls_back_when_notification_cannot_be_staged(
     registration_service,
     registration_repository,
-    notification_service,
+    status_changed_handler,
 ):
     registration = SimpleNamespace(
+        public_id=uuid.uuid4(),
         status=RegistrationStatus.PENDING,
         user_id=99,
         team_id=None,
+        user=SimpleNamespace(email="participant@example.com"),
         hackathon=SimpleNamespace(
             name="Registration Hackathon",
             public_id=uuid.uuid4(),
@@ -1324,7 +1313,7 @@ async def test_update_status_rolls_back_when_notification_cannot_be_staged(
     registration_repository.update_status.side_effect = lambda item, status, _changed_by: (
         setattr(item, "status", status) or item
     )
-    notification_service.notify_status_changed.side_effect = RuntimeError("insert failed")
+    status_changed_handler.before_commit.side_effect = RuntimeError("insert failed")
 
     with pytest.raises(RuntimeError, match="insert failed"):
         await registration_service.update_status(
@@ -1335,6 +1324,7 @@ async def test_update_status_rolls_back_when_notification_cannot_be_staged(
 
     registration_repository.rollback.assert_awaited_once_with()
     registration_repository.commit.assert_not_awaited()
+    status_changed_handler.after_commit.assert_not_awaited()
 
 
 async def test_create_many_questions(
