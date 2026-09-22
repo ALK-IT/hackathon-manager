@@ -13,6 +13,7 @@ export function ResourceCreateForm({ hackathonPublicId, onCreated }: ResourceCre
   const [target, setTarget] = useState<'individual' | 'team'>('individual')
   const [values, setValues] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -23,12 +24,14 @@ export function ResourceCreateForm({ hackathonPublicId, onCreated }: ResourceCre
       return
     }
     setError(null)
+    setSuccess(null)
     setIsSaving(true)
     try {
       const resource = await createResource(hackathonPublicId, { name: name.trim(), target })
       await importResourceItems(hackathonPublicId, resource.public_id, items)
       setName('')
       setValues('')
+      setSuccess(`Zasób „${name.trim()}” został zapisany. Możesz teraz przypisać jego wartości uczestnikom.`)
       onCreated?.()
     } catch (requestError) {
       setError(getResourcesErrorMessage(requestError))
@@ -42,6 +45,7 @@ export function ResourceCreateForm({ hackathonPublicId, onCreated }: ResourceCre
       <h3 id="resource-create-heading">Dodaj zasoby</h3>
       <p>Wartości zostaną zaimportowane do ręcznego przypisywania uczestnikom.</p>
       {error && <Alert variant="error">{error}</Alert>}
+      {success && <Alert>{success}</Alert>}
       <label>
         Nazwa zasobu
         <input value={name} onChange={(event) => setName(event.target.value)} placeholder="np. Klucze API" />
