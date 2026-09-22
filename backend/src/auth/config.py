@@ -7,6 +7,10 @@ from src.auth.constants import (
     DEFAULT_REFRESH_TOKEN_EXPIRE_DAYS,
 )
 
+EMAIL_VERIFICATION_TTL = 24 * 60 * 60
+PASSWORD_RESET_TTL = 30 * 60
+RATE_LIMIT_WINDOW = 5 * 60
+
 
 @dataclass(frozen=True)
 class AuthRateLimitSettings:
