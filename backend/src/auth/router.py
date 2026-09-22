@@ -1,12 +1,14 @@
-import logging
-from collections.abc import Awaitable
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from src.auth.client import get_client_ip
-from src.auth.config import get_auth_cookie_samesite, get_auth_cookie_secure
+from src.auth.config import (
+    EMAIL_VERIFICATION_TTL,
+    PASSWORD_RESET_TTL,
+    get_auth_cookie_samesite,
+    get_auth_cookie_secure,
+)
 from src.auth.constants import REFRESH_TOKEN_COOKIE_NAME
 from src.auth.dependencies import (
     get_current_user,
@@ -16,11 +18,12 @@ from src.auth.dependencies import (
     optional_oauth2_scheme,
     unauthorized_exception,
 )
-from src.auth.email import EmailDeliveryError, EmailService
-from src.auth.exceptions import InvalidAccessTokenError, InvalidActionTokenError, RateLimitError
+from src.auth.email import EmailService, deliver_email
+from src.auth.exceptions import InvalidAccessTokenError, InvalidActionTokenError
 from src.auth.models import User
 from src.auth.rate_limit import (
     enforce_login_rate_limit,
+    enforce_rate_limits,
     enforce_refresh_rate_limit,
     enforce_register_rate_limit,
     enforce_verify_email_rate_limit,
@@ -36,70 +39,10 @@ from src.auth.schemas import (
     UserRead,
     UserSettingsUpdate,
 )
-from src.auth.service import IssuedTokenPair, TokenService, UserService
+from src.auth.service import TokenService, UserService
+from src.auth.tokens import token_response
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-logger = logging.getLogger(__name__)
-EMAIL_VERIFICATION_TTL = 24 * 60 * 60
-PASSWORD_RESET_TTL = 30 * 60
-RATE_LIMIT_WINDOW = 5 * 60
-
-
-async def deliver_email(send_operation: Awaitable[None]) -> bool:
-    try:
-        await send_operation
-    except EmailDeliveryError:
-        logger.warning("Authentication email delivery failed", exc_info=True)
-        return False
-    return True
-
-
-async def enforce_rate_limits(
-    token_service: TokenService,
-    request: Request,
-    scope: str,
-    *,
-    identifier: str | None = None,
-    ip_limit: int | None = None,
-    identifier_limit: int | None = None,
-) -> None:
-    try:
-        if ip_limit is not None:
-            await token_service.enforce_rate_limit(
-                f"{scope}:ip",
-                get_client_ip(request),
-                ip_limit,
-                RATE_LIMIT_WINDOW,
-            )
-        if identifier is not None and identifier_limit is not None:
-            await token_service.enforce_rate_limit(
-                f"{scope}:identifier",
-                identifier,
-                identifier_limit,
-                RATE_LIMIT_WINDOW,
-            )
-    except RateLimitError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many requests. Try again later.",
-            headers={"Retry-After": str(exc.retry_after)},
-        ) from exc
-
-
-def token_response(response: Response, tokens: IssuedTokenPair) -> TokenResponse:
-    response.set_cookie(
-        key=REFRESH_TOKEN_COOKIE_NAME,
-        value=tokens.refresh_token,
-        max_age=tokens.refresh_expires_in,
-        httponly=True,
-        secure=get_auth_cookie_secure(),
-        samesite=get_auth_cookie_samesite(),
-        path="/api/auth",
-    )
-    return TokenResponse(
-        access_token=tokens.access_token,
-        expires_in=tokens.access_expires_in,
-    )
 
 
 @router.post(
