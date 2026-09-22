@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { AppNavigation } from '../../../components/layout/AppNavigation'
 import { Button } from '../../../components/ui'
 import { useAuth } from '../../auth'
 import { NotificationBell } from '../../notifications'
@@ -15,6 +16,7 @@ export function HackathonsPage() {
 
   return (
     <main className="app-page">
+      <AppNavigation />
       <header className="page-header">
         <div>
           <h1>Hackathony</h1>

@@ -12,8 +12,8 @@ from src.auth.models import User
 from src.hackathons.models import Hackathon
 from src.main import app
 from src.registration.models import Registration, RegistrationStatus
-from src.resources.crypto import decrypt_value
-from src.resources.models import Resource, ResourceAssignment, ResourceItem
+from src.resources.crypto import decrypt_value, encrypt_value
+from src.resources.models import Resource, ResourceAssignment, ResourceAuditLog, ResourceItem
 from src.teams.models import Team
 
 ForceAuthenticate = Callable[[User | None], None]
@@ -111,10 +111,282 @@ def test_resource_routes_are_registered():
     paths = set(app.openapi()["paths"])
 
     assert {
+        "/api/my-resources",
+        "/api/resource-items/{resource_item_public_id}/reveal",
         "/api/hackathons/{hackathon_public_id}/resources",
         "/api/hackathons/{hackathon_public_id}/resources/{resource_public_id}/items",
         "/api/hackathons/{hackathon_public_id}/resources/{resource_public_id}/assignments",
     }.issubset(paths)
+
+
+async def test_participant_lists_and_reveals_individual_resource(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = await create_registration(session, hackathon, participant)
+    resource = await create_resource(session, hackathon, target="individual")
+    item = ResourceItem(
+        resource=resource,
+        encrypted_value=encrypt_value("participant-secret"),
+        is_assigned=True,
+    )
+    assignment = ResourceAssignment(
+        resource_item=item,
+        registration=registration,
+        assigned_by=organizer,
+    )
+    session.add(assignment)
+    await session.commit()
+    force_authenticate(participant)
+
+    list_response = await api_client.get(
+        "/api/my-resources", params={"hackathon": str(hackathon.public_id)}
+    )
+
+    assert list_response.status_code == 200
+    assert "participant-secret" not in list_response.text
+    assert list_response.json() == [
+        {
+            "public_id": str(item.public_id),
+            "name": resource.name,
+            "type": "api_key",
+            "target": "individual",
+            "metadata": {"provider": "openai"},
+            "is_revoked": False,
+            "hackathon": {
+                "public_id": str(hackathon.public_id),
+                "name": hackathon.name,
+            },
+        }
+    ]
+
+    reveal_response = await api_client.post(
+        f"/api/resource-items/{item.public_id}/reveal",
+        params={"hackathon": str(hackathon.public_id)},
+    )
+
+    assert reveal_response.status_code == 200
+    assert reveal_response.json() == {"value": "participant-secret"}
+    audit_log = await session.scalar(
+        select(ResourceAuditLog).where(
+            ResourceAuditLog.resource_id == resource.id,
+            ResourceAuditLog.user_id == participant.id,
+            ResourceAuditLog.action == "viewed",
+        )
+    )
+    assert audit_log is not None
+    assert str(item.public_id) in audit_log.details
+
+
+async def test_accepted_team_member_lists_team_resource(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    team = await create_team(session, hackathon)
+    await create_registration(session, hackathon, participant, team=team)
+    resource = await create_resource(session, hackathon, target="team")
+    item = ResourceItem(
+        resource=resource,
+        encrypted_value=encrypt_value("team-secret"),
+        is_assigned=True,
+    )
+    session.add(
+        ResourceAssignment(
+            resource_item=item,
+            team=team,
+            assigned_by=organizer,
+        )
+    )
+    await session.commit()
+    force_authenticate(participant)
+
+    response = await api_client.get(
+        "/api/my-resources", params={"hackathon": str(hackathon.public_id)}
+    )
+
+    assert response.status_code == 200
+    assert [entry["public_id"] for entry in response.json()] == [str(item.public_id)]
+    assert response.json()[0]["target"] == "team"
+
+
+async def test_user_cannot_reveal_resource_assigned_to_someone_else(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    outsider = await create_user(session, "outsider@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = await create_registration(session, hackathon, participant)
+    resource = await create_resource(session, hackathon, target="individual")
+    item = ResourceItem(
+        resource=resource,
+        encrypted_value=encrypt_value("secret"),
+        is_assigned=True,
+    )
+    session.add(
+        ResourceAssignment(
+            resource_item=item,
+            registration=registration,
+            assigned_by=organizer,
+        )
+    )
+    await session.commit()
+    force_authenticate(outsider)
+
+    list_response = await api_client.get(
+        "/api/my-resources", params={"hackathon": str(hackathon.public_id)}
+    )
+    reveal_response = await api_client.post(
+        f"/api/resource-items/{item.public_id}/reveal",
+        params={"hackathon": str(hackathon.public_id)},
+    )
+
+    assert list_response.status_code == 200
+    assert list_response.json() == []
+    assert reveal_response.status_code == 403
+    assert reveal_response.json()["error_code"] == "RESOURCE_NOT_ASSIGNED_TO_USER"
+
+
+async def test_revoked_resource_is_listed_but_cannot_be_revealed(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    registration = await create_registration(session, hackathon, participant)
+    resource = await create_resource(session, hackathon, target="individual")
+    item = ResourceItem(
+        resource=resource,
+        encrypted_value=encrypt_value("revoked-secret"),
+        is_assigned=True,
+        is_revoked=True,
+    )
+    session.add(
+        ResourceAssignment(
+            resource_item=item,
+            registration=registration,
+            assigned_by=organizer,
+        )
+    )
+    await session.commit()
+    force_authenticate(participant)
+
+    list_response = await api_client.get(
+        "/api/my-resources", params={"hackathon": str(hackathon.public_id)}
+    )
+    reveal_response = await api_client.post(
+        f"/api/resource-items/{item.public_id}/reveal",
+        params={"hackathon": str(hackathon.public_id)},
+    )
+
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["is_revoked"] is True
+    assert reveal_response.status_code == 409
+    assert reveal_response.json()["error_code"] == "RESOURCE_REVOKED"
+
+
+@pytest.mark.parametrize("target", ["individual", "team"])
+async def test_resources_are_scoped_to_selected_hackathon(
+    target: str,
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathons = []
+    items = []
+    for index in range(2):
+        hackathon = await create_hackathon(session, organizer)
+        team = await create_team(session, hackathon) if target == "team" else None
+        registration = await create_registration(session, hackathon, participant, team=team)
+        resource = await create_resource(session, hackathon, target=target)
+        resource.name = f"Resource for hackathon {index}"
+        item = ResourceItem(
+            resource=resource,
+            encrypted_value=encrypt_value(f"scoped-secret-{index}"),
+            is_assigned=True,
+        )
+        session.add(
+            ResourceAssignment(
+                resource_item=item,
+                registration=registration if team is None else None,
+                team=team,
+                assigned_by=organizer,
+            )
+        )
+        hackathons.append(hackathon)
+        items.append(item)
+    await session.commit()
+    force_authenticate(participant)
+
+    for index, hackathon in enumerate(hackathons):
+        params = {"hackathon": str(hackathon.public_id)}
+        response = await api_client.get("/api/my-resources", params=params)
+        assert response.status_code == 200
+        assert [entry["public_id"] for entry in response.json()] == [str(items[index].public_id)]
+        assert f"Resource for hackathon {1 - index}" not in response.text
+        assert "scoped-secret" not in response.text
+
+        wrong_context = await api_client.post(
+            f"/api/resource-items/{items[1 - index].public_id}/reveal", params=params
+        )
+        assert wrong_context.status_code == 403
+        assert wrong_context.json()["error_code"] == "RESOURCE_NOT_ASSIGNED_TO_USER"
+
+    assert await session.scalar(select(ResourceAuditLog.id)) is None
+
+    for index, hackathon in enumerate(hackathons):
+        response = await api_client.post(
+            f"/api/resource-items/{items[index].public_id}/reveal",
+            params={"hackathon": str(hackathon.public_id)},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"value": f"scoped-secret-{index}"}
+
+    unknown = {"hackathon": str(uuid.uuid4())}
+    response = await api_client.get("/api/my-resources", params=unknown)
+    assert response.status_code == 200
+    assert response.json() == []
+    response = await api_client.post(
+        f"/api/resource-items/{items[0].public_id}/reveal", params=unknown
+    )
+    assert response.status_code == 403
+    assert response.json()["error_code"] == "RESOURCE_NOT_ASSIGNED_TO_USER"
+
+
+@pytest.mark.parametrize("operation", ["list", "reveal"])
+@pytest.mark.parametrize("params", [{}, {"hackathon": "invalid"}, {"hackathon": ""}])
+async def test_resource_context_is_required_and_validated(
+    operation: str,
+    params: dict[str, str],
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    participant = await create_user(session, "participant@example.com")
+    await session.commit()
+    force_authenticate(participant)
+    if operation == "list":
+        response = await api_client.get("/api/my-resources", params=params)
+    else:
+        response = await api_client.post(
+            f"/api/resource-items/{uuid.uuid4()}/reveal", params=params
+        )
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
 
 
 async def test_organizer_creates_resource_with_public_contract(
@@ -227,7 +499,7 @@ async def test_organizer_imports_lists_and_assigns_item_using_only_public_api(
     assert items[0]["is_revoked"] is False
 
     assignment_response = await api_client.post(
-        f"/api/hackathons/{hackathon.public_id}/resources/" f"{resource.public_id}/assignments",
+        f"/api/hackathons/{hackathon.public_id}/resources/{resource.public_id}/assignments",
         json={
             "resource_item_public_id": items[0]["public_id"],
             "registration_public_id": str(registration.public_id),
