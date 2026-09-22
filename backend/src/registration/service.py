@@ -10,7 +10,7 @@ from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathon_tasks.repository import TaskRepository
 from src.hackathon_tasks.schemas import ParticipantTaskResponse
 from src.hackathons.access import can_manage_hackathon
-from src.hackathons.exceptions import HackathonNotFoundError
+from src.hackathons.exceptions import HackathonCapacityFullError, HackathonNotFoundError
 from src.hackathons.models import Hackathon
 from src.hackathons.repository import HackathonRepository
 from src.notifications.service import NotificationService
@@ -395,8 +395,31 @@ class RegistrationService:
         if not hackathon.allows_registration_status_changes_at(moment):
             raise RegistrationStatusChangeLockedError()
 
-        status_changed = registration.status is not new_status
         try:
+            # Serialize capacity changes and acceptances for this hackathon.
+            hackathon = await self.hackathon_repository.get_active_by_public_id_for_update(
+                hackathon.public_id
+            )
+            if hackathon is None:
+                raise HackathonNotFoundError()
+            registration = await self.registration_repository.get_active_by_public_id(
+                registration_public_id, for_update=True
+            )
+            if registration is None:
+                raise RegistrationNotFoundError()
+            if not can_manage_hackathon(hackathon, current_user):
+                raise InvalidPermission()
+            if not hackathon.allows_registration_status_changes_at(moment):
+                raise RegistrationStatusChangeLockedError()
+            status_changed = registration.status is not new_status
+            if (
+                status_changed
+                and new_status is RegistrationStatus.ACCEPTED
+                and hackathon.capacity is not None
+                and await self.hackathon_repository.count_accepted_registrations(hackathon.id)
+                >= hackathon.capacity
+            ):
+                raise HackathonCapacityFullError()
             previous_status = registration.status
             if (
                 registration.team_id is not None

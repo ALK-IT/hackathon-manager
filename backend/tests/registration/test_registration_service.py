@@ -124,9 +124,13 @@ def question_repository(mocker):
 
 
 @pytest.fixture
-def hackathon_repository(mocker):
+def hackathon_repository(mocker, registration_repository):
     repository = mocker.Mock()
     repository.get_active_by_public_id = mocker.AsyncMock()
+    repository.get_active_by_public_id_for_update = mocker.AsyncMock(
+        side_effect=lambda _: registration_repository.get_active_by_public_id.return_value.hackathon
+    )
+    repository.count_accepted_registrations = mocker.AsyncMock(return_value=0)
     return repository
 
 
@@ -1103,6 +1107,7 @@ async def test_authorized_user_can_update_status(
             public_id=uuid.uuid4(),
             name="AI Hackathon",
             organizer_id=organizer_id,
+            capacity=None,
             co_organizers=[SimpleNamespace(id=co_organizer_id)],
             end_date=datetime.max.replace(tzinfo=UTC),
             allows_registration_status_changes_at=lambda _moment=None: True,
@@ -1154,6 +1159,7 @@ async def test_reactivating_rejected_team_member_checks_available_place(
             public_id=uuid.uuid4(),
             name="AI Hackathon",
             organizer_id=10,
+            capacity=None,
             co_organizers=[],
             max_team_size=4,
             end_date=datetime.max.replace(tzinfo=UTC),
@@ -1188,6 +1194,7 @@ async def test_update_status_does_not_notify_when_status_is_unchanged(
         status=RegistrationStatus.ACCEPTED,
         team_id=None,
         hackathon=SimpleNamespace(
+            public_id=uuid.uuid4(),
             organizer_id=10,
             co_organizers=[],
             allows_registration_status_changes_at=lambda _moment=None: True,
@@ -1254,6 +1261,8 @@ async def test_reactivating_rejected_team_member_rolls_back_when_team_is_full(
         status=RegistrationStatus.REJECTED,
         team_id=40,
         hackathon=SimpleNamespace(
+            public_id=uuid.uuid4(),
+            capacity=None,
             organizer_id=10,
             co_organizers=[],
             max_team_size=4,
@@ -1284,6 +1293,7 @@ async def test_update_status_rolls_back_repository_error(
         status=RegistrationStatus.PENDING,
         team_id=None,
         hackathon=SimpleNamespace(
+            public_id=uuid.uuid4(),
             organizer_id=10,
             co_organizers=[],
             end_date=datetime.max.replace(tzinfo=UTC),
@@ -1315,6 +1325,7 @@ async def test_update_status_rolls_back_when_notification_cannot_be_staged(
         hackathon=SimpleNamespace(
             name="Registration Hackathon",
             public_id=uuid.uuid4(),
+            capacity=None,
             organizer_id=10,
             co_organizers=[],
             allows_registration_status_changes_at=lambda _moment=None: True,

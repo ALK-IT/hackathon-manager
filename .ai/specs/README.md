@@ -43,4 +43,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-024 | Frontendowy panel „Moje zasoby” | Zaimplementowany | [implemented/SPEC-024-2026-08-27-panel-moje-zasoby.md](implemented/SPEC-024-2026-08-27-panel-moje-zasoby.md) |
 | SPEC-025 | Odbiór i odsłanianie przypisanych zasobów | Zaimplementowany | [implemented/SPEC-025-2026-09-03-odbior-przypisanych-zasobow.md](implemented/SPEC-025-2026-09-03-odbior-przypisanych-zasobow.md) |
 
+| SPEC-028 | Egzekwowanie limitu uczestników hackathonu | Zaimplementowany | [implemented/SPEC-028-2026-09-22-limit-uczestnikow-hackathonu.md](implemented/SPEC-028-2026-09-22-limit-uczestnikow-hackathonu.md) |
+
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).
