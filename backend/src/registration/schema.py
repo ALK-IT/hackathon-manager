@@ -149,6 +149,13 @@ class ProfileHackathonResponse(BaseModel):
     status_changed_at: datetime | None
 
 
+class ProfileHackathonListResponse(BaseModel):
+    items: list[ProfileHackathonResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class RegistrationQuestionBulkCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
