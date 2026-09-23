@@ -487,3 +487,45 @@ async def test_user_me_information(
     assert participant_response.json()["email"] == "participant@example.com"
     assert anonymous_response.status_code == 401
     assert anonymous_response.json()["error_code"] == "AUTHENTICATION_REQUIRED"
+
+
+async def test_authenticated_user_can_update_name_and_language(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate,
+):
+    user = User(
+        name="Old name",
+        email="settings@example.com",
+        password_hash=hash_password("password123"),
+    )
+    repository = UserRepository(session)
+    await repository.create(user)
+    await repository.commit()
+    force_authenticate(user)
+
+    response = await api_client.patch(
+        "/api/auth/me",
+        json={"name": "  New name  ", "language": "en"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "New name"
+    assert response.json()["language"] == "en"
+    await session.refresh(user)
+    assert user.name == "New name"
+    assert user.language == "en"
+
+
+async def test_update_settings_rejects_unsupported_language(
+    api_client: AsyncClient,
+    force_authenticate,
+):
+    force_authenticate(User(name="User", email="user@example.com", password_hash="hashed-password"))
+
+    response = await api_client.patch(
+        "/api/auth/me",
+        json={"name": "User name", "language": "de"},
+    )
+
+    assert response.status_code == 422

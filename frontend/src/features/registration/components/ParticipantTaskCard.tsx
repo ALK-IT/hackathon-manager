@@ -3,6 +3,7 @@ import { Alert, Button, Card } from '../../../components/ui'
 import { saveTaskSubmission } from '../api/registrationApi'
 import type { ParticipantTask, TaskSubmission } from '../types'
 import { getTaskSubmissionErrorMessage } from '../utils/registrationMessages'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 interface ParticipantTaskCardProps {
   hackathonPublicId: string
@@ -17,6 +18,7 @@ export function ParticipantTaskCard({
   canSubmit,
   submissionsClosed,
 }: ParticipantTaskCardProps) {
+  const { language, t } = useTranslation()
   const [githubUrl, setGithubUrl] = useState(task.submission?.github_url ?? '')
   const [submission, setSubmission] = useState<TaskSubmission | null>(task.submission)
   const [isSaving, setIsSaving] = useState(false)
@@ -37,9 +39,9 @@ export function ParticipantTaskCard({
       )
       setSubmission(savedSubmission)
       setGithubUrl(savedSubmission.github_url)
-      setSaveMessage('Rozwiązanie zostało zapisane.')
+      setSaveMessage(t.solutionSaved)
     } catch (error) {
-      setSaveError(getTaskSubmissionErrorMessage(error))
+      setSaveError(getTaskSubmissionErrorMessage(error, language))
     } finally {
       setIsSaving(false)
     }
@@ -52,7 +54,7 @@ export function ParticipantTaskCard({
 
       {submission && (
         <p>
-          Aktualne rozwiązanie:{' '}
+          {t.solution}:{' '}
           <a href={submission.github_url} target="_blank" rel="noreferrer">
             {submission.github_url}
           </a>
@@ -61,22 +63,22 @@ export function ParticipantTaskCard({
 
       {canSubmit && !submissionsClosed && (
         <form className="task-submission-form" onSubmit={handleSubmit}>
-          <label htmlFor={`github-url-${task.public_id}`}>Link do rozwiązania na GitHubie</label>
+          <label htmlFor={`github-url-${task.public_id}`}>{t.githubSolutionLink}</label>
           <input
             id={`github-url-${task.public_id}`}
             type="url"
             value={githubUrl}
             onChange={(event) => setGithubUrl(event.target.value)}
-            placeholder="https://github.com/nazwa/repozytorium"
+            placeholder="https://github.com/username/repository"
             required
           />
           <Button type="submit" disabled={isSaving} variant="ghost">
-            {isSaving ? 'Zapisywanie…' : submission ? 'Zaktualizuj link' : 'Wyślij link'}
+            {isSaving ? t.saving : submission ? t.updateLink : t.submitLink}
           </Button>
         </form>
       )}
 
-      {canSubmit && submissionsClosed && <p>Termin wysyłania rozwiązań minął.</p>}
+      {canSubmit && submissionsClosed && <p>{t.submissionsClosed}</p>}
       {saveError && <Alert variant="error">{saveError}</Alert>}
       {saveMessage && <Alert variant="info">{saveMessage}</Alert>}
     </Card>

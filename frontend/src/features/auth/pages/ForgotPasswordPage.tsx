@@ -4,8 +4,10 @@ import { forgotPasswordRequest } from '../api/authApi'
 import { AuthPageLayout } from '../components/AuthPageLayout'
 import { FormField } from '../components/FormField'
 import { isValidEmail } from '../utils/validation'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 export function ForgotPasswordPage() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | undefined>()
   const [sent, setSent] = useState(false)
@@ -14,7 +16,7 @@ export function ForgotPasswordPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!isValidEmail(email)) {
-      setError('Podaj poprawny adres e-mail.')
+      setError(t.invalidEmail)
       return
     }
     setError(undefined)
@@ -23,7 +25,7 @@ export function ForgotPasswordPage() {
       await forgotPasswordRequest(email.trim().toLowerCase())
       setSent(true)
     } catch {
-      setError('Nie udało się wysłać wiadomości. Spróbuj ponownie.')
+      setError(t.passwordLinkError)
     } finally {
       setSubmitting(false)
     }
@@ -31,16 +33,16 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthPageLayout
-      title="Reset hasła"
-      footerText="Pamiętasz hasło?"
-      footerLinkText="Zaloguj się"
+      title={t.resetPassword}
+      footerText={t.rememberPassword}
+      footerLinkText={t.login}
       footerLinkTo="/login"
     >
-      {sent && <Alert>Jeśli konto istnieje, wysłaliśmy link do zmiany hasła.</Alert>}
+      {sent && <Alert>{t.genericEmailSent}</Alert>}
       <form className="auth-form" onSubmit={submit} noValidate>
         <FormField
           id="forgot-password-email"
-          label="E-mail"
+          label={t.email}
           type="email"
           autoComplete="email"
           value={email}
@@ -48,7 +50,7 @@ export function ForgotPasswordPage() {
           onChange={(event) => setEmail(event.target.value)}
         />
         <Button type="submit" disabled={submitting || sent}>
-          {submitting ? 'Wysyłanie…' : 'Wyślij link'}
+          {submitting ? t.sending : t.sendLink}
         </Button>
       </form>
     </AuthPageLayout>

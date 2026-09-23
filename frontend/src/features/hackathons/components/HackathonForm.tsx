@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Button } from '../../../components/ui'
 import { FormField } from '../../auth/components/FormField'
+import { useTranslation } from '../../../i18n/useTranslation'
 import {
   validateHackathon,
   type HackathonFormErrors,
@@ -44,6 +45,7 @@ export function HackathonForm({
   onCancel,
   children,
 }: HackathonFormProps) {
+  const { language, t } = useTranslation()
   const [values, setValues] = useState(initialValues)
   const [errors, setErrors] = useState<HackathonFormErrors>({})
 
@@ -53,7 +55,7 @@ export function HackathonForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const validationErrors = validateHackathon(values, { registrationDeadlineRequired })
+    const validationErrors = validateHackathon(values, { registrationDeadlineRequired, language })
     setErrors(validationErrors)
     if (Object.keys(validationErrors).length > 0) return
 
@@ -75,7 +77,7 @@ export function HackathonForm({
     <form className="auth-form" onSubmit={handleSubmit} noValidate>
       <FormField
         id="hackathon-name"
-        label="Nazwa"
+        label={t.name}
         value={values.name}
         error={errors.name}
         maxLength={200}
@@ -84,7 +86,7 @@ export function HackathonForm({
       />
       <FormField
         id="hackathon-description"
-        label="Opis"
+        label={t.description}
         value={values.description}
         error={errors.description}
         maxLength={5000}
@@ -92,7 +94,7 @@ export function HackathonForm({
       />
       <FormField
         id="hackathon-start-date"
-        label="Rozpoczęcie hackathonu"
+        label={t.startHackathon}
         type="datetime-local"
         value={values.startDate}
         error={errors.startDate}
@@ -101,7 +103,7 @@ export function HackathonForm({
       />
       <FormField
         id="hackathon-end-date"
-        label="Zakończenie hackathonu"
+        label={t.endHackathon}
         type="datetime-local"
         value={values.endDate}
         error={errors.endDate}
@@ -111,7 +113,7 @@ export function HackathonForm({
       <div className="registration-opening-field">
         <FormField
           id="registration-opens-at"
-          label="Otwarcie zapisów"
+          label={t.registrationOpens}
           type="datetime-local"
           value={values.registrationOpensAt}
           error={errors.registrationOpensAt}
@@ -123,15 +125,15 @@ export function HackathonForm({
           variant="ghost"
           onClick={() => updateValue('registrationOpensAt', toLocalDateTime(new Date()))}
         >
-          Teraz
+          {t.now}
         </Button>
       </div>
       <FormField
         id="registration-deadline"
         label={
           registrationDeadlineRequired
-            ? 'Zamknięcie zapisów'
-            : 'Zamknięcie zapisów (opcjonalne)'
+            ? t.registrationCloses
+            : `${t.registrationCloses} (${t.optional})`
         }
         type="datetime-local"
         value={values.registrationDeadline}
@@ -141,7 +143,7 @@ export function HackathonForm({
       />
       <FormField
         id="hackathon-capacity"
-        label="Limit uczestników (opcjonalny)"
+        label={`${t.participantLimit} (${t.optional})`}
         type="number"
         min="1"
         value={values.capacity}
@@ -150,7 +152,7 @@ export function HackathonForm({
       />
       <FormField
         id="hackathon-max-team-size"
-        label="Maksymalna wielkość drużyny"
+        label={t.maxTeamSize}
         type="number"
         min="1"
         value={values.maxTeamSize}
@@ -164,7 +166,7 @@ export function HackathonForm({
           {isSubmitting ? submittingLabel : submitLabel}
         </Button>
         <Button type="button" variant="ghost" onClick={onCancel}>
-          Anuluj
+          {t.cancel}
         </Button>
       </div>
     </form>
