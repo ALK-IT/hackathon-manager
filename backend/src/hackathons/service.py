@@ -18,6 +18,7 @@ from src.hackathons.exceptions import (
     CoOrganizerUserNotFoundError,
     HackathonCapacityFullError,
     HackathonNotFoundError,
+    HackathonSummaryPermissionError,
     InvalidConfirmNameError,
     InvalidDateRangeError,
     InvalidRegistrationDeadlineError,
@@ -80,6 +81,18 @@ class HackathonService:
             limit=limit,
             offset=offset,
         )
+
+    async def hackathon_summary(
+        self,
+        public_id: uuid.UUID,
+        user: User,
+    ) -> tuple[int, int, int]:
+        hackathon = await self.hackathon_repository.get_active_by_public_id(public_id)
+        if hackathon is None:
+            raise HackathonNotFoundError()
+        if not can_manage_hackathon(hackathon, user):
+            raise HackathonSummaryPermissionError()
+        return await self.hackathon_repository.hackathon_summary(hackathon.id)
 
     async def list_submissions(
         self,
