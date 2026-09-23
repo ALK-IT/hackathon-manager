@@ -72,6 +72,7 @@ export function getManagedRegistrationsErrorMessage(error: unknown, language: 'p
     if (error.status === 404 || error.errorCode === 'HACKATHON_NOT_FOUND') return 'This hackathon does not exist or has been removed.'
     return 'Could not load applications.'
   }
+
   if (!(error instanceof ApiError)) return 'Nie udało się pobrać zgłoszeń.'
   if (error.status === 403) return 'Nie masz uprawnień do przeglądania tych zgłoszeń.'
   if (error.status === 404 || error.errorCode === 'HACKATHON_NOT_FOUND') {
@@ -79,6 +80,31 @@ export function getManagedRegistrationsErrorMessage(error: unknown, language: 'p
   }
   return 'Nie udało się pobrać zgłoszeń.'
 }
+
+export function getWithdrawRegistrationErrorMessage(error: unknown, language: 'pl' | 'en' = 'pl'): string {
+  if (language === 'en') {
+    if (!(error instanceof ApiError)) return 'Could not withdraw the application. Try again.'
+    const messages: Record<string, string> = {
+      REGISTRATION_NOT_FOUND: 'This application no longer exists.',
+      REGISTRATION_PERMISSION_DENIED: 'You do not have permission to withdraw this application.',
+      REGISTRATION_WITHDRAWAL_LOCKED: 'The application cannot be withdrawn after the hackathon ends.',
+    }
+    return error.errorCode ? (messages[error.errorCode] ?? error.message) : error.message
+  }
+  if (!(error instanceof ApiError)) {
+    return 'Nie udało się wycofać zgłoszenia. Spróbuj ponownie.'
+  }
+
+  const messages: Record<string, string> = {
+    REGISTRATION_NOT_FOUND: 'To zgłoszenie już nie istnieje.',
+    REGISTRATION_PERMISSION_DENIED: 'Nie masz uprawnień do wycofania tego zgłoszenia.',
+    REGISTRATION_WITHDRAWAL_LOCKED:
+      'Zgłoszenia nie można wycofać po zakończeniu hackathonu.',
+  }
+
+  return error.errorCode ? (messages[error.errorCode] ?? error.message) : error.message
+}
+
 
 export function getManagedRegistrationStatusErrorMessage(error: unknown, language: 'pl' | 'en' = 'pl'): string {
   if (language === 'en') {

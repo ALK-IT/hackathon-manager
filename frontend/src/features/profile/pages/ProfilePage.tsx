@@ -4,6 +4,8 @@ import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { useTranslation } from '../../../i18n/useTranslation'
 import { useAuth } from '../../auth'
 import { NotificationBell } from '../../notifications'
+import { deleteRegistration } from '../../registration/api/registrationApi'
+import { WithdrawRegistrationButton } from '../../registration/components/WithdrawRegistrationButton'
 import { getProfileHackathons } from '../api/profileApi'
 import type { ProfileHackathon } from '../types'
 
@@ -37,6 +39,7 @@ export function ProfilePage() {
     rejected: t.profileRejected,
   }
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const [loadedAt] = useState(() => Date.now())
 
   useEffect(() => {
     const controller = new AbortController()
@@ -93,6 +96,16 @@ export function ProfilePage() {
     }
   }
 
+  async function withdrawRegistration(registrationPublicId: string) {
+    await deleteRegistration(registrationPublicId)
+    setHackathons((current) =>
+      current.filter(
+        (hackathon) => hackathon.registration_public_id !== registrationPublicId,
+      ),
+    )
+    setTotal((current) => Math.max(0, current - 1))
+  }
+
   if (!user) return null
 
   return (
@@ -140,12 +153,14 @@ export function ProfilePage() {
         )}
         <div className="registration-grid">
           {hackathons.map((hackathon) => (
-            <Link
-              className="registration-card-link"
+            <Card
+              className="registration-card"
               key={hackathon.registration_public_id}
-              to={`/hackathons/${hackathon.hackathon_public_id}`}
             >
-              <Card className="registration-card">
+              <Link
+                className="registration-card-link"
+                to={`/hackathons/${hackathon.hackathon_public_id}`}
+              >
                 <div className="registration-card-top">
                   <span className={`registration-status-badge registration-status-badge--${hackathon.status}`}>
                     {statusLabels[hackathon.status]}
@@ -158,8 +173,16 @@ export function ProfilePage() {
                   <span>{dateFormatter.format(new Date(hackathon.start_date))} – {dateFormatter.format(new Date(hackathon.end_date))}</span>
                   {hackathon.team && <span>{t.team}: {hackathon.team.name}</span>}
                 </div>
-              </Card>
-            </Link>
+              </Link>
+              {loadedAt < Date.parse(hackathon.end_date) && (
+                <WithdrawRegistrationButton
+                  language={currentLanguage}
+                  onWithdraw={() =>
+                    withdrawRegistration(hackathon.registration_public_id)
+                  }
+                />
+              )}
+            </Card>
           ))}
         </div>
         {loadMoreError && <Alert variant="error">{loadMoreError}</Alert>}

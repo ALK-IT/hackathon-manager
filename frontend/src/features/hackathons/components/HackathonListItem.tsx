@@ -1,15 +1,18 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Card, Countdown } from '../../../components/ui'
 import { getTranslations } from '../../../i18n/useTranslation'
 import type { Language } from '../../auth'
+import { WithdrawRegistrationButton } from '../../registration/components/WithdrawRegistrationButton'
 import type { Hackathon } from '../types'
 
 interface HackathonListItemProps {
   hackathon: Hackathon
   language?: Language
+  onWithdraw?: (hackathon: Hackathon) => Promise<void>
 }
 
-export function HackathonListItem({ hackathon, language = 'pl' }: HackathonListItemProps) {
+export function HackathonListItem({ hackathon, language = 'pl', onWithdraw }: HackathonListItemProps) {
   const navigate = useNavigate()
   const t = getTranslations(language)
   const registrationStatusLabels = {
@@ -17,6 +20,8 @@ export function HackathonListItem({ hackathon, language = 'pl' }: HackathonListI
     accepted: t.accepted,
     rejected: t.rejected,
   }
+  const [renderedAt] = useState(() => Date.now())
+  const canWithdraw = renderedAt < Date.parse(hackathon.end_date)
 
   return (
     <li>
@@ -57,6 +62,9 @@ export function HackathonListItem({ hackathon, language = 'pl' }: HackathonListI
               {t.register}
             </Button>
           )
+        )}
+        {canWithdraw && hackathon.my_registration_status !== null && onWithdraw && (
+          <WithdrawRegistrationButton language={language} onWithdraw={() => onWithdraw(hackathon)} />
         )}
         {(hackathon.access_level === 'owner' ||
           hackathon.access_level === 'co_organizer') && (

@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { Alert, Button, Spinner } from '../../../components/ui'
 import { useTranslation } from '../../../i18n/useTranslation'
 import { useAuth } from '../../auth'
+import {
+  deleteRegistration,
+  getMyRegistration,
+} from '../../registration/api/registrationApi'
 import { getHackathons } from '../api/hackathonsApi'
 import type { Hackathon, HackathonFilters as Filters } from '../types'
 import { HackathonFilters } from './HackathonFilters'
@@ -54,6 +58,18 @@ export function HackathonList() {
     setPage(0)
   }
 
+  async function withdrawRegistration(hackathon: Hackathon) {
+    const registration = await getMyRegistration(hackathon.public_id)
+    await deleteRegistration(registration.public_id)
+    setHackathons((current) =>
+      current.map((item) =>
+        item.public_id === hackathon.public_id
+          ? { ...item, my_registration_status: null }
+          : item,
+      ),
+    )
+  }
+
   return (
     <div className="hackathons-layout">
       <HackathonFilters filters={filters} language={language} onChange={changeFilters} />
@@ -79,7 +95,12 @@ export function HackathonList() {
           <>
             <ul className="hackathon-list">
               {hackathons.map((hackathon) => (
-                <HackathonListItem key={hackathon.public_id} hackathon={hackathon} language={language} />
+                <HackathonListItem
+                  key={hackathon.public_id}
+                  hackathon={hackathon}
+                  language={language}
+                  onWithdraw={withdrawRegistration}
+                />
               ))}
             </ul>
             <nav aria-label={language === 'en' ? 'Hackathon pagination' : 'Stronicowanie hackathonów'}>

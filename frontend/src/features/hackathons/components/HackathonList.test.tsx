@@ -1,12 +1,20 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../../auth'
+import {
+  deleteRegistration,
+  getMyRegistration,
+} from '../../registration/api/registrationApi'
 import { getHackathons } from '../api/hackathonsApi'
 import type { Hackathon } from '../types'
 import { HackathonList } from './HackathonList'
 
 vi.mock('../api/hackathonsApi', () => ({ getHackathons: vi.fn() }))
+vi.mock('../../registration/api/registrationApi', () => ({
+  deleteRegistration: vi.fn(),
+  getMyRegistration: vi.fn(),
+}))
 
 const hackathon: Hackathon = {
   public_id: '7b8b88c5-21cd-4b70-a4ad-240b32f365db',
@@ -47,7 +55,13 @@ function renderHackathonList(auth: AuthContextValue = anonymousAuth) {
 }
 
 describe('HackathonList', () => {
-  beforeEach(() => vi.mocked(getHackathons).mockReset())
+  beforeEach(() => {
+    vi.mocked(getHackathons).mockReset()
+    vi.mocked(getMyRegistration).mockReset()
+    vi.mocked(deleteRegistration).mockReset()
+  })
+
+  afterEach(() => vi.restoreAllMocks())
 
   it('waits for session restoration before loading hackathons', async () => {
     vi.mocked(getHackathons).mockResolvedValue(page([]))
@@ -115,6 +129,45 @@ describe('HackathonList', () => {
     renderHackathonList()
 
     expect(await screen.findByRole('heading', { name: 'Test Hackathon' })).toBeInTheDocument()
+  })
+
+  it('withdraws an upcoming hackathon from its home-page card', async () => {
+    const authenticatedAuth: AuthContextValue = {
+      ...anonymousAuth,
+      user: {
+        public_id: 'user-1',
+        name: 'Jan Kowalski',
+        email: 'jan@example.com',
+        created_at: '2026-08-26T10:00:00Z',
+        role: 'user',
+        language: 'pl',
+      },
+    }
+    vi.mocked(getHackathons).mockResolvedValue(page([{
+      ...hackathon,
+      end_date: '2099-09-02T18:00:00Z',
+      registration_open: false,
+      my_registration_status: 'accepted',
+    }]))
+    vi.mocked(getMyRegistration).mockResolvedValue({
+      public_id: 'registration-id',
+      status: 'accepted',
+      team: null,
+    })
+    vi.mocked(deleteRegistration).mockResolvedValue(undefined)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    renderHackathonList(authenticatedAuth)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Wycofaj zgłoszenie' }))
+
+    await waitFor(() => {
+      expect(getMyRegistration).toHaveBeenCalledWith(hackathon.public_id)
+      expect(deleteRegistration).toHaveBeenCalledWith('registration-id')
+    })
+    expect(
+      screen.queryByRole('button', { name: 'Wycofaj zgłoszenie' }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows an empty state', async () => {
