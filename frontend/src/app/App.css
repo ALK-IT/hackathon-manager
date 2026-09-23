@@ -588,3 +588,33 @@ button:disabled {
 @media (max-width: 560px) {
   .notification-panel { position: fixed; top: 76px; right: 16px; left: 16px; width: auto; }
 }
+.hackathon-card-with-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 280px);
+  gap: 24px;
+}
+
+.hackathon-card-summary {
+  min-width: 0;
+}
+
+.hackathon-card-summary h2 {
+  margin-top: 0;
+}
+
+.hackathon-card-summary dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.hackathon-card-summary dd {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .hackathon-card-with-summary {
+    grid-template-columns: 1fr;
+  }
+}

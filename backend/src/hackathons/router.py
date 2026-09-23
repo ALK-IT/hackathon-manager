@@ -18,6 +18,7 @@ from src.hackathons.schemas import (
     HackathonListResponse,
     HackathonRead,
     HackathonRegistrationStateRead,
+    HackathonSummary,
     HackathonUpdate,
     UserSummary,
 )
@@ -176,6 +177,21 @@ async def close_registration(
 ) -> HackathonRegistrationStateRead:
     hackathon = await service.close_registration(public_id, current_user)
     return HackathonRegistrationStateRead.from_hackathon(hackathon)
+
+
+@router.get(
+    "/{public_id}/summary",
+    response_model=HackathonSummary,
+)
+async def get_hackathon_summary(
+    public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> HackathonSummary:
+    accepted, teams, present = await service.hackathon_summary(public_id, current_user)
+    return HackathonSummary(
+        accepted=accepted, teams=teams, present=present, absent=accepted - present
+    )
 
 
 @router.get(

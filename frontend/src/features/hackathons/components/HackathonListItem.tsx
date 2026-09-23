@@ -6,18 +6,28 @@ import type { Language } from '../../auth'
 import { WithdrawRegistrationButton } from '../../registration/components/WithdrawRegistrationButton'
 import type { Hackathon } from '../types'
 import { useHasEnded } from '../../evaluations/utils'
+import { AttendanceSummaryPanel } from '../../attendance/components/AttendanceSummaryPanel'
 import { getDeleteHackathonErrorMessage } from '../utils/hackathonMessages'
 
 interface HackathonListItemProps {
   hackathon: Hackathon
+  isAdmin?: boolean
   language?: Language
   onWithdraw?: (hackathon: Hackathon) => Promise<void>
   onDelete?: (hackathon: Hackathon) => Promise<void>
 }
 
-export function HackathonListItem({ hackathon, language = 'pl', onWithdraw, onDelete }: HackathonListItemProps) {
+export function HackathonListItem({
+  hackathon,
+  isAdmin = false,
+  language = 'pl',
+  onWithdraw,
+  onDelete,
+}: HackathonListItemProps) {
   const navigate = useNavigate()
   const hasEnded = useHasEnded(hackathon.end_date)
+  const canSeeSummary = isAdmin || hackathon.access_level === 'owner' ||
+    hackathon.access_level === 'co_organizer'
   const t = getTranslations(language)
   const registrationStatusLabels = {
     pending: t.pending,
@@ -61,7 +71,8 @@ export function HackathonListItem({ hackathon, language = 'pl', onWithdraw, onDe
 
   return (
     <li>
-      <Card>
+      <Card className={canSeeSummary ? 'hackathon-card-with-summary' : undefined}>
+        <div>
         <h3>
           <Link to={`/hackathons/${hackathon.public_id}`}>{hackathon.name}</Link>
         </h3>
@@ -133,6 +144,12 @@ export function HackathonListItem({ hackathon, language = 'pl', onWithdraw, onDe
               ? (language === 'en' ? 'Deleting…' : 'Usuwanie…')
               : (language === 'en' ? 'Delete hackathon' : 'Usuń hackathon')}
           </Button>
+        )}
+        </div>
+        {canSeeSummary && (
+          <aside className="hackathon-card-summary" aria-label={`Podsumowanie: ${hackathon.name}`}>
+            <AttendanceSummaryPanel hackathonPublicId={hackathon.public_id} />
+          </aside>
         )}
       </Card>
     </li>

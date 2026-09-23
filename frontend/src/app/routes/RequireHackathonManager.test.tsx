@@ -3,14 +3,17 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getHackathon } from '../../features/hackathons/api/hackathonsApi'
 import type { HackathonDetails } from '../../features/hackathons/types'
-import { getAttendanceParticipants } from '../../features/attendance/api/attendanceApi'
+import { getAttendanceParticipants, getAttendanceSummary } from '../../features/attendance/api/attendanceApi'
 import { AttendanceParticipantsPage } from '../../features/attendance/pages/AttendanceParticipantsPage'
 import { RequireHackathonManager } from './RequireHackathonManager'
 
 const auth = vi.hoisted(() => ({ user: { public_id: 'user', role: 'user' }, isLoading: false }))
 vi.mock('../../features/auth', () => ({ useAuth: () => auth }))
 vi.mock('../../features/hackathons/api/hackathonsApi', () => ({ getHackathon: vi.fn() }))
-vi.mock('../../features/attendance/api/attendanceApi', () => ({ getAttendanceParticipants: vi.fn() }))
+vi.mock('../../features/attendance/api/attendanceApi', () => ({
+  getAttendanceParticipants: vi.fn(),
+  getAttendanceSummary: vi.fn().mockResolvedValue({ accepted: 0, teams: 0, present: 0, absent: 0 }),
+}))
 
 const hackathon: HackathonDetails = {
   public_id: 'first', name: 'Test', description: '', start_date: '', end_date: '',
@@ -40,6 +43,7 @@ function view() {
 describe('RequireHackathonManager', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    vi.mocked(getAttendanceSummary).mockResolvedValue({ accepted: 0, teams: 0, present: 0, absent: 0 })
     auth.user = { public_id: 'user', role: 'user' }
     auth.isLoading = false
     vi.mocked(getAttendanceParticipants).mockResolvedValue([])
@@ -65,6 +69,7 @@ describe('RequireHackathonManager', () => {
     expect(await screen.findByText('Szczegóły hackathonu')).toBeInTheDocument()
     expect(getAttendanceParticipants).not.toHaveBeenCalled()
     expect(screen.queryByRole('heading', { name: 'Uczestnicy' })).not.toBeInTheDocument()
+    expect(getAttendanceSummary).not.toHaveBeenCalled()
   })
 
   it('does not render protected content before permission check completes', async () => {

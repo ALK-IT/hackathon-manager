@@ -19,6 +19,12 @@ class HackathonNotFoundError(HackathonError):
     detail = "Hackathon does not exist or you do not have access to it."
 
 
+class HackathonSummaryPermissionError(HackathonError):
+    status_code = 403
+    error_code = ErrorCode.PERMISSION_DENIED
+    detail = "Only hackathon managers can view its summary."
+
+
 class CoOrganizerUserNotFoundError(HackathonError):
     status_code = 404
     error_code = ErrorCode.CO_ORGANIZER_USER_NOT_FOUND
