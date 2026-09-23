@@ -16,6 +16,7 @@ export function AttendanceParticipantsPage() {
 
       <Card>
         <h1>Uczestnicy</h1>
+        {hackathonPublicId && <Link to={`/hackathons/${hackathonPublicId}/solutions`}>Sprawdź rozwiązania</Link>}
         <p>
           Lista zaakceptowanych uczestników. Osoby, które zeskanowały kod QR,
           są oznaczone jako obecne.

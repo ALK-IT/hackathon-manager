@@ -5,6 +5,7 @@ import { getTranslations } from '../../../i18n/useTranslation'
 import type { Language } from '../../auth'
 import { WithdrawRegistrationButton } from '../../registration/components/WithdrawRegistrationButton'
 import type { Hackathon } from '../types'
+import { useHasEnded } from '../../evaluations/utils'
 import { AttendanceSummaryPanel } from '../../attendance/components/AttendanceSummaryPanel'
 import { getDeleteHackathonErrorMessage } from '../utils/hackathonMessages'
 
@@ -24,6 +25,7 @@ export function HackathonListItem({
   onDelete,
 }: HackathonListItemProps) {
   const navigate = useNavigate()
+  const hasEnded = useHasEnded(hackathon.end_date)
   const canSeeSummary = isAdmin || hackathon.access_level === 'owner' ||
     hackathon.access_level === 'co_organizer'
   const t = getTranslations(language)
@@ -91,10 +93,12 @@ export function HackathonListItem({
             type="button"
             variant="ghost"
             onClick={() =>
-              navigate(`/hackathons/${hackathon.public_id}/participant-area`)
+              navigate(`/hackathons/${hackathon.public_id}/participant-area${hasEnded ? '?view=results' : ''}`)
             }
           >
-            {t.enterHackathon}
+            {hasEnded
+              ? (language === 'en' ? 'View results' : 'Zobacz wyniki')
+              : t.enterHackathon}
           </Button>
         ) : (
           hackathon.my_registration_status === null &&

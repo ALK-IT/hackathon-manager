@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { ParticipantResults } from '../../evaluations/components/ParticipantResults'
+import { useHasEnded } from '../../evaluations/utils'
 import { AttendanceQrScanner } from '../../attendance'
 import { isHackathonInProgress } from '../../hackathons/utils/hackathonTime'
 import { Alert, Button, Card, Spinner } from '../../../components/ui'
@@ -13,14 +15,21 @@ import { useTranslation } from '../../../i18n/useTranslation'
 export function ParticipantAreaPage() {
   const { language, t } = useTranslation()
   const { hackathonPublicId } = useParams()
+  const [params, setParams] = useSearchParams()
+  const resultsRequested = params.get('view') === 'results'
+  const [refresh, setRefresh] = useState(0)
   const [participantArea, setParticipantArea] = useState<ParticipantArea | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadedAt] = useState(() => Date.now())
   const [activeTab, setActiveTab] = useState<'hackathon' | 'resources'>('hackathon')
+  const hasEnded = useHasEnded(participantArea?.end_date ?? '')
 
   useEffect(() => {
     const controller = new AbortController()
+    setParticipantArea(null)
+    setIsLoading(true)
+    setLoadError(null)
 
     async function loadParticipantArea() {
       if (!hackathonPublicId) {
@@ -30,11 +39,10 @@ export function ParticipantAreaPage() {
       }
 
       try {
-        setParticipantArea(
-          await getParticipantArea(hackathonPublicId, controller.signal),
-        )
+        const data = await getParticipantArea(hackathonPublicId, controller.signal)
+        if (!controller.signal.aborted) setParticipantArea(data)
       } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') return
+        if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) return
         setLoadError(getParticipantAreaErrorMessage(error, language))
       } finally {
         if (!controller.signal.aborted) setIsLoading(false)
@@ -43,7 +51,7 @@ export function ParticipantAreaPage() {
 
     void loadParticipantArea()
     return () => controller.abort()
-  }, [hackathonPublicId, language])
+  }, [hackathonPublicId, language, refresh, resultsRequested])
 
   return (
     <main className="app-page">
@@ -53,6 +61,7 @@ export function ParticipantAreaPage() {
 
       {isLoading && <Spinner label={t.loadingParticipantArea} />}
       {loadError && <Alert variant="error">{loadError}</Alert>}
+      {loadError && <Button variant="ghost" onClick={() => setRefresh((value) => value + 1)}>Spróbuj ponownie</Button>}
 
       {participantArea && (
         <div className="participant-area-stack">
@@ -102,7 +111,13 @@ export function ParticipantAreaPage() {
                   )}
                 </Card>
 
-                {isHackathonInProgress(
+                {hasEnded && <nav aria-label="Widok uczestnika">
+                  <Button variant="ghost" onClick={() => setParams({})}>Zadania</Button>
+                  <Button variant="ghost" onClick={() => setParams({ view: 'results' })}>Zobacz wyniki</Button>
+                  {resultsRequested && <Button variant="ghost" onClick={() => setRefresh((value) => value + 1)}>Odśwież wyniki</Button>}
+                </nav>}
+
+                {!hasEnded && isHackathonInProgress(
                   participantArea.start_date,
                   participantArea.end_date,
                   loadedAt,
@@ -114,8 +129,11 @@ export function ParticipantAreaPage() {
                   </Card>
                 )}
 
-                <section aria-labelledby="participant-tasks-heading">
-                  <h2 id="participant-tasks-heading">{t.tasks}</h2>
+                {hasEnded && resultsRequested ? (
+                  <ParticipantResults tasks={participantArea.tasks} />
+                ) : (
+                  <section aria-labelledby="participant-tasks-heading">
+                    <h2 id="participant-tasks-heading">{t.tasks}</h2>
                   {participantArea.tasks.length > 0 ? (
                     <div className="participant-task-list">
                       {participantArea.tasks.map((task) => (
@@ -124,16 +142,15 @@ export function ParticipantAreaPage() {
                           hackathonPublicId={participantArea.public_id}
                           task={task}
                           canSubmit={participantArea.team !== null}
-                          submissionsClosed={
-                            loadedAt >= Date.parse(participantArea.end_date)
-                          }
+                          submissionsClosed={hasEnded}
                         />
                       ))}
                     </div>
                   ) : (
                     <p>{t.noPublishedTasks}</p>
                   )}
-                </section>
+                  </section>
+                )}
               </div>
             </div>
           )}

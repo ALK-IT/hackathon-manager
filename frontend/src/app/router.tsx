@@ -7,6 +7,7 @@ import {
   VerifyEmailPage,
 } from '../features/auth'
 import { AttendanceParticipantsPage } from '../features/attendance'
+import { SubmissionReviewPage } from '../features/evaluations/pages/SubmissionReviewPage'
 import {
   CreateHackathonPage,
   EditHackathonPage,
@@ -136,6 +137,9 @@ export function AppRouter() {
         }
       />
       <Route path="*" element={<Navigate to="/hackathons" replace />} />
+      <Route path="/hackathons/:hackathonPublicId/solutions" element={
+        <ProtectedRoute><SubmissionReviewPage /></ProtectedRoute>
+      } />
     </Routes>
   )
 }
