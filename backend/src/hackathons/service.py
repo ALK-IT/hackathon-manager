@@ -16,6 +16,7 @@ from src.hackathons.exceptions import (
     CoOrganizerAlreadyAssignedError,
     CoOrganizerSearchRateLimitExceededError,
     CoOrganizerUserNotFoundError,
+    HackathonCapacityFullError,
     HackathonNotFoundError,
     HackathonSummaryPermissionError,
     InvalidConfirmNameError,
@@ -150,7 +151,11 @@ class HackathonService:
         data: HackathonUpdate,
         user: User,
     ) -> Hackathon:
-        hackathon = await self._get_owned_hackathon(public_id, user)
+        hackathon = await self.hackathon_repository.get_owned_by_public_id(
+            public_id, user.id, for_update=True
+        )
+        if hackathon is None:
+            raise HackathonNotFoundError()
         changes = data.model_dump(exclude_unset=True)
 
         start_date = changes.get("start_date", hackathon.start_date)
@@ -165,21 +170,30 @@ class HackathonService:
             "registration_opens_at",
             hackathon.registration_opens_at,
         )
-        self._validate_ranges(
-            start_date,
-            end_date,
-            registration_opens_at,
-            registration_deadline,
-            capacity,
-            max_team_size,
-        )
-
-        for field, value in changes.items():
-            setattr(hackathon, field, value)
-        if "registration_opens_at" in changes:
-            hackathon.registration_open = True
-
-        await self.hackathon_repository.commit()
+        try:
+            self._validate_ranges(
+                start_date,
+                end_date,
+                registration_opens_at,
+                registration_deadline,
+                capacity,
+                max_team_size,
+            )
+            if (
+                "capacity" in changes
+                and capacity is not None
+                and capacity
+                < await self.hackathon_repository.count_accepted_registrations(hackathon.id)
+            ):
+                raise HackathonCapacityFullError()
+            for field, value in changes.items():
+                setattr(hackathon, field, value)
+            if "registration_opens_at" in changes:
+                hackathon.registration_open = True
+            await self.hackathon_repository.commit()
+        except Exception:
+            await self.hackathon_repository.rollback()
+            raise
         await self.hackathon_repository.refresh_updated_at(hackathon)
         return hackathon
 

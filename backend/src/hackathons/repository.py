@@ -131,6 +131,8 @@ class HackathonRepository:
         self,
         public_id: uuid.UUID,
         organizer_id: int,
+        *,
+        for_update: bool = False,
     ) -> Hackathon | None:
         statement = (
             select(Hackathon)
@@ -141,6 +143,10 @@ class HackathonRepository:
             )
             .options(*self._with_relationships())
         )
+        if for_update:
+            statement = statement.with_for_update(key_share=True).execution_options(
+                populate_existing=True
+            )
         result = await self.session.scalars(statement)
         return result.unique().one_or_none()
 
@@ -169,11 +175,22 @@ class HackathonRepository:
                 Hackathon.public_id == public_id,
                 Hackathon.is_deleted.is_(False),
             )
-            .with_for_update()
+            # NO KEY UPDATE serializes writers without blocking FK checks on new registrations.
+            .with_for_update(key_share=True)
+            .execution_options(populate_existing=True)
             .options(*self._with_relationships())
         )
         result = await self.session.scalars(statement)
         return result.unique().one_or_none()
+
+    async def count_accepted_registrations(self, hackathon_id: int) -> int:
+        count = await self.session.scalar(
+            select(func.count(Registration.id)).where(
+                Registration.hackathon_id == hackathon_id,
+                Registration.status == RegistrationStatus.ACCEPTED,
+            )
+        )
+        return int(count or 0)
 
     async def hackathon_summary(self, hackathon_id: int) -> tuple[int, int, int]:
         result = await self.session.execute(

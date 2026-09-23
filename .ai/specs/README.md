@@ -45,4 +45,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-026 | Ustawienia użytkownika | Zaimplementowany | [implemented/SPEC-026-2026-09-12-ustawienia-uzytkownika.md](implemented/SPEC-026-2026-09-12-ustawienia-uzytkownika.md) |
 | SPEC-027 | Podsumowanie uczestnictwa w hackathonie | Zaimplementowany | [implemented/SPEC-027-2026-09-21-podsumowanie-hackathonu.md](implemented/SPEC-027-2026-09-21-podsumowanie-hackathonu.md) |
 
+| SPEC-028 | Egzekwowanie limitu uczestników hackathonu | Zaimplementowany | [implemented/SPEC-028-2026-09-22-limit-uczestnikow-hackathonu.md](implemented/SPEC-028-2026-09-22-limit-uczestnikow-hackathonu.md) |
+
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

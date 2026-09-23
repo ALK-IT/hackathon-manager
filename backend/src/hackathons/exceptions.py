@@ -13,6 +13,12 @@ class AdminRequiredError(HackathonError):
     detail = "Only an administrator can create a hackathon."
 
 
+class HackathonCapacityFullError(HackathonError):
+    status_code = 409
+    error_code = ErrorCode.CAPACITY_FULL
+    detail = "Hackathon capacity would be exceeded."
+
+
 class HackathonNotFoundError(HackathonError):
     status_code = 404
     error_code = ErrorCode.HACKATHON_NOT_FOUND
