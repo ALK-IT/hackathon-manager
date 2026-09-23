@@ -6,6 +6,7 @@ import {
   getHackathonTasks,
 } from '../api/hackathonsApi'
 import type { HackathonTask } from '../types'
+import { useTranslation } from '../../../i18n/useTranslation'
 import {
   getCreateHackathonTaskErrorMessage,
   getHackathonTasksErrorMessage,
@@ -28,6 +29,7 @@ export function HackathonTaskManager({
   hackathonStartDate,
   hackathonEndDate,
 }: HackathonTaskManagerProps) {
+  const { language, t } = useTranslation()
   const [tasks, setTasks] = useState<HackathonTask[]>([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -46,7 +48,7 @@ export function HackathonTaskManager({
         setTasks(await getHackathonTasks(hackathonPublicId, controller.signal))
       } catch (error) {
         if (error instanceof Error && error.name === 'AbortError') return
-        setLoadError(getHackathonTasksErrorMessage(error))
+        setLoadError(getHackathonTasksErrorMessage(error, language))
       } finally {
         if (!controller.signal.aborted) setIsLoading(false)
       }
@@ -54,7 +56,7 @@ export function HackathonTaskManager({
 
     void loadTasks()
     return () => controller.abort()
-  }, [hackathonPublicId])
+  }, [hackathonPublicId, language])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -64,11 +66,11 @@ export function HackathonTaskManager({
     const normalizedTitle = title.trim()
     const normalizedDescription = description.trim()
     if (!normalizedTitle || !normalizedDescription || !visibleFrom) {
-      setSubmitError('Uzupełnij nazwę, opis i termin publikacji zadania.')
+      setSubmitError(language === 'en' ? 'Enter the task name, description, and publication date.' : 'Uzupełnij nazwę, opis i termin publikacji zadania.')
       return
     }
     if (Date.parse(visibleFrom) >= Date.parse(hackathonEndDate)) {
-      setSubmitError('Termin publikacji musi przypadać przed zakończeniem hackathonu.')
+      setSubmitError(language === 'en' ? 'The publication date must be before the hackathon ends.' : 'Termin publikacji musi przypadać przed zakończeniem hackathonu.')
       return
     }
 
@@ -87,9 +89,9 @@ export function HackathonTaskManager({
       )
       setTitle('')
       setDescription('')
-      setSuccessMessage('Zadanie zostało dodane.')
+      setSuccessMessage(language === 'en' ? 'Task added.' : 'Zadanie zostało dodane.')
     } catch (error) {
-      setSubmitError(getCreateHackathonTaskErrorMessage(error))
+      setSubmitError(getCreateHackathonTaskErrorMessage(error, language))
     } finally {
       setIsSubmitting(false)
     }
@@ -97,11 +99,11 @@ export function HackathonTaskManager({
 
   return (
     <section aria-labelledby="hackathon-tasks-heading">
-      <h2 id="hackathon-tasks-heading">Zadania</h2>
+      <h2 id="hackathon-tasks-heading">{t.tasks}</h2>
 
-      {isLoading && <Spinner label="Ładowanie zadań…" />}
+      {isLoading && <Spinner label={t.loadingTasks} />}
       {loadError && <Alert variant="error">{loadError}</Alert>}
-      {!isLoading && !loadError && tasks.length === 0 && <p>Nie dodano jeszcze zadań.</p>}
+      {!isLoading && !loadError && tasks.length === 0 && <p>{t.noTasks}</p>}
       {tasks.length > 0 && (
         <ul className="hackathon-task-list">
           {tasks.map((task) => (
@@ -109,7 +111,7 @@ export function HackathonTaskManager({
               <strong>{task.title}</strong>
               <p>{task.description}</p>
               <small>
-                Widoczne od: {new Date(task.visible_from).toLocaleString('pl-PL')}
+                {t.visibleFrom}: {new Date(task.visible_from).toLocaleString(language === 'en' ? 'en-US' : 'pl-PL')}
               </small>
             </li>
           ))}
@@ -119,14 +121,14 @@ export function HackathonTaskManager({
       <form className="hackathon-task-form" onSubmit={handleSubmit} noValidate>
         <FormField
           id="task-title"
-          label="Nazwa zadania"
+          label={t.taskName}
           value={title}
           maxLength={200}
           required
           onChange={(event) => setTitle(event.target.value)}
         />
         <div className="form-field">
-          <label htmlFor="task-description">Opis zadania</label>
+          <label htmlFor="task-description">{t.taskDescription}</label>
           <textarea
             id="task-description"
             value={description}
@@ -139,7 +141,7 @@ export function HackathonTaskManager({
         <div className="task-visibility-field">
           <FormField
             id="task-visible-from"
-            label="Widoczne dla uczestników od"
+            label={t.visibleToParticipantsFrom}
             type="datetime-local"
             value={visibleFrom}
             max={toLocalDateTime(hackathonEndDate)}
@@ -151,13 +153,13 @@ export function HackathonTaskManager({
             variant="ghost"
             onClick={() => setVisibleFrom(toLocalDateTime(hackathonStartDate))}
           >
-            Start hackathonu
+            {t.hackathonStart}
           </Button>
         </div>
         {submitError && <Alert variant="error">{submitError}</Alert>}
         {successMessage && <Alert>{successMessage}</Alert>}
         <Button type="submit" variant="ghost" disabled={isSubmitting}>
-          {isSubmitting ? 'Dodawanie…' : 'Dodaj zadanie'}
+          {isSubmitting ? t.adding : t.addTask}
         </Button>
       </form>
     </section>

@@ -3,6 +3,7 @@ import { apiRequest } from '../../../lib/api/client'
 import {
   createRegistration,
   createRegistrationQuestions,
+  deleteRegistration,
   getMyRegistration,
   getParticipantArea,
   getRegistrationQuestions,
@@ -71,6 +72,14 @@ describe('registrationApi', () => {
         headers: { 'Content-Type': 'application/json' },
       },
     )
+  })
+
+  it('deletes a registration', () => {
+    deleteRegistration('registration/id')
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/registrations/registration%2Fid', {
+      method: 'DELETE',
+    })
   })
 
   it('upserts the team solution for a task', () => {

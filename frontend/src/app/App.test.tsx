@@ -12,6 +12,7 @@ const anonymousAuth: AuthContextValue = {
   isLoading: false,
   login: vi.fn(),
   register: vi.fn(),
+  updateSettings: vi.fn(),
   logout: vi.fn(),
 }
 
