@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { Alert, Button, Spinner } from '../../../components/ui'
 import { useTranslation } from '../../../i18n/useTranslation'
 import { useAuth } from '../../auth'
+import { deleteHackathon, getHackathons } from '../api/hackathonsApi'
 import {
   deleteRegistration,
   getMyRegistration,
 } from '../../registration/api/registrationApi'
-import { getHackathons } from '../api/hackathonsApi'
 import type { Hackathon, HackathonFilters as Filters } from '../types'
 import { HackathonFilters } from './HackathonFilters'
 import { HackathonListItem } from './HackathonListItem'
@@ -58,6 +58,14 @@ export function HackathonList() {
     setPage(0)
   }
 
+  async function removeHackathon(hackathon: Hackathon) {
+    await deleteHackathon(hackathon.public_id, hackathon.name)
+    setHackathons((current) =>
+      current.filter((item) => item.public_id !== hackathon.public_id),
+    )
+    setTotal((current) => Math.max(0, current - 1))
+  }
+
   async function withdrawRegistration(hackathon: Hackathon) {
     const registration = await getMyRegistration(hackathon.public_id)
     await deleteRegistration(registration.public_id)
@@ -100,6 +108,7 @@ export function HackathonList() {
                   hackathon={hackathon}
                   language={language}
                   onWithdraw={withdrawRegistration}
+                  onDelete={removeHackathon}
                 />
               ))}
             </ul>

@@ -1,18 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Button, Card, Countdown } from '../../../components/ui'
+import { Alert, Button, Card, Countdown } from '../../../components/ui'
 import { getTranslations } from '../../../i18n/useTranslation'
 import type { Language } from '../../auth'
 import { WithdrawRegistrationButton } from '../../registration/components/WithdrawRegistrationButton'
 import type { Hackathon } from '../types'
+import { getDeleteHackathonErrorMessage } from '../utils/hackathonMessages'
 
 interface HackathonListItemProps {
   hackathon: Hackathon
   language?: Language
   onWithdraw?: (hackathon: Hackathon) => Promise<void>
+  onDelete?: (hackathon: Hackathon) => Promise<void>
 }
 
-export function HackathonListItem({ hackathon, language = 'pl', onWithdraw }: HackathonListItemProps) {
+export function HackathonListItem({ hackathon, language = 'pl', onWithdraw, onDelete }: HackathonListItemProps) {
   const navigate = useNavigate()
   const t = getTranslations(language)
   const registrationStatusLabels = {
@@ -22,6 +24,38 @@ export function HackathonListItem({ hackathon, language = 'pl', onWithdraw }: Ha
   }
   const [renderedAt] = useState(() => Date.now())
   const canWithdraw = renderedAt < Date.parse(hackathon.end_date)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function handleDelete() {
+    const confirmMessage = language === 'en'
+      ? 'Are you sure you want to delete this hackathon?'
+      : 'Czy na pewno chcesz usunąć ten hackathon?'
+    if (!window.confirm(confirmMessage)) return
+
+    const confirmedName = window.prompt(
+      language === 'en'
+        ? `To confirm deletion, enter the hackathon name: ${hackathon.name}`
+        : `Aby potwierdzić usunięcie, wpisz nazwę hackathonu: ${hackathon.name}`,
+    )
+    if (confirmedName === null) return
+    if (confirmedName.trim() !== hackathon.name) {
+      setDeleteError(language === 'en'
+        ? 'The entered name does not match the hackathon name.'
+        : 'Wpisana nazwa nie jest zgodna z nazwą hackathonu.')
+      return
+    }
+
+    setDeleteError(null)
+    setIsDeleting(true)
+    try {
+      await onDelete?.(hackathon)
+    } catch (error) {
+      setDeleteError(getDeleteHackathonErrorMessage(error, language))
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <li>
@@ -82,6 +116,19 @@ export function HackathonListItem({ hackathon, language = 'pl', onWithdraw }: Ha
               {t.settings}
             </Button>
           </>
+        )}
+        {deleteError && <Alert variant="error">{deleteError}</Alert>}
+        {hackathon.access_level === 'owner' && onDelete && (
+          <Button
+            type="button"
+            variant="danger"
+            disabled={isDeleting}
+            onClick={() => void handleDelete()}
+          >
+            {isDeleting
+              ? (language === 'en' ? 'Deleting…' : 'Usuwanie…')
+              : (language === 'en' ? 'Delete hackathon' : 'Usuń hackathon')}
+          </Button>
         )}
       </Card>
     </li>
