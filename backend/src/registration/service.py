@@ -22,6 +22,7 @@ from src.registration.exceptions import (
     RegistrationNotFoundError,
     RegistrationQuestionsLockedError,
     RegistrationStatusChangeLockedError,
+    RegistrationWithdrawalLockedError,
 )
 from src.registration.models import (
     Registration,
@@ -344,6 +345,8 @@ class RegistrationService:
         self,
         registration_public_id: uuid.UUID,
         current_user: User,
+        *,
+        moment: datetime | None = None,
     ) -> None:
         registration = await self.registration_repository.get_active_by_public_id(
             registration_public_id
@@ -355,9 +358,13 @@ class RegistrationService:
         hackathon = registration.hackathon
 
         is_owner = current_user.id == registration.user_id
+        can_manage = can_manage_hackathon(hackathon, current_user)
 
-        if not (can_manage_hackathon(hackathon, current_user) or is_owner):
+        if not (can_manage or is_owner):
             raise InvalidPermission()
+
+        if is_owner and not can_manage and (moment or datetime.now(UTC)) >= hackathon.end_date:
+            raise RegistrationWithdrawalLockedError()
 
         team_id = registration.team_id
         try:

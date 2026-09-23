@@ -80,3 +80,10 @@ export function createRegistration(
     },
   )
 }
+
+export function deleteRegistration(registrationPublicId: string) {
+  return apiRequest<void>(
+    `/api/registrations/${encodeURIComponent(registrationPublicId)}`,
+    { method: 'DELETE' },
+  )
+}

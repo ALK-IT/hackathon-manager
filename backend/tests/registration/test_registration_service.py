@@ -19,6 +19,7 @@ from src.registration.exceptions import (
     RegistrationNotFoundError,
     RegistrationQuestionsLockedError,
     RegistrationStatusChangeLockedError,
+    RegistrationWithdrawalLockedError,
 )
 from src.registration.models import Registration, RegistrationQuestion, RegistrationStatus
 from src.registration.schema import (
@@ -880,6 +881,32 @@ async def test_delete_registration_rejects_user_without_access(
     registration_repository.delete.assert_not_awaited()
 
 
+async def test_participant_cannot_withdraw_after_hackathon_ends(
+    registration_service,
+    registration_repository,
+):
+    boundary = datetime(2026, 9, 22, 12, tzinfo=UTC)
+    current_user = make_user(user_id=10)
+    registration_repository.get_active_by_public_id.return_value = SimpleNamespace(
+        user_id=current_user.id,
+        team_id=None,
+        hackathon=SimpleNamespace(
+            organizer_id=20,
+            co_organizers=[],
+            end_date=boundary,
+        ),
+    )
+
+    with pytest.raises(RegistrationWithdrawalLockedError):
+        await registration_service.delete_registration(
+            uuid.uuid4(),
+            current_user,
+            moment=boundary,
+        )
+
+    registration_repository.delete.assert_not_awaited()
+
+
 @pytest.mark.parametrize("access_kind", ["admin", "organizer", "co_organizer", "owner"])
 async def test_authorized_user_can_delete_registration(
     access_kind,
@@ -906,11 +933,16 @@ async def test_authorized_user_can_delete_registration(
         hackathon=SimpleNamespace(
             organizer_id=organizer_id,
             co_organizers=co_organizers,
+            end_date=datetime(2026, 9, 22, 12, tzinfo=UTC),
         ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
 
-    await registration_service.delete_registration(uuid.uuid4(), current_user)
+    await registration_service.delete_registration(
+        uuid.uuid4(),
+        current_user,
+        moment=datetime(2026, 9, 22, 12, tzinfo=UTC) - timedelta(microseconds=1),
+    )
 
     registration_repository.delete.assert_awaited_once_with(registration)
     registration_repository.commit.assert_awaited_once_with()
@@ -926,11 +958,19 @@ async def test_delete_registration_removes_team_when_it_becomes_empty(
     registration = SimpleNamespace(
         user_id=current_user.id,
         team_id=40,
-        hackathon=SimpleNamespace(organizer_id=20, co_organizers=[]),
+        hackathon=SimpleNamespace(
+            organizer_id=20,
+            co_organizers=[],
+            end_date=datetime(2026, 9, 22, 12, tzinfo=UTC),
+        ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
 
-    await registration_service.delete_registration(uuid.uuid4(), current_user)
+    await registration_service.delete_registration(
+        uuid.uuid4(),
+        current_user,
+        moment=datetime(2026, 9, 22, 12, tzinfo=UTC) - timedelta(microseconds=1),
+    )
 
     registration_repository.delete.assert_awaited_once_with(registration)
     team_service.delete_if_empty.assert_awaited_once_with(registration.team_id)
@@ -945,13 +985,21 @@ async def test_delete_registration_rolls_back_repository_error(
     registration = SimpleNamespace(
         user_id=current_user.id,
         team_id=None,
-        hackathon=SimpleNamespace(organizer_id=20, co_organizers=[]),
+        hackathon=SimpleNamespace(
+            organizer_id=20,
+            co_organizers=[],
+            end_date=datetime(2026, 9, 22, 12, tzinfo=UTC),
+        ),
     )
     registration_repository.get_active_by_public_id.return_value = registration
     registration_repository.delete.side_effect = RuntimeError("delete failed")
 
     with pytest.raises(RuntimeError, match="delete failed"):
-        await registration_service.delete_registration(uuid.uuid4(), current_user)
+        await registration_service.delete_registration(
+            uuid.uuid4(),
+            current_user,
+            moment=datetime(2026, 9, 22, 12, tzinfo=UTC) - timedelta(microseconds=1),
+        )
 
     registration_repository.rollback.assert_awaited_once_with()
     registration_repository.commit.assert_not_awaited()
