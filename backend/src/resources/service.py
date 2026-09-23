@@ -9,6 +9,7 @@ from src.common.sqlalchemy import get_integrity_error_constraint
 from src.hackathons.access import can_manage_hackathon
 from src.resources.crypto import decrypt_value, encrypt_value
 from src.resources.exceptions import (
+    ResourceHasActiveAssignmentsError,
     ResourceItemNotFoundError,
     ResourceItemUnavailableError,
     ResourceNotAssignedToUserError,
@@ -80,6 +81,8 @@ class ResourceService:
         resource = await self.repository.get_resource(hackathon_public_id, resource_public_id)
         if resource is None:
             raise ResourceNotFoundError()
+        if await self.repository.has_active_assignments(resource.id):
+            raise ResourceHasActiveAssignmentsError()
         await self.repository.delete_resource(resource)
         await self.repository.commit()
 

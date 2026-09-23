@@ -55,3 +55,9 @@ class ResourceRevokedError(ResourceError):
     status_code = status.HTTP_409_CONFLICT
     error_code = ErrorCode.RESOURCE_REVOKED
     detail = "This resource has been revoked."
+
+
+class ResourceHasActiveAssignmentsError(ResourceError):
+    status_code = status.HTTP_409_CONFLICT
+    error_code = ErrorCode.RESOURCE_HAS_ACTIVE_ASSIGNMENTS
+    detail = "Revoke all active assignments before deleting this resource."

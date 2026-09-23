@@ -233,6 +233,19 @@ class ResourceRepository:
     async def delete_resource(self, resource: Resource) -> None:
         await self.session.delete(resource)
 
+    async def has_active_assignments(self, resource_id: int) -> bool:
+        return bool(
+            await self.session.scalar(
+                select(
+                    exists().where(
+                        ResourceAssignment.resource_item_id == ResourceItem.id,
+                        ResourceItem.resource_id == resource_id,
+                        ResourceAssignment.revoked_at.is_(None),
+                    )
+                )
+            )
+        )
+
     async def create_audit_log(self, audit_log: ResourceAuditLog) -> ResourceAuditLog:
         self.session.add(audit_log)
         await self.session.flush()
