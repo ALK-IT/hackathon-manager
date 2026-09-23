@@ -5,8 +5,10 @@ import { resendVerificationRequest, verifyEmailRequest } from '../api/authApi'
 import { AuthPageLayout } from '../components/AuthPageLayout'
 import { FormField } from '../components/FormField'
 import { isValidEmail } from '../utils/validation'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 export function VerifyEmailPage() {
+  const { language, t } = useTranslation()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(
@@ -34,15 +36,15 @@ export function VerifyEmailPage() {
   async function resend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!isValidEmail(email)) {
-      setResendMessage('Podaj poprawny adres e-mail.')
+      setResendMessage(t.invalidEmail)
       return
     }
     setResending(true)
     try {
       await resendVerificationRequest(email.trim().toLowerCase())
-      setResendMessage('Jeśli konto istnieje, wysłaliśmy nowy link aktywacyjny.')
+      setResendMessage(language === 'en' ? 'If the account exists, we sent a new activation link.' : 'Jeśli konto istnieje, wysłaliśmy nowy link aktywacyjny.')
     } catch {
-      setResendMessage('Nie udało się wysłać wiadomości. Spróbuj ponownie.')
+      setResendMessage(language === 'en' ? 'Could not send the message. Try again.' : 'Nie udało się wysłać wiadomości. Spróbuj ponownie.')
     } finally {
       setResending(false)
     }
@@ -50,34 +52,34 @@ export function VerifyEmailPage() {
 
   return (
     <AuthPageLayout
-      title="Potwierdzenie konta"
-      footerText="Masz już potwierdzone konto?"
-      footerLinkText="Zaloguj się"
+      title={t.verifyAccount}
+      footerText={t.verifiedAccountQuestion}
+      footerLinkText={t.login}
       footerLinkTo="/login"
     >
-      {status === 'loading' && <Spinner label="Potwierdzanie konta…" />}
+      {status === 'loading' && <Spinner label={t.verifyingAccount} />}
       {status === 'success' && (
         <Alert>
-          Konto zostało potwierdzone. <Link to="/login">Przejdź do logowania</Link>.
+          {t.accountVerified} <Link to="/login">{t.goToLogin}</Link>.
         </Alert>
       )}
       {status === 'error' && (
         <>
           {token && (
-            <Alert variant="error">Link jest nieprawidłowy, wygasł albo został już użyty.</Alert>
+            <Alert variant="error">{language === 'en' ? 'The link is invalid, expired, or has already been used.' : 'Link jest nieprawidłowy, wygasł albo został już użyty.'}</Alert>
           )}
           {resendMessage && <Alert>{resendMessage}</Alert>}
           <form className="auth-form" onSubmit={resend} noValidate>
             <FormField
               id="verification-email"
-              label="E-mail"
+              label={t.email}
               type="email"
               autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
             <Button type="submit" disabled={resending}>
-              {resending ? 'Wysyłanie…' : 'Wyślij nowy link'}
+              {resending ? t.sending : t.sendNewLink}
             </Button>
           </form>
         </>

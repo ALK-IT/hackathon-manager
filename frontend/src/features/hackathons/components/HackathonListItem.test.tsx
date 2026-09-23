@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Hackathon } from '../types'
 import { HackathonListItem } from './HackathonListItem'
 
@@ -17,6 +17,8 @@ const hackathon: Hackathon = {
 }
 
 describe('HackathonListItem', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   it('renders the hackathon details', () => {
     render(
       <MemoryRouter>
@@ -153,6 +155,48 @@ describe('HackathonListItem', () => {
     expect(screen.queryByRole('button', { name: 'Zarejestruj się' })).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Przejdź do hackathonu' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('allows withdrawing before the hackathon ends after confirmation', async () => {
+    const onWithdraw = vi.fn().mockResolvedValue(undefined)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{
+            ...hackathon,
+            end_date: '2099-09-02T18:00:00Z',
+            my_registration_status: 'accepted',
+          }}
+          onWithdraw={onWithdraw}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wycofaj zgłoszenie' }))
+
+    expect(confirm).toHaveBeenCalledWith('Czy na pewno chcesz się wycofać?')
+    await waitFor(() => expect(onWithdraw).toHaveBeenCalledOnce())
+  })
+
+  it('does not allow withdrawing after the hackathon ends', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{
+            ...hackathon,
+            end_date: '2000-09-02T18:00:00Z',
+            my_registration_status: 'pending',
+          }}
+          onWithdraw={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'Wycofaj zgłoszenie' }),
     ).not.toBeInTheDocument()
   })
 })

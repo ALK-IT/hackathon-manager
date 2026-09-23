@@ -55,6 +55,12 @@ class RegistrationStatusChangeLockedError(RegistrationError):
     detail = "Registration statuses cannot be changed after the hackathon has ended."
 
 
+class RegistrationWithdrawalLockedError(RegistrationError):
+    status_code = 409
+    error_code = ErrorCode.REGISTRATION_WITHDRAWAL_LOCKED
+    detail = "Participants cannot withdraw registrations after the hackathon has ended."
+
+
 class RegistrationNotFoundError(RegistrationError):
     status_code = 404
     error_code = ErrorCode.REGISTRATION_NOT_FOUND

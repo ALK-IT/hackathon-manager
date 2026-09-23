@@ -6,6 +6,11 @@ from src.auth.constants import (
     DEFAULT_ACCESS_TOKEN_EXPIRE_MINUTES,
     DEFAULT_REFRESH_TOKEN_EXPIRE_DAYS,
 )
+from src.common.runtime_secrets import LOCAL_JWT_SECRET_KEY, validate_runtime_secret
+
+EMAIL_VERIFICATION_TTL = 24 * 60 * 60
+PASSWORD_RESET_TTL = 30 * 60
+RATE_LIMIT_WINDOW = 5 * 60
 
 
 @dataclass(frozen=True)
@@ -142,7 +147,12 @@ def get_email_from() -> str:
 
 
 def validate_configuration() -> None:
-    get_jwt_secret_key()
+    jwt_secret_key = get_jwt_secret_key()
+    validate_runtime_secret(
+        "JWT_SECRET_KEY",
+        [jwt_secret_key],
+        {LOCAL_JWT_SECRET_KEY},
+    )
     get_auth_cookie_samesite()
     get_frontend_origins()
     get_smtp_port()

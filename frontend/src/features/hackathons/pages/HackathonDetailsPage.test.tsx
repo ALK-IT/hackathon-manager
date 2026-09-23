@@ -49,10 +49,12 @@ const auth: AuthContextValue = {
     email: 'admin@example.com',
     created_at: '2026-07-01T10:00:00Z',
     role: 'admin',
+    language: 'pl',
   },
   isLoading: false,
   login: vi.fn(),
   register: vi.fn(),
+  updateSettings: vi.fn(),
   logout: vi.fn(),
 }
 

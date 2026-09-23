@@ -1204,6 +1204,37 @@ async def test_owner_deletes_registration(
     assert await session.scalar(select(Team).where(Team.public_id == team_public_id)) is None
 
 
+async def test_owner_cannot_withdraw_registration_after_hackathon_ends(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate: ForceAuthenticate,
+):
+    organizer = await create_user(session, "organizer@example.com")
+    participant = await create_user(session, "participant@example.com")
+    hackathon = await create_hackathon(session, organizer)
+    now = datetime.now(UTC)
+    hackathon.registration_opens_at = now - timedelta(days=4)
+    hackathon.registration_deadline = now - timedelta(days=3)
+    hackathon.start_date = now - timedelta(days=2)
+    hackathon.end_date = now - timedelta(days=1)
+    registration = Registration(user=participant, hackathon=hackathon)
+    session.add(registration)
+    await session.commit()
+    registration_public_id = registration.public_id
+    force_authenticate(participant)
+
+    response = await api_client.delete(f"/api/registrations/{registration_public_id}")
+
+    assert response.status_code == 409
+    assert response.json()["error_code"] == "REGISTRATION_WITHDRAWAL_LOCKED"
+    assert (
+        await session.scalar(
+            select(Registration).where(Registration.public_id == registration_public_id)
+        )
+        is not None
+    )
+
+
 async def test_delete_missing_registration_returns_not_found(
     api_client: AsyncClient,
     session: AsyncSession,

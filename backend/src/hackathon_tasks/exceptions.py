@@ -41,3 +41,15 @@ class TaskSubmissionClosedError(TaskError):
     status_code = 409
     error_code = ErrorCode.TASK_SUBMISSION_CLOSED
     detail = "Solutions cannot be submitted after the hackathon has ended."
+
+
+class TaskSubmissionNotFoundError(TaskError):
+    status_code = 404
+    error_code = ErrorCode.TASK_SUBMISSION_NOT_FOUND
+    detail = "Task submission does not exist."
+
+
+class TaskEvaluationNotOpenError(TaskError):
+    status_code = 409
+    error_code = ErrorCode.TASK_EVALUATION_NOT_OPEN
+    detail = "Solutions can only be evaluated after the hackathon has ended."
