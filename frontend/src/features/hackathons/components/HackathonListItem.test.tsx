@@ -158,6 +158,68 @@ describe('HackathonListItem', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('requires two confirmations before the owner deletes a hackathon', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue(hackathon.name)
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{ ...hackathon, access_level: 'owner' }}
+          onDelete={onDelete}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń hackathon' }))
+
+    expect(confirm).toHaveBeenCalledWith('Czy na pewno chcesz usunąć ten hackathon?')
+    expect(prompt).toHaveBeenCalledWith(
+      `Aby potwierdzić usunięcie, wpisz nazwę hackathonu: ${hackathon.name}`,
+    )
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(
+      expect.objectContaining({ public_id: hackathon.public_id }),
+    ))
+  })
+
+  it('does not delete when the second confirmation has a different name', () => {
+    const onDelete = vi.fn()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'prompt').mockReturnValue('Inny hackathon')
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{ ...hackathon, access_level: 'owner' }}
+          onDelete={onDelete}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń hackathon' }))
+
+    expect(onDelete).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Wpisana nazwa nie jest zgodna z nazwą hackathonu.',
+    )
+  })
+
+  it('does not show delete action to a co-organizer', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{ ...hackathon, access_level: 'co_organizer' }}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'Usuń hackathon' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('allows withdrawing before the hackathon ends after confirmation', async () => {
     const onWithdraw = vi.fn().mockResolvedValue(undefined)
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)

@@ -36,6 +36,30 @@ export function getUpdateHackathonErrorMessage(error: unknown, language: 'pl' | 
   return 'Nie udało się zapisać ustawień hackathonu. Spróbuj ponownie.'
 }
 
+export function getDeleteHackathonErrorMessage(error: unknown, language: 'pl' | 'en' = 'pl'): string {
+  if (language === 'en') {
+    if (error instanceof ApiError) {
+      if (error.status === 404) return 'The hackathon does not exist or you cannot delete it.'
+      if (error.errorCode === 'INVALID_CONFIRM_NAME') {
+        return 'The entered name does not match the hackathon name.'
+      }
+      return error.message
+    }
+    return 'Could not delete the hackathon. Try again.'
+  }
+  if (error instanceof ApiError) {
+    if (error.status === 404) {
+      return 'Hackathon nie istnieje albo nie masz uprawnień do jego usunięcia.'
+    }
+    if (error.errorCode === 'INVALID_CONFIRM_NAME') {
+      return 'Wpisana nazwa nie jest zgodna z nazwą hackathonu.'
+    }
+    return error.message
+  }
+
+  return 'Nie udało się usunąć hackathonu. Spróbuj ponownie.'
+}
+
 export function getAddCoOrganizerErrorMessage(error: unknown, language: 'pl' | 'en' = 'pl'): string {
   if (language === 'en') {
     if (error instanceof ApiError) {
