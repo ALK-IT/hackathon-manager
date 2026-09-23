@@ -1,22 +1,25 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Card, Countdown } from '../../../components/ui'
+import { getTranslations } from '../../../i18n/useTranslation'
+import type { Language } from '../../auth'
 import { WithdrawRegistrationButton } from '../../registration/components/WithdrawRegistrationButton'
 import type { Hackathon } from '../types'
 
 interface HackathonListItemProps {
   hackathon: Hackathon
+  language?: Language
   onWithdraw?: (hackathon: Hackathon) => Promise<void>
 }
 
-const registrationStatusLabels = {
-  pending: 'oczekujące',
-  accepted: 'zaakceptowane',
-  rejected: 'odrzucone',
-} as const
-
-export function HackathonListItem({ hackathon, onWithdraw }: HackathonListItemProps) {
+export function HackathonListItem({ hackathon, language = 'pl', onWithdraw }: HackathonListItemProps) {
   const navigate = useNavigate()
+  const t = getTranslations(language)
+  const registrationStatusLabels = {
+    pending: t.pending,
+    accepted: t.accepted,
+    rejected: t.rejected,
+  }
   const [renderedAt] = useState(() => Date.now())
   const canWithdraw = renderedAt < Date.parse(hackathon.end_date)
 
@@ -27,14 +30,14 @@ export function HackathonListItem({ hackathon, onWithdraw }: HackathonListItemPr
           <Link to={`/hackathons/${hackathon.public_id}`}>{hackathon.name}</Link>
         </h3>
         <p>
-          {new Date(hackathon.start_date).toLocaleDateString('pl-PL')} –{' '}
-          {new Date(hackathon.end_date).toLocaleDateString('pl-PL')}
+          {new Date(hackathon.start_date).toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-US')} –{' '}
+          {new Date(hackathon.end_date).toLocaleDateString(language === 'pl' ? 'pl-PL' : 'en-US')}
         </p>
-        <Countdown startDate={hackathon.start_date} endDate={hackathon.end_date} />
-        <p>Rejestracja: {hackathon.registration_open ? 'otwarta' : 'zamknięta'}</p>
+        <Countdown startDate={hackathon.start_date} endDate={hackathon.end_date} language={language} />
+        <p>{t.registrationLabel}: {hackathon.registration_open ? t.registrationOpen : t.registrationClosed}</p>
         {hackathon.my_registration_status && (
           <p>
-            Status zgłoszenia:{' '}
+            {t.applicationStatus}:{' '}
             {registrationStatusLabels[hackathon.my_registration_status]}
           </p>
         )}
@@ -46,7 +49,7 @@ export function HackathonListItem({ hackathon, onWithdraw }: HackathonListItemPr
               navigate(`/hackathons/${hackathon.public_id}/participant-area`)
             }
           >
-            Przejdź do hackathonu
+            {t.enterHackathon}
           </Button>
         ) : (
           hackathon.my_registration_status === null &&
@@ -56,12 +59,12 @@ export function HackathonListItem({ hackathon, onWithdraw }: HackathonListItemPr
               variant="ghost"
               onClick={() => navigate(`/hackathons/${hackathon.public_id}/register`)}
             >
-              Zarejestruj się
+              {t.register}
             </Button>
           )
         )}
         {canWithdraw && hackathon.my_registration_status !== null && onWithdraw && (
-          <WithdrawRegistrationButton onWithdraw={() => onWithdraw(hackathon)} />
+          <WithdrawRegistrationButton language={language} onWithdraw={() => onWithdraw(hackathon)} />
         )}
         {(hackathon.access_level === 'owner' ||
           hackathon.access_level === 'co_organizer') && (
@@ -70,13 +73,13 @@ export function HackathonListItem({ hackathon, onWithdraw }: HackathonListItemPr
               type="button"
               onClick={() => navigate(`/hackathons/${hackathon.public_id}/registrations`)}
             >
-              Zgłoszenia
+              {t.applications}
             </Button>
             <Button
               type="button"
               onClick={() => navigate(`/hackathons/${hackathon.public_id}/settings`)}
             >
-              Ustawienia
+              {t.settings}
             </Button>
           </>
         )}

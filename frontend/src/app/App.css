@@ -509,6 +509,7 @@ button:disabled {
 .profile-identity p { margin: 0; color: var(--color-text-muted); }
 .profile-eyebrow { color: var(--color-primary); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .profile-meta { display: flex; gap: 32px; margin: 0; padding-left: 32px; border-left: 1px solid var(--color-border); }
+.profile-hero-actions { display: flex; align-items: center; gap: 24px; }
 .profile-meta div { display: grid; gap: 5px; }
 .profile-meta dt { color: var(--color-text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .profile-meta dd { margin: 0; font-weight: 700; }
@@ -520,6 +521,12 @@ button:disabled {
 .profile-empty { padding: 32px !important; text-align: center; }
 .profile-empty h3 { margin-top: 0; }
 .profile-empty p { color: var(--color-text-muted); }
+.profile-settings-card { display: grid; gap: 24px; }
+.profile-settings-form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(160px, 1fr) auto; align-items: end; gap: 16px; }
+.profile-settings-form input, .profile-settings-form select { box-sizing: border-box; width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-background); font: inherit; }
+.profile-password-settings { padding-top: 20px; border-top: 1px solid var(--color-border); }
+.profile-password-settings h3 { margin: 0 0 8px; }
+.profile-password-settings p { margin: 0 0 16px; color: var(--color-text-muted); }
 .profile-load-more {
   display: flex;
   justify-content: center;
@@ -542,7 +549,10 @@ button:disabled {
 @media (max-width: 720px) {
   .profile-hero { grid-template-columns: auto 1fr; padding: 24px !important; }
   .profile-meta { grid-column: 1 / -1; padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--color-border); }
+  .profile-hero-actions { grid-column: 1 / -1; align-items: flex-start; flex-direction: column; }
   .registration-grid { grid-template-columns: 1fr; }
+  .profile-settings-form { grid-template-columns: 1fr; align-items: stretch; }
+  .profile-settings-form button { justify-self: start; }
 }
 
 @media (max-width: 430px) {

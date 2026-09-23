@@ -7,9 +7,11 @@ import { getLoginErrorMessage } from '../utils/authMessages'
 import { validateLogin, type LoginErrors } from '../utils/validation'
 import { AuthPageLayout } from '../components/AuthPageLayout'
 import { FormField } from '../components/FormField'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 export function LoginPage() {
   const { login } = useAuth()
+  const { language, t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -21,7 +23,7 @@ export function LoginPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const validationErrors = validateLogin(email, password)
+    const validationErrors = validateLogin(email, password, language)
     setErrors(validationErrors)
     if (Object.keys(validationErrors).length > 0) return
 
@@ -33,7 +35,7 @@ export function LoginPage() {
       const destination = (location.state as { from?: string } | null)?.from ?? '/hackathons'
       navigate(destination, { replace: true })
     } catch (error) {
-      setSubmitError(getLoginErrorMessage(error))
+      setSubmitError(getLoginErrorMessage(error, language))
       setShowResendLink(error instanceof ApiError && error.status === 403)
     } finally {
       setIsSubmitting(false)
@@ -42,19 +44,19 @@ export function LoginPage() {
 
   return (
     <AuthPageLayout
-      title="Logowanie"
-      footerText="Nie masz konta?"
-      footerLinkText="Zarejestruj się"
+      title={t.signInTitle}
+      footerText={t.noAccount}
+      footerLinkText={t.signUp}
       footerLinkTo="/register"
     >
       {(location.state as { registered?: boolean } | null)?.registered && (
-        <Alert>Konto zostało utworzone. Sprawdź e-mail i potwierdź konto.</Alert>
+        <Alert>{t.accountCreated}</Alert>
       )}
       {submitError && <Alert variant="error">{submitError}</Alert>}
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <FormField
           id="login-email"
-          label="E-mail"
+          label={t.email}
           type="email"
           autoComplete="email"
           value={email}
@@ -63,7 +65,7 @@ export function LoginPage() {
         />
         <FormField
           id="login-password"
-          label="Hasło"
+          label={t.password}
           type="password"
           autoComplete="current-password"
           value={password}
@@ -71,11 +73,11 @@ export function LoginPage() {
           onChange={(event) => setPassword(event.target.value)}
         />
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Logowanie…' : 'Zaloguj się'}
+          {isSubmitting ? t.signingIn : t.login}
         </Button>
-        <Link to="/forgot-password">Nie pamiętasz hasła?</Link>
+        <Link to="/forgot-password">{t.forgotPassword}</Link>
         {showResendLink && (
-          <Link to="/verify-email">Wyślij ponownie link aktywacyjny</Link>
+          <Link to="/verify-email">{t.resendActivation}</Link>
         )}
       </form>
     </AuthPageLayout>

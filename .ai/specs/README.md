@@ -42,5 +42,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-023 | Ocena rozwiązań drużyn | Zaakceptowany | [SPEC-023-2026-09-14-ocena-rozwiazan-druzyn.md](SPEC-023-2026-09-14-ocena-rozwiazan-druzyn.md) |
 | SPEC-024 | Frontendowy panel „Moje zasoby” | Zaimplementowany | [implemented/SPEC-024-2026-08-27-panel-moje-zasoby.md](implemented/SPEC-024-2026-08-27-panel-moje-zasoby.md) |
 | SPEC-025 | Odbiór i odsłanianie przypisanych zasobów | Zaimplementowany | [implemented/SPEC-025-2026-09-03-odbior-przypisanych-zasobow.md](implemented/SPEC-025-2026-09-03-odbior-przypisanych-zasobow.md) |
+| SPEC-026 | Ustawienia użytkownika | Zaimplementowany | [implemented/SPEC-026-2026-09-12-ustawienia-uzytkownika.md](implemented/SPEC-026-2026-09-12-ustawienia-uzytkownika.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

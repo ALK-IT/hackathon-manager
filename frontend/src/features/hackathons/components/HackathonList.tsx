@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Spinner } from '../../../components/ui'
+import { useTranslation } from '../../../i18n/useTranslation'
 import { useAuth } from '../../auth'
 import {
   deleteRegistration,
@@ -14,6 +15,7 @@ const PAGE_SIZE = 20
 
 export function HackathonList() {
   const { user, isLoading: isAuthLoading } = useAuth()
+  const { language, t } = useTranslation()
   const [hackathons, setHackathons] = useState<Hackathon[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
@@ -41,7 +43,7 @@ export function HackathonList() {
         setTotal(result.total)
       } catch (requestError) {
         if (requestError instanceof Error && requestError.name === 'AbortError') return
-        setError('Nie udało się pobrać hackathonów. Spróbuj ponownie.')
+        setError(t.loadHackathonsError)
       } finally {
         if (!controller.signal.aborted) setIsLoading(false)
       }
@@ -49,7 +51,7 @@ export function HackathonList() {
 
     void loadHackathons()
     return () => controller.abort()
-  }, [filters, isAuthLoading, page, requestVersion, user?.public_id])
+  }, [filters, isAuthLoading, page, requestVersion, t.loadHackathonsError, user?.public_id])
 
   function changeFilters(nextFilters: Filters) {
     setFilters(nextFilters)
@@ -70,23 +72,23 @@ export function HackathonList() {
 
   return (
     <div className="hackathons-layout">
-      <HackathonFilters filters={filters} onChange={changeFilters} />
+      <HackathonFilters filters={filters} language={language} onChange={changeFilters} />
       <section aria-labelledby="hackathon-list-heading">
-        <h2 id="hackathon-list-heading">Lista hackathonów</h2>
+        <h2 id="hackathon-list-heading">{t.list}</h2>
 
-        {isLoading && <Spinner label="Ładowanie hackathonów…" />}
+        {isLoading && <Spinner label={t.loadingHackathons} />}
 
         {error && (
           <div className="state-stack">
             <Alert variant="error">{error}</Alert>
             <Button type="button" onClick={() => setRequestVersion((value) => value + 1)}>
-              Spróbuj ponownie
+              {t.retry}
             </Button>
           </div>
         )}
 
         {!isLoading && !error && hackathons.length === 0 && (
-          <Alert>Brak hackathonów do wyświetlenia.</Alert>
+          <Alert>{t.noHackathons}</Alert>
         )}
 
         {!isLoading && !error && hackathons.length > 0 && (
@@ -96,27 +98,28 @@ export function HackathonList() {
                 <HackathonListItem
                   key={hackathon.public_id}
                   hackathon={hackathon}
+                  language={language}
                   onWithdraw={withdrawRegistration}
                 />
               ))}
             </ul>
-            <nav aria-label="Stronicowanie hackathonów">
+            <nav aria-label={language === 'en' ? 'Hackathon pagination' : 'Stronicowanie hackathonów'}>
               <Button
                 type="button"
                 variant="ghost"
                 disabled={isLoading || page === 0}
                 onClick={() => setPage((current) => current - 1)}
               >
-                Poprzednia strona
+                {t.previousPage}
               </Button>
-              <span aria-live="polite">Strona {page + 1}</span>
+              <span aria-live="polite">{t.page} {page + 1}</span>
               <Button
                 type="button"
                 variant="ghost"
                 disabled={isLoading || (page + 1) * PAGE_SIZE >= total}
                 onClick={() => setPage((current) => current + 1)}
               >
-                Następna strona
+                {t.nextPage}
               </Button>
             </nav>
           </>

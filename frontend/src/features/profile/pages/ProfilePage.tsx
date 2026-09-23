@@ -1,18 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Alert, Button, Card, Spinner } from '../../../components/ui'
+import { useTranslation } from '../../../i18n/useTranslation'
 import { useAuth } from '../../auth'
 import { NotificationBell } from '../../notifications'
 import { deleteRegistration } from '../../registration/api/registrationApi'
 import { WithdrawRegistrationButton } from '../../registration/components/WithdrawRegistrationButton'
 import { getProfileHackathons } from '../api/profileApi'
-import type { ProfileHackathon, RegistrationStatus } from '../types'
-
-const dateFormatter = new Intl.DateTimeFormat('pl-PL', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-})
+import type { ProfileHackathon } from '../types'
 
 function initials(name: string) {
   return name
@@ -23,21 +18,26 @@ function initials(name: string) {
     .toUpperCase()
 }
 
-const statusLabels: Record<RegistrationStatus, string> = {
-  pending: 'Oczekuje',
-  accepted: 'Przyjęty',
-  rejected: 'Odrzucony',
-}
-
 const PROFILE_HACKATHONS_PAGE_SIZE = 12
-
 export function ProfilePage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const { language: currentLanguage, t } = useTranslation()
   const [hackathons, setHackathons] = useState<ProfileHackathon[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const dateFormatter = new Intl.DateTimeFormat(currentLanguage === 'pl' ? 'pl-PL' : 'en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const statusLabels = {
+    pending: t.profilePending,
+    accepted: t.profileAccepted,
+    rejected: t.profileRejected,
+  }
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [loadedAt] = useState(() => Date.now())
 
@@ -56,7 +56,7 @@ export function ProfilePage() {
           active &&
           !(requestError instanceof DOMException && requestError.name === 'AbortError')
         ) {
-          setError('Nie udało się pobrać Twoich hackathonów.')
+          setError(t.profileLoadError)
         }
       })
       .finally(() => {
@@ -66,7 +66,7 @@ export function ProfilePage() {
       active = false
       controller.abort()
     }
-  }, [])
+  }, [t.profileLoadError])
 
   async function loadMoreHackathons() {
     setIsLoadingMore(true)
@@ -90,7 +90,7 @@ export function ProfilePage() {
       })
       setTotal(response.total)
     } catch {
-      setLoadMoreError('Nie udało się pobrać kolejnych hackathonów.')
+      setLoadMoreError(t.profileLoadMoreError)
     } finally {
       setIsLoadingMore(false)
     }
@@ -110,40 +110,45 @@ export function ProfilePage() {
 
   return (
     <main className="app-page profile-page">
-      <nav className="profile-nav" aria-label="Nawigacja profilu">
-        <Link to="/hackathons">← Wszystkie hackathony</Link>
+      <nav className="profile-nav" aria-label={t.profileNavigation}>
+        <Link to="/hackathons">{t.backToHackathons}</Link>
         <NotificationBell />
       </nav>
 
       <Card className="profile-hero">
         <div className="profile-avatar" aria-hidden="true">{initials(user.name)}</div>
         <div className="profile-identity">
-          <span className="profile-eyebrow">Twój profil</span>
+          <span className="profile-eyebrow">{t.yourProfile}</span>
           <h1>{user.name}</h1>
           <p>{user.email}</p>
         </div>
-        <dl className="profile-meta">
-          <div><dt>Rola</dt><dd>{user.role === 'admin' ? 'Administrator' : 'Uczestnik'}</dd></div>
-          <div><dt>W serwisie od</dt><dd>{dateFormatter.format(new Date(user.created_at))}</dd></div>
-        </dl>
+        <div className="profile-hero-actions">
+          <dl className="profile-meta">
+            <div><dt>{t.role}</dt><dd>{user.role === 'admin' ? t.administrator : t.participant}</dd></div>
+            <div><dt>{t.memberSince}</dt><dd>{dateFormatter.format(new Date(user.created_at))}</dd></div>
+          </dl>
+          <Button type="button" variant="ghost" onClick={() => navigate('/profile/settings')}>
+            {t.settings}
+          </Button>
+        </div>
       </Card>
 
       <section className="profile-section" aria-labelledby="registrations-heading">
         <div className="profile-section-heading">
           <div>
-            <span className="profile-eyebrow">Twoje wydarzenia</span>
-            <h2 id="registrations-heading">Hackathony, na które aplikujesz</h2>
+            <span className="profile-eyebrow">{t.yourEvents}</span>
+            <h2 id="registrations-heading">{t.appliedHackathons}</h2>
           </div>
           {!isLoading && !error && <span className="profile-count">{total}</span>}
         </div>
 
-        {isLoading && <div className="profile-state"><Spinner /> Pobieramy hackathony…</div>}
+        {isLoading && <div className="profile-state"><Spinner /> {t.loadingProfile}</div>}
         {error && <Alert variant="error">{error}</Alert>}
         {!isLoading && !error && hackathons.length === 0 && (
           <Card className="profile-empty">
-            <h3>Jeszcze nie ma tu żadnych wydarzeń</h3>
-            <p>Gdy wyślesz pierwsze zgłoszenie, hackathon pojawi się w tym miejscu.</p>
-            <Link to="/hackathons">Znajdź hackathon</Link>
+            <h3>{t.noEvents}</h3>
+            <p>{t.noEventsDescription}</p>
+            <Link to="/hackathons">{t.findHackathon}</Link>
           </Card>
         )}
         <div className="registration-grid">
@@ -163,14 +168,15 @@ export function ProfilePage() {
                   <span aria-hidden="true">↗</span>
                 </div>
                 <h3>{hackathon.name}</h3>
-                <p>{hackathon.description || 'Szczegóły wydarzenia znajdziesz na stronie hackathonu.'}</p>
+                <p>{hackathon.description || t.eventDetailsFallback}</p>
                 <div className="registration-card-footer">
                   <span>{dateFormatter.format(new Date(hackathon.start_date))} – {dateFormatter.format(new Date(hackathon.end_date))}</span>
-                  {hackathon.team && <span>Zespół: {hackathon.team.name}</span>}
+                  {hackathon.team && <span>{t.team}: {hackathon.team.name}</span>}
                 </div>
               </Link>
               {loadedAt < Date.parse(hackathon.end_date) && (
                 <WithdrawRegistrationButton
+                  language={currentLanguage}
                   onWithdraw={() =>
                     withdrawRegistration(hackathon.registration_public_id)
                   }
@@ -187,7 +193,7 @@ export function ProfilePage() {
               disabled={isLoadingMore}
               onClick={() => void loadMoreHackathons()}
             >
-              {isLoadingMore ? 'Pobieranie…' : 'Pokaż więcej'}
+              {isLoadingMore ? t.loadingMore : t.showMore}
             </Button>
           </div>
         )}

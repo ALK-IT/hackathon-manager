@@ -46,6 +46,7 @@ async def get_or_create_user(
     password: str,
     email_verified_at: datetime,
     role: UserRole = UserRole.USER,
+    language: str = "en",
 ) -> User:
     user = await session.scalar(select(User).where(User.email == email))
     if user is None:
@@ -56,6 +57,7 @@ async def get_or_create_user(
             password_hash=hash_password(password),
             email_verified_at=email_verified_at,
             role=role,
+            language=language,
         )
         session.add(user)
     else:
@@ -63,6 +65,7 @@ async def get_or_create_user(
         user.password_hash = hash_password(password)
         user.email_verified_at = email_verified_at
         user.role = role
+        user.language = language
     return user
 
 

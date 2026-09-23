@@ -1,12 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../../auth'
 import { deleteRegistration } from '../../registration/api/registrationApi'
 import { getProfileHackathons } from '../api/profileApi'
 import { ProfilePage } from './ProfilePage'
 
-vi.mock('../api/profileApi', () => ({ getProfileHackathons: vi.fn() }))
+vi.mock('../api/profileApi', () => ({
+  getProfileHackathons: vi.fn(),
+}))
 vi.mock('../../registration/api/registrationApi', () => ({ deleteRegistration: vi.fn() }))
 vi.mock('../../notifications', () => ({ NotificationBell: () => null }))
 
@@ -17,16 +19,19 @@ const auth: AuthContextValue = {
     email: 'jan@example.com',
     created_at: '2026-01-10T12:00:00Z',
     role: 'user',
+    language: 'pl',
   },
   isLoading: false,
   login: vi.fn(),
   register: vi.fn(),
+  updateSettings: vi.fn(),
   logout: vi.fn(),
 }
 
 describe('ProfilePage', () => {
   beforeEach(() => {
     vi.mocked(getProfileHackathons).mockReset()
+    vi.mocked(auth.updateSettings).mockReset()
     vi.mocked(deleteRegistration).mockReset()
   })
 
@@ -81,6 +86,29 @@ describe('ProfilePage', () => {
     )
 
     expect(await screen.findByText('Jeszcze nie ma tu żadnych wydarzeń')).toBeInTheDocument()
+  })
+
+  it('opens settings from the profile button', async () => {
+    vi.mocked(getProfileHackathons).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 12,
+      offset: 0,
+    })
+    function CurrentPath() {
+      return <output>{useLocation().pathname}</output>
+    }
+    render(
+      <MemoryRouter initialEntries={['/profile']}>
+        <AuthContext.Provider value={auth}>
+          <ProfilePage />
+          <CurrentPath />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ustawienia' }))
+    expect(screen.getByText('/profile/settings')).toBeInTheDocument()
   })
 
   it('loads the next page without replacing visible hackathons', async () => {
