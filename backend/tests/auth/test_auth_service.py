@@ -12,7 +12,7 @@ from src.auth.exceptions import (
     InvalidActionTokenError,
     RateLimitError,
 )
-from src.auth.schemas import UserCreate
+from src.auth.schemas import UserCreate, UserSettingsUpdate
 from src.auth.service import TokenService, UserService
 from src.auth.utils import (
     create_access_token,
@@ -266,6 +266,45 @@ async def test_register_rejects_duplicate_email(mocker):
         await service.register(
             UserCreate(name="Jan Kowalski", email="jan@example.com", password="password123")
         )
+
+
+async def test_update_settings_changes_name_and_language(mocker):
+    user = SimpleNamespace(name="Old name", language="pl")
+    repository = mocker.Mock()
+    repository.update = mocker.AsyncMock()
+    repository.commit = mocker.AsyncMock()
+    repository.rollback = mocker.AsyncMock()
+    service = UserService(repository)
+
+    result = await service.update_settings(
+        user,
+        UserSettingsUpdate(name="  New name  ", language="en"),
+    )
+
+    assert result is user
+    assert user.name == "New name"
+    assert user.language == "en"
+    repository.update.assert_awaited_once_with(user)
+    repository.commit.assert_awaited_once_with()
+    repository.rollback.assert_not_awaited()
+
+
+async def test_update_settings_rolls_back_on_repository_error(mocker):
+    user = SimpleNamespace(name="Old name", language="pl")
+    repository = mocker.Mock()
+    repository.update = mocker.AsyncMock(side_effect=RuntimeError("update failed"))
+    repository.commit = mocker.AsyncMock()
+    repository.rollback = mocker.AsyncMock()
+    service = UserService(repository)
+
+    with pytest.raises(RuntimeError, match="update failed"):
+        await service.update_settings(
+            user,
+            UserSettingsUpdate(name="New name", language="en"),
+        )
+
+    repository.rollback.assert_awaited_once_with()
+    repository.commit.assert_not_awaited()
 
 
 async def test_authenticate_accepts_correct_password(mocker):

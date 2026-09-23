@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { FormField } from '../../auth/components/FormField'
+import { useTranslation } from '../../../i18n/useTranslation'
 import {
   createRegistration,
   getMyRegistration,
@@ -25,13 +26,9 @@ import {
 } from '../utils/validation'
 
 const emptyErrors: RegistrationFormErrors = { answers: {} }
-const registrationStatusLabels: Record<RegistrationResponse['status'], string> = {
-  pending: 'oczekujące',
-  accepted: 'zaakceptowane',
-  rejected: 'odrzucone',
-}
-
 export function RegistrationEntryPage() {
+  const { language, t } = useTranslation()
+  const registrationStatusLabels: Record<RegistrationResponse['status'], string> = { pending: t.pending, accepted: t.accepted, rejected: t.rejected }
   const navigate = useNavigate()
   const { hackathonPublicId } = useParams()
   const [questions, setQuestions] = useState<RegistrationQuestion[]>([])
@@ -52,7 +49,7 @@ export function RegistrationEntryPage() {
 
     async function loadRegistrationEntry() {
       if (!hackathonPublicId) {
-        setLoadError('Nieprawidłowy adres hackathonu.')
+        setLoadError(language === 'en' ? 'Invalid hackathon address.' : 'Nieprawidłowy adres hackathonu.')
         setIsLoading(false)
         return
       }
@@ -71,7 +68,7 @@ export function RegistrationEntryPage() {
         if (isRegistrationNotFoundError(error)) {
           shouldLoadQuestions = true
         } else {
-          setLoadError('Nie udało się sprawdzić Twojego zgłoszenia. Spróbuj ponownie.')
+          setLoadError(language === 'en' ? 'Could not check your application. Try again.' : 'Nie udało się sprawdzić Twojego zgłoszenia. Spróbuj ponownie.')
         }
       }
 
@@ -80,7 +77,7 @@ export function RegistrationEntryPage() {
           setQuestions(await getRegistrationQuestions(hackathonPublicId, controller.signal))
         } catch (error) {
           if (error instanceof Error && error.name === 'AbortError') return
-          setLoadError(getQuestionsErrorMessage(error))
+          setLoadError(getQuestionsErrorMessage(error, language))
         }
       }
 
@@ -89,7 +86,7 @@ export function RegistrationEntryPage() {
 
     void loadRegistrationEntry()
     return () => controller.abort()
-  }, [hackathonPublicId])
+  }, [hackathonPublicId, language])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -101,6 +98,7 @@ export function RegistrationEntryPage() {
       teamMode,
       teamName,
       joinCode,
+      language,
     })
     setErrors(validationErrors)
     if (hasRegistrationFormErrors(validationErrors)) return
@@ -127,7 +125,7 @@ export function RegistrationEntryPage() {
       setRegistration(result)
       setIsExistingRegistration(false)
     } catch (error) {
-      setSubmitError(getRegistrationErrorMessage(error))
+      setSubmitError(getRegistrationErrorMessage(error, language))
     } finally {
       setIsSubmitting(false)
     }
@@ -136,24 +134,24 @@ export function RegistrationEntryPage() {
   return (
     <main className="app-page">
       <Card className="registration-entry-card">
-        <h1>Rejestracja na hackathon</h1>
+        <h1>{t.hackathonRegistration}</h1>
 
-        {isLoading && <Spinner label="Ładowanie formularza…" />}
+        {isLoading && <Spinner label={t.loadingForm} />}
         {loadError && <Alert variant="error">{loadError}</Alert>}
 
         {registration && (
           <div className="state-stack">
             <Alert>
               {isExistingRegistration
-                ? 'Masz już zgłoszenie do tego hackathonu.'
-                : 'Zgłoszenie zostało wysłane.'}{' '}
-              Status: {registrationStatusLabels[registration.status]}.
+                ? t.existingApplication
+                : t.applicationSent}{' '}
+              {t.status}: {registrationStatusLabels[registration.status]}.
             </Alert>
             {registration.team && (
               <div>
-                <p>Drużyna: {registration.team.name}</p>
+                <p>{t.team}: {registration.team.name}</p>
                 <p>
-                  Kod dołączenia: <strong>{registration.team.join_code}</strong>
+                  {t.joinCode}: <strong>{registration.team.join_code}</strong>
                 </p>
               </div>
             )}
@@ -165,11 +163,11 @@ export function RegistrationEntryPage() {
                   navigate(`/hackathons/${hackathonPublicId}/participant-area`)
                 }
               >
-                Wejdź do hackathonu
+                {t.enterHackathonButton}
               </Button>
             )}
             <Button type="button" variant="ghost" onClick={() => navigate('/hackathons')}>
-              Wróć do listy
+              {t.backToList}
             </Button>
           </div>
         )}
@@ -177,9 +175,9 @@ export function RegistrationEntryPage() {
         {!isLoading && !loadError && !registration && (
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
             <section className="registration-questions" aria-labelledby="questions-heading">
-              <h2 id="questions-heading">Pytania</h2>
+              <h2 id="questions-heading">{t.questions}</h2>
               {questions.length === 0 && (
-                <p>Ten hackathon nie zawiera dodatkowych pytań.</p>
+                <p>{t.noExtraQuestions}</p>
               )}
               {questions.map((question) => {
                 const fieldId = `question-${question.public_id}`
@@ -189,7 +187,7 @@ export function RegistrationEntryPage() {
                   <div className="form-field" key={question.public_id}>
                     <label htmlFor={fieldId}>
                       {question.content}
-                      {!question.is_required && ' (opcjonalne)'}
+                      {!question.is_required && ` (${t.optional})`}
                     </label>
                     <textarea
                       id={fieldId}
@@ -217,7 +215,7 @@ export function RegistrationEntryPage() {
             </section>
 
             <fieldset className="team-options">
-              <legend>Drużyna</legend>
+              <legend>{t.team}</legend>
               <label>
                 <input
                   type="radio"
@@ -226,7 +224,7 @@ export function RegistrationEntryPage() {
                   checked={teamMode === 'none'}
                   onChange={() => setTeamMode('none')}
                 />
-                Bez drużyny
+                {t.noTeamOption}
               </label>
               <label>
                 <input
@@ -236,7 +234,7 @@ export function RegistrationEntryPage() {
                   checked={teamMode === 'create'}
                   onChange={() => setTeamMode('create')}
                 />
-                Utwórz drużynę
+                {t.createTeam}
               </label>
               <label>
                 <input
@@ -246,14 +244,14 @@ export function RegistrationEntryPage() {
                   checked={teamMode === 'join'}
                   onChange={() => setTeamMode('join')}
                 />
-                Dołącz kodem
+                {t.joinTeam}
               </label>
             </fieldset>
 
             {teamMode === 'create' && (
               <FormField
                 id="team-name"
-                label="Nazwa drużyny"
+                label={t.teamName}
                 value={teamName}
                 error={errors.teamName}
                 maxLength={200}
@@ -265,7 +263,7 @@ export function RegistrationEntryPage() {
             {teamMode === 'join' && (
               <FormField
                 id="team-join-code"
-                label="Kod drużyny"
+                label={t.teamCode}
                 value={joinCode}
                 error={errors.joinCode}
                 minLength={8}
@@ -279,10 +277,10 @@ export function RegistrationEntryPage() {
 
             <div className="form-actions">
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Wysyłanie…' : 'Wyślij zgłoszenie'}
+                {isSubmitting ? t.sending : t.submitApplication}
               </Button>
               <Button type="button" variant="ghost" onClick={() => navigate('/hackathons')}>
-                Anuluj
+                {t.cancel}
               </Button>
             </div>
           </form>

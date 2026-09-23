@@ -25,7 +25,8 @@ przynależność pytań do hackathonu, komplet wymaganych odpowiedzi oraz brak d
 
 Administrator, właściciel i współorganizator hackathonu mogą zarządzać pytaniami, przeglądać
 zgłoszenia wraz z danymi uczestników i odpowiedziami oraz zmieniać status na `accepted` albo
-`rejected`. Uczestnik może pobrać i usunąć własne zgłoszenie.
+`rejected`. Uczestnik może pobrać i wycofać własne zgłoszenie do chwili zakończenia hackathonu.
+Osoby zarządzające mogą administracyjnie usunąć zgłoszenie także później.
 
 ## Endpointy API
 
@@ -42,8 +43,8 @@ zgłoszenia wraz z danymi uczestników i odpowiedziami oraz zmieniać status na 
 - `GET /api/hackathons/{hackathon_public_id}/registrations` — lista zgłoszeń i odpowiedzi dla
   osób zarządzających hackathonem.
 - `GET /api/hackathons/{hackathon_public_id}/registrations/me` — własne zgłoszenie uczestnika.
-- `DELETE /api/registrations/{registration_public_id}` — usunięcie zgłoszenia przez jego autora
-  albo osobę zarządzającą hackathonem.
+- `DELETE /api/registrations/{registration_public_id}` — wycofanie zgłoszenia przez jego autora
+  przed zakończeniem hackathonu albo administracyjne usunięcie przez osobę zarządzającą.
 - `PATCH /api/registrations/{registration_public_id}/status` — akceptacja albo odrzucenie
   zgłoszenia przez osobę zarządzającą hackathonem.
 
@@ -59,6 +60,7 @@ Moduł zwraca stabilne `error_code`, między innymi:
 - `MISSING_REQUIRED_ANSWERS`;
 - `REGISTRATION_ALREADY_EXISTS`;
 - `REGISTRATION_CLOSED`;
+- `REGISTRATION_WITHDRAWAL_LOCKED`;
 - `REGISTRATION_NOT_FOUND`.
 
 Ograniczenia unikalności w bazie zabezpieczają jedno zgłoszenie użytkownika na hackathon oraz
@@ -120,4 +122,6 @@ zgłoszeń, zmianę statusu, rollback transakcji i rzeczywiste operacje repozyto
 
 ## Changelog
 
+- 2026-09-22 — ograniczono wycofanie zgłoszenia przez uczestnika do czasu zakończenia hackathonu i
+  dodano akcję na kaflach listy oraz profilu.
 - 2026-08-12 — opisano zaimplementowany moduł zgłoszeń uczestników.

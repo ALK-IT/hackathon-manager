@@ -1,9 +1,11 @@
 import { useEffect, useState, type HTMLAttributes } from 'react'
 import { colors, radius, spacing, typography } from './tokens'
+import type { Language } from '../../features/auth'
 
 export interface CountdownProps extends HTMLAttributes<HTMLElement> {
   startDate?: string | null
   endDate?: string | null
+  language?: Language
 }
 
 interface RemainingTime {
@@ -45,7 +47,7 @@ function getRemainingTime(target: number, now: number): RemainingTime {
   }
 }
 
-export function Countdown({ startDate, endDate, style, ...props }: CountdownProps) {
+export function Countdown({ startDate, endDate, language = 'pl', style, ...props }: CountdownProps) {
   const [now, setNow] = useState(() => Date.now())
   const startTimestamp = parseTimestamp(startDate)
   const endTimestamp = parseTimestamp(endDate)
@@ -71,23 +73,25 @@ export function Countdown({ startDate, endDate, style, ...props }: CountdownProp
     return (
       <section
         {...props}
-        aria-label="Odliczanie czasu hackathonu"
+        aria-label={language === 'pl' ? 'Odliczanie czasu hackathonu' : 'Hackathon countdown'}
         style={{
           color: colors.textMuted,
           fontFamily: typography.fontFamily,
           ...style,
         }}
       >
-        Hackathon zakończony
+        {language === 'pl' ? 'Hackathon zakończony' : 'Hackathon ended'}
       </section>
     )
   }
 
   const isBeforeStart = startTimestamp !== null && now < startTimestamp
   const targetTimestamp = isBeforeStart ? startTimestamp : endTimestamp
-  const label = isBeforeStart ? 'Do rozpoczęcia' : 'Do zakończenia'
+  const label = isBeforeStart
+    ? (language === 'pl' ? 'Do rozpoczęcia' : 'Until start')
+    : (language === 'pl' ? 'Do zakończenia' : 'Until end')
   const remaining = getRemainingTime(targetTimestamp, now)
-  const units = [
+  const polishUnits = [
     ['days', remaining.days, inflectPolishUnit(remaining.days, ['dzień', 'dni', 'dni'])],
     [
       'hours',
@@ -105,6 +109,13 @@ export function Countdown({ startDate, endDate, style, ...props }: CountdownProp
       inflectPolishUnit(remaining.seconds, ['sekunda', 'sekundy', 'sekund']),
     ],
   ] as const
+  const englishUnits = [
+    ['days', remaining.days, remaining.days === 1 ? 'day' : 'days'],
+    ['hours', remaining.hours, remaining.hours === 1 ? 'hour' : 'hours'],
+    ['minutes', remaining.minutes, remaining.minutes === 1 ? 'minute' : 'minutes'],
+    ['seconds', remaining.seconds, remaining.seconds === 1 ? 'second' : 'seconds'],
+  ] as const
+  const units = language === 'pl' ? polishUnits : englishUnits
   const accessibleRemainingTime = units
     .map(([, value, unit]) => `${value} ${unit}`)
     .join(', ')
@@ -112,7 +123,7 @@ export function Countdown({ startDate, endDate, style, ...props }: CountdownProp
   return (
     <section
       {...props}
-      aria-label="Odliczanie czasu hackathonu"
+      aria-label={language === 'pl' ? 'Odliczanie czasu hackathonu' : 'Hackathon countdown'}
       style={{
         display: 'flex',
         flexDirection: 'column',

@@ -3,6 +3,7 @@ import { Alert } from '../../../components/ui'
 import { FormField } from '../../auth/components/FormField'
 import { searchCoOrganizerCandidates } from '../api/hackathonsApi'
 import type { UserSummary } from '../types'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 interface CoOrganizerAutocompleteProps {
   hackathonPublicId: string
@@ -21,6 +22,7 @@ export function CoOrganizerAutocomplete({
   onQueryChange,
   onCandidateSelect,
 }: CoOrganizerAutocompleteProps) {
+  const { language, t } = useTranslation()
   const inputId = useId()
   const candidatesId = `${inputId}-candidates`
   const [candidates, setCandidates] = useState<UserSummary[]>([])
@@ -51,7 +53,7 @@ export function CoOrganizerAutocomplete({
       } catch (requestError) {
         if (requestError instanceof Error && requestError.name === 'AbortError') return
         setCandidates([])
-        setSearchError('Nie udało się wyszukać użytkowników.')
+        setSearchError(language === 'en' ? 'Could not search for users.' : 'Nie udało się wyszukać użytkowników.')
       } finally {
         if (!controller.signal.aborted) setIsSearching(false)
       }
@@ -61,16 +63,16 @@ export function CoOrganizerAutocomplete({
       window.clearTimeout(timeoutId)
       controller.abort()
     }
-  }, [hackathonPublicId, query, selectedCandidate])
+  }, [hackathonPublicId, language, query, selectedCandidate])
 
   return (
     <>
       <FormField
         id={inputId}
-        label="Nazwa użytkownika"
+        label={t.userName}
         value={query}
         error={error}
-        placeholder="Zacznij wpisywać imię i nazwisko"
+        placeholder={t.userSearchPlaceholder}
         autoComplete="off"
         role="combobox"
         aria-autocomplete="list"
@@ -79,7 +81,7 @@ export function CoOrganizerAutocomplete({
         required
         onChange={(event) => onQueryChange(event.target.value)}
       />
-      {isSearching && <p role="status">Wyszukiwanie…</p>}
+      {isSearching && <p role="status">{t.searching}</p>}
       {searchError && <Alert variant="error">{searchError}</Alert>}
       {candidates.length > 0 && (
         <ul id={candidatesId} className="co-organizer-candidates" role="listbox">
