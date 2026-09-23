@@ -2,15 +2,18 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '../../auth'
+import { deleteHackathon, getHackathons } from '../api/hackathonsApi'
 import {
   deleteRegistration,
   getMyRegistration,
 } from '../../registration/api/registrationApi'
-import { getHackathons } from '../api/hackathonsApi'
 import type { Hackathon } from '../types'
 import { HackathonList } from './HackathonList'
 
-vi.mock('../api/hackathonsApi', () => ({ getHackathons: vi.fn() }))
+vi.mock('../api/hackathonsApi', () => ({
+  deleteHackathon: vi.fn(),
+  getHackathons: vi.fn(),
+}))
 vi.mock('../../registration/api/registrationApi', () => ({
   deleteRegistration: vi.fn(),
   getMyRegistration: vi.fn(),
@@ -57,6 +60,7 @@ function renderHackathonList(auth: AuthContextValue = anonymousAuth) {
 describe('HackathonList', () => {
   beforeEach(() => {
     vi.mocked(getHackathons).mockReset()
+    vi.mocked(deleteHackathon).mockReset()
     vi.mocked(getMyRegistration).mockReset()
     vi.mocked(deleteRegistration).mockReset()
   })
@@ -129,6 +133,24 @@ describe('HackathonList', () => {
     renderHackathonList()
 
     expect(await screen.findByRole('heading', { name: 'Test Hackathon' })).toBeInTheDocument()
+  })
+
+  it('removes a deleted owned hackathon from the list', async () => {
+    vi.mocked(getHackathons).mockResolvedValue(
+      page([{ ...hackathon, access_level: 'owner' }]),
+    )
+    vi.mocked(deleteHackathon).mockResolvedValue(undefined)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'prompt').mockReturnValue(hackathon.name)
+
+    renderHackathonList()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Usuń hackathon' }))
+
+    await waitFor(() =>
+      expect(deleteHackathon).toHaveBeenCalledWith(hackathon.public_id, hackathon.name),
+    )
+    expect(screen.queryByText(hackathon.name)).not.toBeInTheDocument()
   })
 
   it('withdraws an upcoming hackathon from its home-page card', async () => {
