@@ -52,6 +52,21 @@ export function getRegistrationErrorMessage(error: unknown): string {
   return error.errorCode ? (messages[error.errorCode] ?? error.message) : error.message
 }
 
+export function getWithdrawRegistrationErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) {
+    return 'Nie udało się wycofać zgłoszenia. Spróbuj ponownie.'
+  }
+
+  const messages: Record<string, string> = {
+    REGISTRATION_NOT_FOUND: 'To zgłoszenie już nie istnieje.',
+    REGISTRATION_PERMISSION_DENIED: 'Nie masz uprawnień do wycofania tego zgłoszenia.',
+    REGISTRATION_WITHDRAWAL_LOCKED:
+      'Zgłoszenia nie można wycofać po zakończeniu hackathonu.',
+  }
+
+  return error.errorCode ? (messages[error.errorCode] ?? error.message) : error.message
+}
+
 export function getManagedRegistrationsErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return 'Nie udało się pobrać zgłoszeń.'
   if (error.status === 403) return 'Nie masz uprawnień do przeglądania tych zgłoszeń.'

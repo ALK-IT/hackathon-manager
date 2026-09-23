@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Card, Countdown } from '../../../components/ui'
+import { WithdrawRegistrationButton } from '../../registration/components/WithdrawRegistrationButton'
 import type { Hackathon } from '../types'
 
 interface HackathonListItemProps {
   hackathon: Hackathon
+  onWithdraw?: (hackathon: Hackathon) => Promise<void>
 }
 
 const registrationStatusLabels = {
@@ -12,8 +15,10 @@ const registrationStatusLabels = {
   rejected: 'odrzucone',
 } as const
 
-export function HackathonListItem({ hackathon }: HackathonListItemProps) {
+export function HackathonListItem({ hackathon, onWithdraw }: HackathonListItemProps) {
   const navigate = useNavigate()
+  const [renderedAt] = useState(() => Date.now())
+  const canWithdraw = renderedAt < Date.parse(hackathon.end_date)
 
   return (
     <li>
@@ -54,6 +59,9 @@ export function HackathonListItem({ hackathon }: HackathonListItemProps) {
               Zarejestruj się
             </Button>
           )
+        )}
+        {canWithdraw && hackathon.my_registration_status !== null && onWithdraw && (
+          <WithdrawRegistrationButton onWithdraw={() => onWithdraw(hackathon)} />
         )}
         {(hackathon.access_level === 'owner' ||
           hackathon.access_level === 'co_organizer') && (

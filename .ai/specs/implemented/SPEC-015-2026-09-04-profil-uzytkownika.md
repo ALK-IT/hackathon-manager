@@ -26,6 +26,7 @@ identyfikatora innego użytkownika ani uzyskać jego zgłoszeń przez zmianę pa
 - Lista jest sortowana malejąco według daty rozpoczęcia hackathonu i pomija usunięte hackathony.
 - Frontend obsługuje stany ładowania, błędu oraz pustej listy, a karta prowadzi do szczegółów
   hackathonu.
+- Do zakończenia hackathonu karta udostępnia wycofanie zgłoszenia wymagające potwierdzenia.
 
 ## Kontrakt API i bezpieczeństwo
 
@@ -48,6 +49,7 @@ asercjami identyfikatorów zwróconych i niewidocznych rekordów.
 - chroniona trasa `/profile` i odnośnik z listy hackathonów;
 - endpoint listujący wyłącznie zgłoszenia bieżącego użytkownika;
 - prezentacja statusu zgłoszenia i opcjonalnej drużyny;
+- wycofanie zgłoszenia z karty przed zakończeniem hackathonu;
 - stany ładowania, błędu i pustej listy;
 - testy renderowania profilu, odpowiedzi `401` oraz izolacji danych między użytkownikami.
 
@@ -57,7 +59,7 @@ asercjami identyfikatorów zwróconych i niewidocznych rekordów.
 - przesyłanie zdjęcia profilowego;
 - usuwanie konta;
 - publiczne profile i wyszukiwanie użytkowników;
-- zarządzanie zgłoszeniem bezpośrednio ze strony profilu.
+- edycja treści wysłanego zgłoszenia.
 
 ## Wpływ
 
@@ -76,6 +78,7 @@ asercjami identyfikatorów zwróconych i niewidocznych rekordów.
 - Niezalogowane żądanie do endpointu profilu otrzymuje `401`.
 - Odpowiedź nie zawiera zgłoszeń ani hackathonów należących do innego użytkownika.
 - Usunięte hackathony nie są zwracane.
+- Akcja wycofania jest dostępna do zakończenia hackathonu i usuwa kartę po potwierdzeniu.
 
 ## Alternatywy rozważane
 
@@ -90,3 +93,4 @@ asercjami identyfikatorów zwróconych i niewidocznych rekordów.
 
 - 2026-09-04 — udokumentowano zaimplementowany profil użytkownika i kontrakt bezpieczeństwa API.
 - 2026-09-04 — dodano jawne testy wymagania uwierzytelnienia i ochrony przed IDOR.
+- 2026-09-22 — dodano wycofanie zgłoszenia z karty przed zakończeniem hackathonu.
