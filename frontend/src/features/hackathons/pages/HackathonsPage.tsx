@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { AppNavigation } from '../../../components/layout/AppNavigation'
 import { Button } from '../../../components/ui'
 import { setStoredLanguage, useTranslation } from '../../../i18n/useTranslation'
 import { useAuth } from '../../auth'
@@ -34,6 +35,7 @@ export function HackathonsPage() {
 
   return (
     <main className="app-page">
+      <AppNavigation />
       <header className="page-header">
         <div>
           <h1>{t.hackathons}</h1>

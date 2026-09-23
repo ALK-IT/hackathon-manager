@@ -120,11 +120,11 @@ export function ProfilePage() {
         </div>
       </Card>
 
-      <section className="profile-section" aria-labelledby="accepted-heading">
+      <section className="profile-section" aria-labelledby="registrations-heading">
         <div className="profile-section-heading">
           <div>
             <span className="profile-eyebrow">{t.yourEvents}</span>
-            <h2 id="accepted-heading">{t.appliedHackathons}</h2>
+            <h2 id="registrations-heading">{t.appliedHackathons}</h2>
           </div>
           {!isLoading && !error && <span className="profile-count">{total}</span>}
         </div>
@@ -138,23 +138,23 @@ export function ProfilePage() {
             <Link to="/hackathons">{t.findHackathon}</Link>
           </Card>
         )}
-        <div className="accepted-grid">
+        <div className="registration-grid">
           {hackathons.map((hackathon) => (
             <Link
-              className="accepted-card-link"
+              className="registration-card-link"
               key={hackathon.registration_public_id}
               to={`/hackathons/${hackathon.hackathon_public_id}`}
             >
-              <Card className="accepted-card">
-                <div className="accepted-card-top">
-                  <span className={`accepted-badge accepted-badge--${hackathon.status}`}>
+              <Card className="registration-card">
+                <div className="registration-card-top">
+                  <span className={`registration-status-badge registration-status-badge--${hackathon.status}`}>
                     {statusLabels[hackathon.status]}
                   </span>
                   <span aria-hidden="true">↗</span>
                 </div>
                 <h3>{hackathon.name}</h3>
                 <p>{hackathon.description || t.eventDetailsFallback}</p>
-                <div className="accepted-card-footer">
+                <div className="registration-card-footer">
                   <span>{dateFormatter.format(new Date(hackathon.start_date))} – {dateFormatter.format(new Date(hackathon.end_date))}</span>
                   {hackathon.team && <span>{t.team}: {hackathon.team.name}</span>}
                 </div>

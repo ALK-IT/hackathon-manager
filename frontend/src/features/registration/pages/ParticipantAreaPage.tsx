@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Alert, Card, Spinner } from '../../../components/ui'
 import { AttendanceQrScanner } from '../../attendance'
 import { isHackathonInProgress } from '../../hackathons/utils/hackathonTime'
+import { Alert, Button, Card, Spinner } from '../../../components/ui'
+import { HackathonResourcesPanel } from '../../resources/components/HackathonResourcesPanel'
 import { getParticipantArea } from '../api/registrationApi'
 import { ParticipantTaskCard } from '../components/ParticipantTaskCard'
 import type { ParticipantArea } from '../types'
@@ -16,6 +17,7 @@ export function ParticipantAreaPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadedAt] = useState(() => Date.now())
+  const [activeTab, setActiveTab] = useState<'hackathon' | 'resources'>('hackathon')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -54,54 +56,95 @@ export function ParticipantAreaPage() {
 
       {participantArea && (
         <div className="participant-area-stack">
-          <Card className="participant-area-card">
-            <h1>{participantArea.name}</h1>
-            <p>{participantArea.description}</p>
-            {participantArea.team ? (
-              <section aria-labelledby="participant-team-heading">
-                <h2 id="participant-team-heading">{language === 'en' ? 'Team' : 'Drużyna'}: {participantArea.team.name}</h2>
-                <h3>{t.members}</h3>
-                <ul className="participant-list">
-                  {participantArea.team.members.map((member) => (
-                    <li key={member.public_id}>{member.name}</li>
-                  ))}
-                </ul>
-              </section>
-            ) : (
-              <p>{t.noTeam}</p>
-            )}
-          </Card>
+          <div className="participant-area-tabs" role="tablist" aria-label={language === 'en' ? 'Hackathon view' : 'Widok hackathonu'}>
+            <Button
+              type="button"
+              role="tab"
+              variant="ghost"
+              aria-selected={activeTab === 'hackathon'}
+              aria-controls="participant-hackathon-panel"
+              onClick={() => setActiveTab('hackathon')}
+            >
+              Hackathon
+            </Button>
+            <Button
+              type="button"
+              role="tab"
+              variant="ghost"
+              aria-selected={activeTab === 'resources'}
+              aria-controls="participant-resources-panel"
+              onClick={() => setActiveTab('resources')}
+            >
+              {language === 'en' ? 'My resources' : 'Moje zasoby'}
+            </Button>
+          </div>
 
-          {isHackathonInProgress(
-            participantArea.start_date,
-            participantArea.end_date,
-            loadedAt,
-          ) && (
-            <Card>
-              <AttendanceQrScanner
-                hackathonPublicId={participantArea.public_id}
-              />
-            </Card>
+          {activeTab === 'hackathon' && (
+            <div id="participant-hackathon-panel" role="tabpanel">
+              <div className="participant-area-stack">
+                <Card className="participant-area-card">
+                  <h1>{participantArea.name}</h1>
+                  <p>{participantArea.description}</p>
+                  {participantArea.team ? (
+                    <section aria-labelledby="participant-team-heading">
+                      <h2 id="participant-team-heading">
+                        {language === 'en' ? 'Team' : 'Drużyna'}: {participantArea.team.name}
+                      </h2>
+                      <h3>{t.members}</h3>
+                      <ul className="participant-list">
+                        {participantArea.team.members.map((member) => (
+                          <li key={member.public_id}>{member.name}</li>
+                        ))}
+                      </ul>
+                    </section>
+                  ) : (
+                    <p>{t.noTeam}</p>
+                  )}
+                </Card>
+
+                {isHackathonInProgress(
+                  participantArea.start_date,
+                  participantArea.end_date,
+                  loadedAt,
+                ) && (
+                  <Card>
+                    <AttendanceQrScanner
+                      hackathonPublicId={participantArea.public_id}
+                    />
+                  </Card>
+                )}
+
+                <section aria-labelledby="participant-tasks-heading">
+                  <h2 id="participant-tasks-heading">{t.tasks}</h2>
+                  {participantArea.tasks.length > 0 ? (
+                    <div className="participant-task-list">
+                      {participantArea.tasks.map((task) => (
+                        <ParticipantTaskCard
+                          key={task.public_id}
+                          hackathonPublicId={participantArea.public_id}
+                          task={task}
+                          canSubmit={participantArea.team !== null}
+                          submissionsClosed={
+                            loadedAt >= Date.parse(participantArea.end_date)
+                          }
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p>{t.noPublishedTasks}</p>
+                  )}
+                </section>
+              </div>
+            </div>
           )}
 
-          <section aria-labelledby="participant-tasks-heading">
-            <h2 id="participant-tasks-heading">{t.tasks}</h2>
-            {participantArea.tasks.length > 0 ? (
-              <div className="participant-task-list">
-                {participantArea.tasks.map((task) => (
-                  <ParticipantTaskCard
-                    key={task.public_id}
-                    hackathonPublicId={participantArea.public_id}
-                    task={task}
-                    canSubmit={participantArea.team !== null}
-                    submissionsClosed={loadedAt >= Date.parse(participantArea.end_date)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p>{t.noPublishedTasks}</p>
-            )}
-          </section>
+          {activeTab === 'resources' && (
+            <div id="participant-resources-panel" role="tabpanel">
+              <HackathonResourcesPanel
+                hackathonPublicId={participantArea.public_id}
+              />
+            </div>
+          )}
         </div>
       )}
     </main>

@@ -15,8 +15,8 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 
 ## Indeks specyfikacji
 
-| # | Tytuł | Status | Plik |
-|---|---|---|---|
+| #        | Tytuł | Status | Plik |
+|----------|---|---|---|
 | SPEC-001 | Hello World — szkielet frontend/backend | Zaimplementowany | [SPEC-001-hello-world.md](SPEC-001-hello-world.md) |
 | SPEC-002 | Postgres + Redis + ORM — przykładowy szkielet architektury | Zaimplementowany | [implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md](implemented/SPEC-002-2026-07-24-postgres-redis-przyklad.md) |
 | SPEC-003 | Rejestracja, logowanie i sesje JWT | Zaimplementowany | [implemented/SPEC-003-2026-08-03-logowanie-jwt.md](implemented/SPEC-003-2026-08-03-logowanie-jwt.md) |
@@ -39,6 +39,9 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-020 | Rate limiting endpointów auth | Zaimplementowany | [implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md](implemented/SPEC-020-2026-09-10-rate-limiting-endpointow-auth.md) |
 | SPEC-021 | Powiadomienia w aplikacji | Zaimplementowany | [implemented/SPEC-021-2026-09-11-powiadomienia-w-aplikacji.md](implemented/SPEC-021-2026-09-11-powiadomienia-w-aplikacji.md) |
 | SPEC-022 | Rotacja kluczy szyfrowania zasobów | Zaimplementowany | [implemented/SPEC-022-2026-09-13-rotacja-kluczy-zasobow.md](implemented/SPEC-022-2026-09-13-rotacja-kluczy-zasobow.md) |
-| SPEC-023 | Ustawienia użytkownika | Zaimplementowany | [implemented/SPEC-023-2026-09-12-ustawienia-uzytkownika.md](implemented/SPEC-023-2026-09-12-ustawienia-uzytkownika.md) |
+| SPEC-023 | Ocena rozwiązań drużyn | Zaakceptowany | [SPEC-023-2026-09-14-ocena-rozwiazan-druzyn.md](SPEC-023-2026-09-14-ocena-rozwiazan-druzyn.md) |
+| SPEC-024 | Frontendowy panel „Moje zasoby” | Zaimplementowany | [implemented/SPEC-024-2026-08-27-panel-moje-zasoby.md](implemented/SPEC-024-2026-08-27-panel-moje-zasoby.md) |
+| SPEC-025 | Odbiór i odsłanianie przypisanych zasobów | Zaimplementowany | [implemented/SPEC-025-2026-09-03-odbior-przypisanych-zasobow.md](implemented/SPEC-025-2026-09-03-odbior-przypisanych-zasobow.md) |
+| SPEC-026 | Ustawienia użytkownika | Zaimplementowany | [implemented/SPEC-026-2026-09-12-ustawienia-uzytkownika.md](implemented/SPEC-026-2026-09-12-ustawienia-uzytkownika.md) |
 
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

@@ -1,15 +1,18 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
 from src.hackathon_tasks.dependencies import get_task_service
-from src.hackathon_tasks.models import HackathonTask, TaskSubmission
+from src.hackathon_tasks.models import HackathonTask
 from src.hackathon_tasks.schemas import (
     TaskCreate,
     TaskResponse,
+    TaskSubmissionEvaluationResponse,
+    TaskSubmissionEvaluationUpdate,
+    TaskSubmissionListResponse,
     TaskSubmissionResponse,
     TaskSubmissionUpsert,
     TaskUpdate,
@@ -67,20 +70,49 @@ async def upsert_submission(
     data: TaskSubmissionUpsert,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TaskService, Depends(get_task_service)],
-) -> TaskSubmission:
-    return await service.upsert_submission(
+) -> TaskSubmissionResponse:
+    submission = await service.upsert_submission(
         hackathon_public_id,
         task_public_id,
         data,
         current_user,
     )
+    return TaskSubmissionResponse.from_submission(submission)
 
 
-@router.get("/{task_public_id}/submissions", response_model=list[TaskSubmissionResponse])
+@router.get("/{task_public_id}/submissions", response_model=TaskSubmissionListResponse)
 async def list_submissions(
     hackathon_public_id: uuid.UUID,
     task_public_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TaskService, Depends(get_task_service)],
-) -> list[TaskSubmission]:
-    return await service.list_submissions(hackathon_public_id, task_public_id, current_user)
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> TaskSubmissionListResponse:
+    submissions, total = await service.list_submissions(
+        hackathon_public_id, task_public_id, current_user, limit=limit, offset=offset
+    )
+    return TaskSubmissionListResponse(
+        items=[TaskSubmissionResponse.from_submission(submission) for submission in submissions],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.patch(
+    "/{task_public_id}/submissions/{submission_public_id}/evaluation",
+    response_model=TaskSubmissionEvaluationResponse,
+)
+async def evaluate_submission(
+    hackathon_public_id: uuid.UUID,
+    task_public_id: uuid.UUID,
+    submission_public_id: uuid.UUID,
+    data: TaskSubmissionEvaluationUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[TaskService, Depends(get_task_service)],
+) -> TaskSubmissionEvaluationResponse:
+    result = await service.evaluate_submission(
+        hackathon_public_id, task_public_id, submission_public_id, data, current_user
+    )
+    return TaskSubmissionEvaluationResponse.model_validate(result)

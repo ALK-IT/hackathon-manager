@@ -5,8 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.auth.models import User
+from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 from src.hackathons.models import Hackathon
 from src.registration.models import Registration, RegistrationStatus
+from src.teams.models import Team
 
 
 class HackathonRepository:
@@ -171,6 +173,41 @@ class HackathonRepository:
         )
         result = await self.session.scalars(statement)
         return result.unique().one_or_none()
+
+    async def list_submissions(
+        self,
+        hackathon_id: int,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        team_public_id: uuid.UUID | None = None,
+        task_public_id: uuid.UUID | None = None,
+        evaluated: bool | None = None,
+    ) -> tuple[list[TaskSubmission], int]:
+        filters = [HackathonTask.hackathon_id == hackathon_id]
+        if team_public_id is not None:
+            filters.append(TaskSubmission.team.has(Team.public_id == team_public_id))
+        if task_public_id is not None:
+            filters.append(HackathonTask.public_id == task_public_id)
+        if evaluated is not None:
+            filters.append(
+                TaskSubmission.score.is_not(None) if evaluated else TaskSubmission.score.is_(None)
+            )
+        base = select(TaskSubmission).join(TaskSubmission.task).where(*filters)
+        total = await self.session.scalar(select(func.count()).select_from(base.subquery()))
+        statement = (
+            base.options(
+                selectinload(TaskSubmission.task),
+                selectinload(TaskSubmission.team),
+                selectinload(TaskSubmission.submitted_by),
+                selectinload(TaskSubmission.evaluated_by),
+            )
+            .order_by(TaskSubmission.team_id, TaskSubmission.task_id, TaskSubmission.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.execute(statement)
+        return list(result.scalars().all()), int(total or 0)
 
     async def add(self, hackathon: Hackathon) -> None:
         self.session.add(hackathon)
