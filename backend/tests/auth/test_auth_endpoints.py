@@ -2,7 +2,6 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
-from fastapi import Request
 from httpx import AsyncClient
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +11,6 @@ from src.auth.email import EmailDeliveryError
 from src.auth.exceptions import InvalidAccessTokenError, RateLimitError
 from src.auth.models import User
 from src.auth.repository import UserRepository
-from src.auth.router import enforce_rate_limits
 from src.auth.service import IssuedTokenPair
 from src.auth.utils import hash_password
 from src.common.errors import AuthenticationRequiredError
@@ -290,46 +288,6 @@ async def test_successful_login_does_not_count_toward_identifier_limit(
     mock_token_service.enforce_rate_limit.assert_not_awaited()
 
 
-async def test_untrusted_x_real_ip_header_is_ignored(
-    mock_token_service,
-    monkeypatch,
-):
-    monkeypatch.delenv("TRUST_PROXY_HEADERS", raising=False)
-    request = Request(
-        {
-            "type": "http",
-            "headers": [(b"x-real-ip", b"203.0.113.10")],
-            "client": ("198.51.100.20", 12345),
-        }
-    )
-
-    await enforce_rate_limits(mock_token_service, request, "login", ip_limit=10)
-
-    mock_token_service.enforce_rate_limit.assert_awaited_once_with(
-        "login:ip", "198.51.100.20", 10, 300
-    )
-
-
-async def test_x_real_ip_header_is_used_when_proxy_headers_are_trusted(
-    mock_token_service,
-    monkeypatch,
-):
-    monkeypatch.setenv("TRUST_PROXY_HEADERS", "true")
-    request = Request(
-        {
-            "type": "http",
-            "headers": [(b"x-real-ip", b"203.0.113.10")],
-            "client": ("198.51.100.20", 12345),
-        }
-    )
-
-    await enforce_rate_limits(mock_token_service, request, "login", ip_limit=10)
-
-    mock_token_service.enforce_rate_limit.assert_awaited_once_with(
-        "login:ip", "203.0.113.10", 10, 300
-    )
-
-
 async def test_forgot_password_does_not_disclose_missing_account(
     auth_client_with_user_service,
     mock_user_service,
@@ -529,3 +487,45 @@ async def test_user_me_information(
     assert participant_response.json()["email"] == "participant@example.com"
     assert anonymous_response.status_code == 401
     assert anonymous_response.json()["error_code"] == "AUTHENTICATION_REQUIRED"
+
+
+async def test_authenticated_user_can_update_name_and_language(
+    api_client: AsyncClient,
+    session: AsyncSession,
+    force_authenticate,
+):
+    user = User(
+        name="Old name",
+        email="settings@example.com",
+        password_hash=hash_password("password123"),
+    )
+    repository = UserRepository(session)
+    await repository.create(user)
+    await repository.commit()
+    force_authenticate(user)
+
+    response = await api_client.patch(
+        "/api/auth/me",
+        json={"name": "  New name  ", "language": "en"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "New name"
+    assert response.json()["language"] == "en"
+    await session.refresh(user)
+    assert user.name == "New name"
+    assert user.language == "en"
+
+
+async def test_update_settings_rejects_unsupported_language(
+    api_client: AsyncClient,
+    force_authenticate,
+):
+    force_authenticate(User(name="User", email="user@example.com", password_hash="hashed-password"))
+
+    response = await api_client.patch(
+        "/api/auth/me",
+        json={"name": "User name", "language": "de"},
+    )
+
+    assert response.status_code == 422

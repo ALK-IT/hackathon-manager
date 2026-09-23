@@ -1,7 +1,10 @@
 import type { HackathonFilters as Filters } from '../types'
+import type { Language } from '../../auth'
+import { getTranslations } from '../../../i18n/useTranslation'
 
 interface HackathonFiltersProps {
   filters: Filters
+  language?: Language
   onChange: (filters: Filters) => void
 }
 
@@ -11,11 +14,12 @@ function toFilterValue(value: string): boolean | undefined {
   return undefined
 }
 
-export function HackathonFilters({ filters, onChange }: HackathonFiltersProps) {
+export function HackathonFilters({ filters, language = 'pl', onChange }: HackathonFiltersProps) {
+  const t = getTranslations(language)
   return (
     <aside className="hackathon-filters" aria-labelledby="hackathon-filters-heading">
-      <h2 id="hackathon-filters-heading">Filtry</h2>
-      <label htmlFor="upcoming-filter">Termin</label>
+      <h2 id="hackathon-filters-heading">{t.filters}</h2>
+      <label htmlFor="upcoming-filter">{t.date}</label>
       <select
         id="upcoming-filter"
         value={filters.upcoming === undefined ? '' : String(filters.upcoming)}
@@ -23,12 +27,12 @@ export function HackathonFilters({ filters, onChange }: HackathonFiltersProps) {
           onChange({ ...filters, upcoming: toFilterValue(event.target.value) })
         }
       >
-        <option value="">Wszystkie</option>
-        <option value="true">Nadchodzące</option>
-        <option value="false">Rozpoczęte</option>
+        <option value="">{t.all}</option>
+        <option value="true">{t.upcoming}</option>
+        <option value="false">{t.started}</option>
       </select>
 
-      <label htmlFor="registration-filter">Rejestracja</label>
+      <label htmlFor="registration-filter">{t.registration}</label>
       <select
         id="registration-filter"
         value={
@@ -41,9 +45,9 @@ export function HackathonFilters({ filters, onChange }: HackathonFiltersProps) {
           })
         }
       >
-        <option value="">Wszystkie</option>
-        <option value="true">Otwarta</option>
-        <option value="false">Zamknięta</option>
+        <option value="">{t.all}</option>
+        <option value="true">{t.open}</option>
+        <option value="false">{t.closed}</option>
       </select>
     </aside>
   )

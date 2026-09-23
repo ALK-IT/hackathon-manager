@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Hackathon } from '../types'
 import { HackathonListItem } from './HackathonListItem'
 
@@ -22,6 +22,8 @@ const hackathon: Hackathon = {
 }
 
 describe('HackathonListItem', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   it.each(['owner', 'co_organizer'] as const)('shows summary for %s', (access_level) => {
     render(<MemoryRouter>
       <HackathonListItem hackathon={{ ...hackathon, access_level }} />
@@ -174,6 +176,110 @@ describe('HackathonListItem', () => {
     expect(screen.queryByRole('button', { name: 'Zarejestruj się' })).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Przejdź do hackathonu' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('requires two confirmations before the owner deletes a hackathon', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue(hackathon.name)
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{ ...hackathon, access_level: 'owner' }}
+          onDelete={onDelete}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń hackathon' }))
+
+    expect(confirm).toHaveBeenCalledWith('Czy na pewno chcesz usunąć ten hackathon?')
+    expect(prompt).toHaveBeenCalledWith(
+      `Aby potwierdzić usunięcie, wpisz nazwę hackathonu: ${hackathon.name}`,
+    )
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith(
+      expect.objectContaining({ public_id: hackathon.public_id }),
+    ))
+  })
+
+  it('does not delete when the second confirmation has a different name', () => {
+    const onDelete = vi.fn()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(window, 'prompt').mockReturnValue('Inny hackathon')
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{ ...hackathon, access_level: 'owner' }}
+          onDelete={onDelete}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Usuń hackathon' }))
+
+    expect(onDelete).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Wpisana nazwa nie jest zgodna z nazwą hackathonu.',
+    )
+  })
+
+  it('does not show delete action to a co-organizer', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{ ...hackathon, access_level: 'co_organizer' }}
+          onDelete={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'Usuń hackathon' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('allows withdrawing before the hackathon ends after confirmation', async () => {
+    const onWithdraw = vi.fn().mockResolvedValue(undefined)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{
+            ...hackathon,
+            end_date: '2099-09-02T18:00:00Z',
+            my_registration_status: 'accepted',
+          }}
+          onWithdraw={onWithdraw}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wycofaj zgłoszenie' }))
+
+    expect(confirm).toHaveBeenCalledWith('Czy na pewno chcesz się wycofać?')
+    await waitFor(() => expect(onWithdraw).toHaveBeenCalledOnce())
+  })
+
+  it('does not allow withdrawing after the hackathon ends', () => {
+    render(
+      <MemoryRouter>
+        <HackathonListItem
+          hackathon={{
+            ...hackathon,
+            end_date: '2000-09-02T18:00:00Z',
+            my_registration_status: 'pending',
+          }}
+          onWithdraw={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'Wycofaj zgłoszenie' }),
     ).not.toBeInTheDocument()
   })
 })

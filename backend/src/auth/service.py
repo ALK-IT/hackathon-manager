@@ -18,7 +18,7 @@ from src.auth.exceptions import (
 )
 from src.auth.models import User
 from src.auth.repository import UserRepository
-from src.auth.schemas import UserCreate
+from src.auth.schemas import UserCreate, UserSettingsUpdate
 from src.auth.utils import (
     DUMMY_PASSWORD_HASH,
     RefreshTokenPayload,
@@ -97,6 +97,17 @@ class UserService:
 
     async def get_by_email(self, email: str) -> User | None:
         return await self.repository.get_by_email(email.strip().lower())
+
+    async def update_settings(self, user: User, data: UserSettingsUpdate) -> User:
+        user.name = data.name
+        user.language = data.language
+        try:
+            await self.repository.update(user)
+            await self.repository.commit()
+            return user
+        except Exception:
+            await self.repository.rollback()
+            raise
 
     async def verify_email(self, public_id: uuid.UUID) -> User | None:
         user = await self.repository.get_by_public_id(public_id)

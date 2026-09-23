@@ -53,4 +53,6 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
       - run: black --check .
+      - name: Sprawdz polityke fallbackow sekretow runtime
+        run: pytest tests/common/test_runtime_secret_policy.py
       - run: pytest

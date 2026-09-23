@@ -71,6 +71,14 @@ export function updateHackathon(publicId: string, payload: UpdateHackathonPayloa
   })
 }
 
+export function deleteHackathon(publicId: string, confirmName: string) {
+  return apiRequest<void>(`/api/hackathons/${encodeURIComponent(publicId)}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ confirm_name: confirmName }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 export function searchCoOrganizerCandidates(
   publicId: string,
   query: string,

@@ -10,6 +10,7 @@ from src.notifications.repository import NotificationRepository
 from src.notifications.service import NotificationService
 from src.registration.repository import RegistrationQuestionRepository, RegistrationRepository
 from src.registration.service import RegistrationQuestionService, RegistrationService
+from src.registration.status_notifications import RegistrationStatusChangedHandler
 from src.teams.repository import TeamRepository
 from src.teams.service import TeamService
 
@@ -33,6 +34,8 @@ def get_registration_service(
         HackathonRepository(session),
         TeamService(TeamRepository(session), HackathonRepository(session)),
         TaskRepository(session),
-        NotificationService(NotificationRepository(session)),
-        email_service,
+        RegistrationStatusChangedHandler(
+            NotificationService(NotificationRepository(session)),
+            email_service,
+        ),
     )
