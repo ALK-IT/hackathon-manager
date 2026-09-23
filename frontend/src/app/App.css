@@ -515,6 +515,7 @@ button:disabled {
 .profile-identity p { margin: 0; color: var(--color-text-muted); }
 .profile-eyebrow { color: var(--color-primary); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .profile-meta { display: flex; gap: 32px; margin: 0; padding-left: 32px; border-left: 1px solid var(--color-border); }
+.profile-hero-actions { display: flex; align-items: center; gap: 24px; }
 .profile-meta div { display: grid; gap: 5px; }
 .profile-meta dt { color: var(--color-text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .profile-meta dd { margin: 0; font-weight: 700; }
@@ -526,15 +527,21 @@ button:disabled {
 .profile-empty { padding: 32px !important; text-align: center; }
 .profile-empty h3 { margin-top: 0; }
 .profile-empty p { color: var(--color-text-muted); }
+.profile-settings-card { display: grid; gap: 24px; }
+.profile-settings-form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(160px, 1fr) auto; align-items: end; gap: 16px; }
+.profile-settings-form input, .profile-settings-form select { box-sizing: border-box; width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-background); font: inherit; }
+.profile-password-settings { padding-top: 20px; border-top: 1px solid var(--color-border); }
+.profile-password-settings h3 { margin: 0 0 8px; }
+.profile-password-settings p { margin: 0 0 16px; color: var(--color-text-muted); }
 .profile-load-more {
   display: flex;
   justify-content: center;
   margin-top: 24px;
 }
 .registration-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.registration-card-link { color: inherit; text-decoration: none; }
+.registration-card-link { display: block; color: inherit; text-decoration: none; }
 .registration-card { box-sizing: border-box; height: 100%; padding: 24px !important; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-.registration-card-link:hover .registration-card { transform: translateY(-3px); border-color: var(--color-primary-border) !important; box-shadow: 0 14px 30px rgba(30, 42, 74, .09); }
+.registration-card:hover { transform: translateY(-3px); border-color: var(--color-primary-border) !important; box-shadow: 0 14px 30px rgba(30, 42, 74, .09); }
 .registration-card-top { display: flex; justify-content: space-between; color: var(--color-primary); }
 .registration-status-badge { padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
 .registration-status-badge--accepted { color: var(--color-success-text); background: var(--color-success-soft); }
@@ -543,11 +550,15 @@ button:disabled {
 .registration-card h3 { margin: 20px 0 8px; font-size: 21px; }
 .registration-card > p { min-height: 44px; margin: 0 0 24px; color: var(--color-text-muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .registration-card-footer { display: grid; gap: 8px; padding-top: 16px; border-top: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: 14px; }
+.withdraw-registration-action { display: grid; gap: 8px; margin-top: 16px; }
 
 @media (max-width: 720px) {
   .profile-hero { grid-template-columns: auto 1fr; padding: 24px !important; }
   .profile-meta { grid-column: 1 / -1; padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--color-border); }
+  .profile-hero-actions { grid-column: 1 / -1; align-items: flex-start; flex-direction: column; }
   .registration-grid { grid-template-columns: 1fr; }
+  .profile-settings-form { grid-template-columns: 1fr; align-items: stretch; }
+  .profile-settings-form button { justify-self: start; }
 }
 
 @media (max-width: 430px) {

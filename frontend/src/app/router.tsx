@@ -19,8 +19,8 @@ import {
   RegistrationEntryPage,
   RegistrationQuestionsSetupPage,
 } from '../features/registration'
+import { ProfilePage, ProfileSettingsPage } from '../features/profile'
 import { ManageRegistrationsPage } from '../features/registration/pages/ManageRegistrationsPage'
-import { ProfilePage } from '../features/profile'
 import { AdminRoute } from './routes/AdminRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { RequireHackathonManager } from './routes/RequireHackathonManager'
@@ -62,6 +62,14 @@ export function AppRouter() {
         element={
           <ProtectedRoute>
             <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile/settings"
+        element={
+          <ProtectedRoute>
+            <ProfileSettingsPage />
           </ProtectedRoute>
         }
       />

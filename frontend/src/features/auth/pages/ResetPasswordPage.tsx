@@ -4,8 +4,10 @@ import { Alert, Button } from '../../../components/ui'
 import { resetPasswordRequest } from '../api/authApi'
 import { AuthPageLayout } from '../components/AuthPageLayout'
 import { FormField } from '../components/FormField'
+import { useTranslation } from '../../../i18n/useTranslation'
 
 export function ResetPasswordPage() {
+  const { language, t } = useTranslation()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
   const [password, setPassword] = useState('')
@@ -18,15 +20,15 @@ export function ResetPasswordPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!token) {
-      setError('Brakuje tokenu resetowania hasła.')
+      setError(language === 'en' ? 'The password reset token is missing.' : 'Brakuje tokenu resetowania hasła.')
       return
     }
     if (password.length < 8) {
-      setError('Hasło musi mieć co najmniej 8 znaków.')
+      setError(t.shortPassword)
       return
     }
     if (password !== confirmPassword) {
-      setError('Hasła muszą być takie same.')
+      setError(t.passwordsDiffer)
       return
     }
     setError(null)
@@ -36,7 +38,7 @@ export function ResetPasswordPage() {
       await resetPasswordRequest(token, password, confirmPassword)
       setSaved(true)
     } catch {
-      setError('Link jest nieprawidłowy, wygasł albo został już użyty.')
+      setError(language === 'en' ? 'The link is invalid, expired, or has already been used.' : 'Link jest nieprawidłowy, wygasł albo został już użyty.')
       setTokenRejected(true)
     } finally {
       setSubmitting(false)
@@ -45,18 +47,18 @@ export function ResetPasswordPage() {
 
   return (
     <AuthPageLayout
-      title="Ustaw nowe hasło"
-      footerText="Hasło zostało zmienione?"
-      footerLinkText="Zaloguj się"
+      title={t.setNewPassword}
+      footerText={t.passwordChangedQuestion}
+      footerLinkText={t.login}
       footerLinkTo="/login"
     >
-      {saved && <Alert>Hasło zostało zmienione. Możesz się zalogować.</Alert>}
+      {saved && <Alert>{t.passwordChanged}</Alert>}
       {error && <Alert variant="error">{error}</Alert>}
-      {tokenRejected && <Link to="/forgot-password">Poproś o nowy link</Link>}
+      {tokenRejected && <Link to="/forgot-password">{t.requestNewLink}</Link>}
       <form className="auth-form" onSubmit={submit} noValidate>
         <FormField
           id="reset-password"
-          label="Nowe hasło"
+          label={t.newPassword}
           type="password"
           autoComplete="new-password"
           value={password}
@@ -64,14 +66,14 @@ export function ResetPasswordPage() {
         />
         <FormField
           id="reset-confirm-password"
-          label="Powtórz nowe hasło"
+          label={t.repeatNewPassword}
           type="password"
           autoComplete="new-password"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
         />
         <Button type="submit" disabled={submitting || saved}>
-          {submitting ? 'Zapisywanie…' : 'Zmień hasło'}
+          {submitting ? t.saving : t.changePassword}
         </Button>
       </form>
     </AuthPageLayout>

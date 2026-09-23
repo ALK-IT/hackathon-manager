@@ -3,6 +3,7 @@ import { apiRequest } from '../../../lib/api/client'
 import {
   addCoOrganizer,
   createHackathonTask,
+  deleteHackathon,
   getHackathon,
   getHackathons,
   getHackathonTasks,
@@ -74,6 +75,16 @@ describe('getHackathons', () => {
     expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id', {
       method: 'PATCH',
       body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    })
+  })
+
+  it('deletes a hackathon with its confirmed name', () => {
+    deleteHackathon('hackathon/id', 'Hackathon Demo')
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon%2Fid', {
+      method: 'DELETE',
+      body: JSON.stringify({ confirm_name: 'Hackathon Demo' }),
       headers: { 'Content-Type': 'application/json' },
     })
   })

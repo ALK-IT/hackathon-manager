@@ -100,6 +100,10 @@ Usuwanie wymaga requestu z dokładną nazwą wydarzenia:
 Poprawne usunięcie zwraca `204 No Content`. Rekord pozostaje w bazie z `is_deleted=True` oraz
 czasem w `deleted_at`.
 
+Frontend udostępnia właścicielowi akcję usunięcia bezpośrednio na kaflu hackathonu. Operacja
+wymaga dwóch potwierdzeń: zaakceptowania ostrzeżenia oraz wpisania dokładnej nazwy wydarzenia.
+Po udanym soft-delete kafel jest usuwany z bieżącej listy.
+
 Otwieranie i zamykanie rejestracji odbywa się przez osobne endpointy zamiast pola dostępnego w
 `PATCH`. Pozwala to później bez zmiany kontraktu uruchomić logikę grupowania uczestników przy
 zamknięciu zapisów. Zapisy otwierają się automatycznie po osiągnięciu `registration_opens_at` i
@@ -255,6 +259,7 @@ cache-aside z kluczami per użytkownik oraz centralną invalidacją po udanym co
 
 ## Changelog
 
+- 2026-09-22 — dodano usuwanie hackathonu z kafla właściciela z podwójnym potwierdzeniem.
 - 2026-08-03 — uzgodniono model, endpointy, uprawnienia i kontrakty request/response.
 - 2026-08-03 — zaimplementowano CRUD, soft-delete, stan rejestracji i współorganizatorów.
 - 2026-08-03 — usunięto cache prywatnej listy i udokumentowano warunki jego przyszłego dodania.
