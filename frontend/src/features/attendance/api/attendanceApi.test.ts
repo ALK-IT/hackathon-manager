@@ -4,6 +4,7 @@ import {
   checkInCurrentUser,
   createCheckInSession,
   getAttendanceParticipants,
+  getAttendanceSummary,
   getAttendanceTeams,
   getCheckIns,
 } from './attendanceApi'
@@ -12,6 +13,14 @@ vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
 
 describe('attendanceApi', () => {
   beforeEach(() => vi.mocked(apiRequest).mockReset())
+
+  it('gets summary for the selected hackathon with cancellation support', () => {
+    const controller = new AbortController()
+    getAttendanceSummary('hackathon/id', controller.signal)
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon%2Fid/summary', {
+      signal: controller.signal,
+    })
+  })
 
   it('creates a check-in session for the selected hackathon', () => {
     createCheckInSession('hackathon/id', 20)

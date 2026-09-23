@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Hackathon } from '../types'
 import { HackathonListItem } from './HackathonListItem'
 
+vi.mock('../../attendance/components/AttendanceSummaryPanel', () => ({
+  AttendanceSummaryPanel: ({ hackathonPublicId }: { hackathonPublicId: string }) =>
+    <div>Summary: {hackathonPublicId}</div>,
+}))
+
 const hackathon: Hackathon = {
   public_id: '7b8b88c5-21cd-4b70-a4ad-240b32f365db',
   name: 'Test Hackathon',
@@ -19,6 +24,22 @@ const hackathon: Hackathon = {
 describe('HackathonListItem', () => {
   afterEach(() => vi.restoreAllMocks())
 
+  it.each(['owner', 'co_organizer'] as const)('shows summary for %s', (access_level) => {
+    render(<MemoryRouter>
+      <HackathonListItem hackathon={{ ...hackathon, access_level }} />
+    </MemoryRouter>)
+    expect(screen.getByLabelText(`Podsumowanie: ${hackathon.name}`)).toHaveTextContent(hackathon.public_id)
+  })
+
+  it('shows summary for a global admin with viewer access', () => {
+    render(<MemoryRouter><HackathonListItem hackathon={hackathon} isAdmin /></MemoryRouter>)
+    expect(screen.getByLabelText(`Podsumowanie: ${hackathon.name}`)).toBeInTheDocument()
+  })
+
+  it('does not mount summary for an ordinary viewer', () => {
+    render(<MemoryRouter><HackathonListItem hackathon={hackathon} /></MemoryRouter>)
+    expect(screen.queryByLabelText(`Podsumowanie: ${hackathon.name}`)).not.toBeInTheDocument()
+  })
   it('renders the hackathon details', () => {
     render(
       <MemoryRouter>
