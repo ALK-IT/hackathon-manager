@@ -1,6 +1,6 @@
 import { apiRequest } from '../../../lib/api/client'
 import type { TokenResponse } from '../../../lib/api/types'
-import type { RegisterPayload, User } from '../types'
+import type { RegisterPayload, User, UserSettingsPayload } from '../types'
 
 export function loginRequest(email: string, password: string) {
   const body = new URLSearchParams({ username: email, password })
@@ -26,6 +26,14 @@ export function registerRequest(payload: RegisterPayload) {
 
 export function getCurrentUserRequest() {
   return apiRequest<User>('/api/auth/me')
+}
+
+export function updateUserSettingsRequest(payload: UserSettingsPayload) {
+  return apiRequest<User>('/api/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+  })
 }
 
 export function logoutRequest() {
