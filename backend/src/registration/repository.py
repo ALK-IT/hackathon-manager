@@ -167,8 +167,10 @@ class RegistrationRepository:
     async def get_active_by_public_id(
         self,
         registration_public_id: uuid.UUID,
+        *,
+        for_update: bool = False,
     ) -> Registration | None:
-        result = await self.session.execute(
+        statement = (
             select(Registration)
             .join(Registration.hackathon)
             .where(
@@ -183,6 +185,11 @@ class RegistrationRepository:
             )
         )
 
+        if for_update:
+            statement = statement.with_for_update(of=Registration).execution_options(
+                populate_existing=True
+            )
+        result = await self.session.execute(statement)
         return result.scalar_one_or_none()
 
     async def get_accepted_by_hackathon_and_user_for_update(

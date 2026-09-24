@@ -102,9 +102,9 @@ export function AttendanceCheckInList({
             {teamGroups.map((team) => (
               <AttendanceTeamGroup
                 key={team.publicId}
+                hackathonPublicId={hackathonPublicId}
                 name={team.name}
                 participants={team.participants}
-                hackathonPublicId={hackathonPublicId}
               />
             ))}
           </div>

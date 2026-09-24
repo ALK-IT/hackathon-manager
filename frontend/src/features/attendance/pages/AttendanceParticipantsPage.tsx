@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Card } from '../../../components/ui'
 import { AttendanceCheckInList } from '../components/AttendanceCheckInList'
+import { AttendanceSummaryPanel } from '../components/AttendanceSummaryPanel'
 
 export function AttendanceParticipantsPage() {
   const { hackathonPublicId } = useParams()
@@ -15,12 +16,16 @@ export function AttendanceParticipantsPage() {
 
       <Card>
         <h1>Uczestnicy</h1>
+        {hackathonPublicId && <Link to={`/hackathons/${hackathonPublicId}/solutions`}>Sprawdź rozwiązania</Link>}
         <p>
           Lista zaakceptowanych uczestników. Osoby, które zeskanowały kod QR,
           są oznaczone jako obecne.
         </p>
         {hackathonPublicId ? (
-          <AttendanceCheckInList hackathonPublicId={hackathonPublicId} />
+          <>
+            <AttendanceSummaryPanel hackathonPublicId={hackathonPublicId} />
+            <AttendanceCheckInList hackathonPublicId={hackathonPublicId} />
+          </>
         ) : (
           <Alert variant="error">Nieprawidłowy adres hackathonu.</Alert>
         )}

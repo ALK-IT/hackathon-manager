@@ -240,6 +240,15 @@ class HackathonListResponse(BaseModel):
     offset: int
 
 
+class HackathonSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    accepted: int = Field(ge=0)
+    teams: int = Field(ge=0)
+    present: int = Field(ge=0)
+    absent: int = Field(ge=0)
+
+
 class HackathonRead(HackathonListItem):
     description: str
     organizer: UserSummary

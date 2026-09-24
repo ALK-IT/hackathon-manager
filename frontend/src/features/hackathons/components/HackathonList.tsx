@@ -106,6 +106,7 @@ export function HackathonList() {
                 <HackathonListItem
                   key={hackathon.public_id}
                   hackathon={hackathon}
+                  isAdmin={user?.role === 'admin'}
                   language={language}
                   onWithdraw={withdrawRegistration}
                   onDelete={removeHackathon}

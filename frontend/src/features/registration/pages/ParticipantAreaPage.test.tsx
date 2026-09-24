@@ -14,9 +14,9 @@ vi.mock('../../resources/components/HackathonResourcesPanel', () => ({
   ),
 }))
 
-function renderPage() {
+function renderPage(query = '') {
   return render(
-    <MemoryRouter initialEntries={['/hackathons/hackathon-id/participant-area']}>
+    <MemoryRouter initialEntries={[`/hackathons/hackathon-id/participant-area${query}`]}>
       <Routes>
         <Route
           path="/hackathons/:hackathonPublicId/participant-area"
@@ -114,5 +114,31 @@ describe('ParticipantAreaPage', () => {
     expect(
       screen.queryByRole('heading', { name: 'Hackathon AI' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('opens and refreshes results only after the event has ended', async () => {
+    vi.mocked(getParticipantArea).mockResolvedValue({
+      public_id: 'hackathon-id', name: 'Zakończony', description: '',
+      start_date: '2000-01-01T00:00:00Z', end_date: '2000-01-02T00:00:00Z',
+      team: null, tasks: [],
+    })
+    renderPage('?view=results')
+    expect(await screen.findByRole('heading', { name: 'Wyniki drużyny' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Odśwież wyniki' }))
+    await screen.findByRole('heading', { name: 'Wyniki drużyny' })
+    expect(getParticipantArea).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('button', { name: 'Skanuj kod QR' })).not.toBeInTheDocument()
+  })
+
+  it('does not show results before the end even with a manual URL', async () => {
+    vi.mocked(getParticipantArea).mockResolvedValue({
+      public_id: 'hackathon-id', name: 'Trwający', description: '',
+      start_date: new Date(Date.now() - 60000).toISOString(), end_date: new Date(Date.now() + 60000).toISOString(),
+      team: null, tasks: [],
+    })
+    renderPage('?view=results')
+    await screen.findByRole('heading', { name: 'Trwający' })
+    expect(screen.queryByRole('heading', { name: 'Wyniki drużyny' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Zobacz wyniki' })).not.toBeInTheDocument()
   })
 })
