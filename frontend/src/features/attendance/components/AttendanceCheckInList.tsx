@@ -4,6 +4,7 @@ import { getAttendanceParticipants } from '../api/attendanceApi'
 import type { AttendanceParticipant } from '../types'
 import { getAttendanceErrorMessage } from '../utils/attendanceMessages'
 import { AttendanceTeamGroup } from './AttendanceTeamGroup'
+import { ResourceManager } from '../../resources/components/ResourceManager'
 
 interface AttendanceCheckInListProps {
   hackathonPublicId: string
@@ -88,9 +89,7 @@ export function AttendanceCheckInList({
         </Button>
       </div>
 
-      <p className="attendance-resource-notice">
-        Zarządzanie zasobami nie jest jeszcze podłączone do backendu.
-      </p>
+      <ResourceManager hackathonPublicId={hackathonPublicId} />
 
       <div aria-live="polite">
         {isLoading && participants === null && <p>Ładowanie uczestników…</p>}
