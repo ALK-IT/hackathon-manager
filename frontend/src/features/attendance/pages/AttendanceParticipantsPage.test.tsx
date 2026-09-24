@@ -7,6 +7,7 @@ import { AttendanceParticipantsPage } from './AttendanceParticipantsPage'
 vi.mock('../api/attendanceApi', () => ({
   getAttendanceParticipants: vi.fn(),
   getAttendanceTeams: vi.fn(),
+  getAttendanceSummary: vi.fn().mockResolvedValue({ accepted: 0, teams: 0, present: 0, absent: 0 }),
 }))
 
 describe('AttendanceParticipantsPage', () => {
@@ -34,7 +35,6 @@ describe('AttendanceParticipantsPage', () => {
     expect(
       await screen.findByText('Brak zaakceptowanych uczestników.'),
     ).toBeInTheDocument()
-
     vi.mocked(getAttendanceTeams).mockResolvedValue({
       items: [{ public_id: 'team', name: 'Alpha', participants: [
         { public_id: 'one', name: 'Jan' }, { public_id: 'two', name: 'Anna' },
@@ -47,5 +47,6 @@ describe('AttendanceParticipantsPage', () => {
     expect(screen.getByText('Łącznie: 1')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Następna strona' })).toBeDisabled()
     expect(getAttendanceTeams).toHaveBeenCalledWith('hackathon-id', expect.objectContaining({ limit: 20, offset: 0 }))
+    expect(screen.getByRole('heading', { name: 'Podsumowanie' })).toBeInTheDocument()
   })
 })

@@ -1,3 +1,10 @@
+export interface AttendanceSummary {
+  accepted: number
+  teams: number
+  present: number
+  absent: number
+}
+
 export interface CheckInSession {
   public_id: string
   token: string

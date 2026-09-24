@@ -1,5 +1,6 @@
 import { apiRequest } from '../../../lib/api/client'
 import type {
+  AttendanceSummary,
   AttendanceParticipant,
   AttendancePage,
   AttendancePageOptions,
@@ -8,6 +9,13 @@ import type {
   CheckInListItem,
   CheckInSession,
 } from '../types'
+
+export function getAttendanceSummary(hackathonPublicId: string, signal?: AbortSignal) {
+  return apiRequest<AttendanceSummary>(
+    `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/summary`,
+    { signal },
+  )
+}
 
 export function createCheckInSession(
   hackathonPublicId: string,

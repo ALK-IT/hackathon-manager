@@ -4,7 +4,13 @@ import type { AttendanceParticipant } from '../types'
 import { AttendancePagedList } from './AttendancePagedList'
 import { AttendanceTeamGroup } from './AttendanceTeamGroup'
 
-function ParticipantGroups({ participants }: { participants: AttendanceParticipant[] }) {
+function ParticipantGroups({
+  hackathonPublicId,
+  participants,
+}: {
+  hackathonPublicId: string
+  participants: AttendanceParticipant[]
+}) {
   const groups = new Map<string, { name: string; participants: AttendanceParticipant[] }>()
   for (const participant of participants) {
     const id = participant.team?.public_id ?? 'without-team'
@@ -15,24 +21,37 @@ function ParticipantGroups({ participants }: { participants: AttendanceParticipa
   return (
     <div className="attendance-team-list">
       {[...groups.entries()].sort(([, a], [, b]) => a.name.localeCompare(b.name, 'pl'))
-        .map(([id, group]) => <AttendanceTeamGroup key={id} {...group} />)}
+        .map(([id, group]) => (
+          <AttendanceTeamGroup
+            key={id}
+            {...group}
+            hackathonPublicId={hackathonPublicId}
+          />
+        ))}
     </div>
   )
 }
 
 export function AttendanceCheckInList({ hackathonPublicId }: { hackathonPublicId: string }) {
   return (
-    <div className="attendance-participants">
-      <Button type="button" variant="ghost" disabled
-        title="Wymaga podłączenia backendu zasobów; akcja obejmie wszystkich obecnych, niezależnie od strony">
-        Wyślij obecnym
-      </Button>
+    <section className="attendance-participants" aria-label="Lista uczestników">
+      <div className="attendance-participants-actions">
+        <Button type="button" variant="ghost" disabled
+          title="Wyśle zasoby wyłącznie uczestnikom z potwierdzoną obecnością; wymaga podłączenia backendu zasobów. Akcja obejmie wszystkich obecnych, niezależnie od strony.">
+          Wyślij obecnym
+        </Button>
+      </div>
       <p className="attendance-resource-notice">Zarządzanie zasobami nie jest jeszcze podłączone do backendu.</p>
       <p>Grupowanie dotyczy bieżącej strony uczestników. Pełne składy znajdziesz w widoku „Drużyny”.</p>
       <AttendancePagedList hackathonPublicId={hackathonPublicId} loadPage={getAttendanceParticipants}
         label="Lista uczestników" emptyMessage="Brak zaakceptowanych uczestników.">
-        {(items) => <ParticipantGroups participants={items} />}
+        {(items) => (
+          <ParticipantGroups
+            hackathonPublicId={hackathonPublicId}
+            participants={items}
+          />
+        )}
       </AttendancePagedList>
-    </div>
+    </section>
   )
 }

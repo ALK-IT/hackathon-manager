@@ -1,8 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Hackathon } from '../types'
 import { HackathonListItem } from './HackathonListItem'
+
+vi.mock('../../attendance/components/AttendanceSummaryPanel', () => ({
+  AttendanceSummaryPanel: () => null,
+}))
 
 const hackathon: Hackathon = {
   public_id: 'hackathon-id',

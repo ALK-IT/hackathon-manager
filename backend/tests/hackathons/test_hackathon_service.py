@@ -69,6 +69,7 @@ def repository(mocker) -> HackathonRepository:
     repository.commit = mocker.AsyncMock()
     repository.refresh_updated_at = mocker.AsyncMock()
     repository.rollback = mocker.AsyncMock()
+    repository.count_accepted_registrations = mocker.AsyncMock(return_value=0)
     return repository
 
 
@@ -459,6 +460,7 @@ async def test_owner_without_admin_role_can_update_registration_window(
     repository.get_owned_by_public_id.assert_awaited_once_with(
         hackathon.public_id,
         regular_user.id,
+        for_update=True,
     )
     repository.commit.assert_awaited_once_with()
 
@@ -484,6 +486,7 @@ async def test_co_organizer_cannot_distinguish_unowned_hackathon_from_missing_on
     repository.get_owned_by_public_id.assert_awaited_once_with(
         hackathon.public_id,
         co_organizer.id,
+        for_update=True,
     )
 
 

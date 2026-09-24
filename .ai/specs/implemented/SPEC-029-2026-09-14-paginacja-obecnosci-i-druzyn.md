@@ -1,4 +1,4 @@
-# SPEC-026: Paginacja obecności i drużyn
+# SPEC-029: Paginacja obecności i drużyn
 
 **Status:** Zaimplementowany
 **Data:** 2026-09-14

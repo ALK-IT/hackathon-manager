@@ -24,6 +24,7 @@ describe('ParticipantTaskCard', () => {
   it('saves and displays a GitHub solution', async () => {
     vi.mocked(saveTaskSubmission).mockResolvedValue({
       public_id: 'submission-id',
+      evaluation: null,
       github_url: 'https://github.com/example/repo',
       team: { public_id: 'team-id', name: 'Byte Buccaneers' },
       submitted_by: { public_id: 'user-id', name: 'Jan Kowalski' },

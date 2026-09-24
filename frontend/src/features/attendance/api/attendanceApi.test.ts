@@ -4,6 +4,7 @@ import {
   checkInCurrentUser,
   createCheckInSession,
   getAttendanceParticipants,
+  getAttendanceSummary,
   getAttendanceTeams,
   getCheckIns,
 } from './attendanceApi'
@@ -25,6 +26,14 @@ describe('attendanceApi', () => {
     expect(apiRequest).toHaveBeenCalledWith(
       `/api/hackathons/hackathon%2Fid/${endpoint}?limit=20&offset=40`, { signal },
     )
+  })
+
+  it('gets summary for the selected hackathon with cancellation support', () => {
+    const controller = new AbortController()
+    getAttendanceSummary('hackathon/id', controller.signal)
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon%2Fid/summary', {
+      signal: controller.signal,
+    })
   })
 
   it('creates a check-in session for the selected hackathon', () => {

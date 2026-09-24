@@ -13,10 +13,22 @@ class AdminRequiredError(HackathonError):
     detail = "Only an administrator can create a hackathon."
 
 
+class HackathonCapacityFullError(HackathonError):
+    status_code = 409
+    error_code = ErrorCode.CAPACITY_FULL
+    detail = "Hackathon capacity would be exceeded."
+
+
 class HackathonNotFoundError(HackathonError):
     status_code = 404
     error_code = ErrorCode.HACKATHON_NOT_FOUND
     detail = "Hackathon does not exist or you do not have access to it."
+
+
+class HackathonSummaryPermissionError(HackathonError):
+    status_code = 403
+    error_code = ErrorCode.PERMISSION_DENIED
+    detail = "Only hackathon managers can view its summary."
 
 
 class CoOrganizerUserNotFoundError(HackathonError):

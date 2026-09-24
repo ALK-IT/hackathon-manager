@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Alert, Button, Card } from '../../../components/ui'
 import { AttendanceCheckInList } from '../components/AttendanceCheckInList'
+import { AttendanceSummaryPanel } from '../components/AttendanceSummaryPanel'
 import { AttendanceTeamsList } from '../components/AttendanceTeamsList'
 
 export function AttendanceParticipantsPage() {
@@ -18,12 +19,14 @@ export function AttendanceParticipantsPage() {
 
       <Card>
         <h1>Uczestnicy</h1>
+        {hackathonPublicId && <Link to={`/hackathons/${hackathonPublicId}/solutions`}>Sprawdź rozwiązania</Link>}
         <p>
           Lista zaakceptowanych uczestników. Osoby, które zeskanowały kod QR,
           są oznaczone jako obecne.
         </p>
         {hackathonPublicId ? (
           <>
+            <AttendanceSummaryPanel hackathonPublicId={hackathonPublicId} />
             <nav aria-label="Widok listy">
               <Button type="button" variant="ghost" aria-pressed={view === 'participants'}
                 onClick={() => setView('participants')}>Uczestnicy</Button>
