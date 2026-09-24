@@ -45,6 +45,22 @@ class ResourceRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_resources(self, hackathon_public_id: uuid.UUID) -> list[Resource]:
+        item_count = (
+            select(func.count(ResourceItem.id))
+            .where(ResourceItem.resource_id == Resource.id)
+            .correlate(Resource)
+            .scalar_subquery()
+        )
+        result = await self.session.scalars(
+            select(Resource)
+            .options(with_expression(Resource.item_count, item_count))
+            .join(Resource.hackathon)
+            .where(Hackathon.public_id == hackathon_public_id, Hackathon.is_deleted.is_(False))
+            .order_by(Resource.created_at, Resource.id)
+        )
+        return list(result.all())
+
     async def get_item_for_update(
         self,
         resource_id: int,
@@ -181,6 +197,54 @@ class ResourceRepository:
         self.session.add(assignment)
         await self.session.flush()
         return assignment
+
+    async def get_assignment_for_hackathon(self, hackathon_public_id, assignment_public_id):
+        return await self.session.scalar(
+            select(ResourceAssignment)
+            .join(ResourceAssignment.resource_item)
+            .join(ResourceItem.resource)
+            .join(Resource.hackathon)
+            .options(joinedload(ResourceAssignment.resource_item).joinedload(ResourceItem.resource))
+            .where(
+                Hackathon.public_id == hackathon_public_id,
+                ResourceAssignment.public_id == assignment_public_id,
+            )
+            .with_for_update()
+        )
+
+    async def list_assignments(self, hackathon_public_id: uuid.UUID) -> list[ResourceAssignment]:
+        result = await self.session.scalars(
+            select(ResourceAssignment)
+            .join(ResourceAssignment.resource_item)
+            .join(ResourceItem.resource)
+            .join(Resource.hackathon)
+            .options(
+                joinedload(ResourceAssignment.resource_item).joinedload(ResourceItem.resource),
+                joinedload(ResourceAssignment.registration),
+                joinedload(ResourceAssignment.team),
+            )
+            .where(
+                Hackathon.public_id == hackathon_public_id, ResourceAssignment.revoked_at.is_(None)
+            )
+            .order_by(ResourceAssignment.assigned_at, ResourceAssignment.id)
+        )
+        return list(result.unique().all())
+
+    async def delete_resource(self, resource: Resource) -> None:
+        await self.session.delete(resource)
+
+    async def has_active_assignments(self, resource_id: int) -> bool:
+        return bool(
+            await self.session.scalar(
+                select(
+                    exists().where(
+                        ResourceAssignment.resource_item_id == ResourceItem.id,
+                        ResourceItem.resource_id == resource_id,
+                        ResourceAssignment.revoked_at.is_(None),
+                    )
+                )
+            )
+        )
 
     async def create_audit_log(self, audit_log: ResourceAuditLog) -> ResourceAuditLog:
         self.session.add(audit_log)

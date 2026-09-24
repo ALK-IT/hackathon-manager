@@ -8,6 +8,7 @@ from src.auth.models import User
 from src.registration.models import Registration
 from src.resources.crypto import decrypt_value
 from src.resources.exceptions import (
+    ResourceHasActiveAssignmentsError,
     ResourceItemNotFoundError,
     ResourceItemUnavailableError,
     ResourceNotFoundError,
@@ -60,6 +61,7 @@ def repository(mocker):
     repository = mocker.Mock()
     repository.get_hackathon = mocker.AsyncMock()
     repository.get_resource = mocker.AsyncMock()
+    repository.has_active_assignments = mocker.AsyncMock(return_value=False)
     repository.get_item_for_update = mocker.AsyncMock()
     repository.list_items = mocker.AsyncMock()
     repository.get_registration = mocker.AsyncMock()
@@ -67,6 +69,7 @@ def repository(mocker):
     repository.create_resource = mocker.AsyncMock()
     repository.create_items = mocker.AsyncMock()
     repository.create_assignment = mocker.AsyncMock()
+    repository.delete_resource = mocker.AsyncMock()
     repository.commit = mocker.AsyncMock()
     repository.rollback = mocker.AsyncMock()
     return repository
@@ -75,6 +78,30 @@ def repository(mocker):
 @pytest.fixture
 def service(repository):
     return ResourceService(repository)
+
+
+async def test_delete_resource_rejects_active_assignments(service, repository):
+    repository.get_hackathon.return_value = make_hackathon()
+    resource = make_resource()
+    repository.get_resource.return_value = resource
+    repository.has_active_assignments.return_value = True
+    with pytest.raises(ResourceHasActiveAssignmentsError):
+        await service.delete_resource(uuid.uuid4(), resource.public_id, make_user())
+
+    repository.has_active_assignments.assert_awaited_once_with(resource.id)
+    repository.delete_resource.assert_not_awaited()
+    repository.commit.assert_not_awaited()
+
+
+async def test_delete_resource_deletes_when_assignments_are_revoked(service, repository):
+    repository.get_hackathon.return_value = make_hackathon()
+    resource = make_resource()
+    repository.get_resource.return_value = resource
+    await service.delete_resource(uuid.uuid4(), resource.public_id, make_user())
+
+    repository.has_active_assignments.assert_awaited_once_with(resource.id)
+    repository.delete_resource.assert_awaited_once_with(resource)
+    repository.commit.assert_awaited_once_with()
 
 
 async def test_create_resource_normalizes_name_and_commits(service, repository):

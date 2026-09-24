@@ -157,3 +157,31 @@ async def test_create_methods_flush_entities(session: AsyncSession):
     assert resource.id is not None
     assert items[0].id is not None
     assert assignment.id is not None
+
+
+async def test_has_active_assignments_ignores_revoked_assignments(session: AsyncSession):
+    organizer = make_user("organizer-active@example.com")
+    participant = make_user("participant-active@example.com")
+    hackathon = make_hackathon(organizer)
+    registration = Registration(
+        hackathon=hackathon,
+        user=participant,
+        status=RegistrationStatus.ACCEPTED,
+    )
+    resource = make_resource(hackathon)
+    item = ResourceItem(resource=resource, encrypted_value="secret", is_assigned=True)
+    assignment = ResourceAssignment(
+        resource_item=item,
+        registration=registration,
+        assigned_by=organizer,
+    )
+    session.add(assignment)
+    await session.flush()
+    repository = ResourceRepository(session)
+
+    assert await repository.has_active_assignments(resource.id) is True
+
+    assignment.revoked_at = datetime.now(UTC)
+    await session.flush()
+
+    assert await repository.has_active_assignments(resource.id) is False

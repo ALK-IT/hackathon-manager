@@ -1,4 +1,5 @@
 import { Button } from '../../../components/ui'
+import { ResourceManager } from '../../resources/components/ResourceManager'
 import { getAttendanceParticipants } from '../api/attendanceApi'
 import type { AttendanceParticipant } from '../types'
 import { AttendancePagedList } from './AttendancePagedList'
@@ -41,7 +42,7 @@ export function AttendanceCheckInList({ hackathonPublicId }: { hackathonPublicId
           Wyślij obecnym
         </Button>
       </div>
-      <p className="attendance-resource-notice">Zarządzanie zasobami nie jest jeszcze podłączone do backendu.</p>
+      <ResourceManager hackathonPublicId={hackathonPublicId} />
       <p>Grupowanie dotyczy bieżącej strony uczestników. Pełne składy znajdziesz w widoku „Drużyny”.</p>
       <AttendancePagedList hackathonPublicId={hackathonPublicId} loadPage={getAttendanceParticipants}
         label="Lista uczestników" emptyMessage="Brak zaakceptowanych uczestników.">
