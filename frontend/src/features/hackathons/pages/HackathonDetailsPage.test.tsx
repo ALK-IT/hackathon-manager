@@ -58,10 +58,10 @@ const auth: AuthContextValue = {
   logout: vi.fn(),
 }
 
-function renderPage() {
+function renderPage(authValue: AuthContextValue = auth) {
   return render(
     <MemoryRouter initialEntries={[`/hackathons/${hackathon.public_id}`]}>
-      <AuthContext.Provider value={auth}>
+      <AuthContext.Provider value={authValue}>
         <Routes>
           <Route
             path="/hackathons/:hackathonPublicId"
@@ -144,7 +144,10 @@ describe('HackathonDetailsPage', () => {
 
   it('does not show management controls to a viewer', async () => {
     vi.mocked(getHackathon).mockResolvedValue({ ...hackathon, access_level: 'viewer' })
-    renderPage()
+    renderPage({
+      ...auth,
+      user: auth.user && { ...auth.user, role: 'user' },
+    })
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Współorganizatorzy' }))
     expect(await screen.findByRole('heading', { name: 'Współorganizatorzy' })).toBeInTheDocument()

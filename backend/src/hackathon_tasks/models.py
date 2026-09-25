@@ -14,6 +14,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -50,7 +51,7 @@ class HackathonTask(Base):
     criteria: Mapped[list[dict[str, object]]] = mapped_column(
         JSONB,
         default=list,
-        server_default="'[]'::jsonb",
+        server_default=text("'[]'::jsonb"),
         nullable=False,
     )
     visible_from: Mapped[datetime] = mapped_column(
