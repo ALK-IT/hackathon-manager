@@ -366,13 +366,13 @@ async def test_get_all_teams_returns_teams_for_admin(
         Team(id=31, hackathon_id=hackathon.id, name="Beta", join_code="EFGH5678"),
     ]
     hackathon_repository.get_active_by_public_id.return_value = hackathon
-    team_repository.get_teams.return_value = teams
+    team_repository.get_teams.return_value = (teams, 2)
 
     result = await team_service.get_all_teams(hackathon_public_id, user)
 
-    assert result == teams
+    assert result == (teams, 2)
     hackathon_repository.get_active_by_public_id.assert_awaited_once_with(hackathon_public_id)
-    team_repository.get_teams.assert_awaited_once_with(hackathon.id)
+    team_repository.get_teams.assert_awaited_once_with(hackathon.id, limit=50, offset=0)
 
 
 async def test_get_all_teams_rejects_user_without_management_access(

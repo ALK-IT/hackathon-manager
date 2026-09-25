@@ -2,6 +2,8 @@ import { apiRequest } from '../../../lib/api/client'
 import type {
   AttendanceSummary,
   AttendanceParticipant,
+  AttendancePage,
+  AttendancePageOptions,
   AttendanceTeam,
   CheckIn,
   CheckInListItem,
@@ -40,29 +42,32 @@ export function checkInCurrentUser(hackathonPublicId: string, token: string) {
   )
 }
 
-export function getCheckIns(hackathonPublicId: string, signal?: AbortSignal) {
-  return apiRequest<CheckInListItem[]>(
-    `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/check-ins`,
+function getPage<T>(
+  hackathonPublicId: string,
+  endpoint: string,
+  { limit = 50, offset = 0, signal }: AttendancePageOptions,
+) {
+  const query = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  return apiRequest<AttendancePage<T>>(
+    `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/${endpoint}?${query}`,
     { signal },
   )
+}
+
+export function getCheckIns(hackathonPublicId: string, options: AttendancePageOptions = {}) {
+  return getPage<CheckInListItem>(hackathonPublicId, 'check-ins', options)
 }
 
 export function getAttendanceParticipants(
   hackathonPublicId: string,
-  signal?: AbortSignal,
+  options: AttendancePageOptions = {},
 ) {
-  return apiRequest<AttendanceParticipant[]>(
-    `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/attendance`,
-    { signal },
-  )
+  return getPage<AttendanceParticipant>(hackathonPublicId, 'attendance', options)
 }
 
 export function getAttendanceTeams(
   hackathonPublicId: string,
-  signal?: AbortSignal,
+  options: AttendancePageOptions = {},
 ) {
-  return apiRequest<AttendanceTeam[]>(
-    `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/teams`,
-    { signal },
-  )
+  return getPage<AttendanceTeam>(hackathonPublicId, 'teams', options)
 }

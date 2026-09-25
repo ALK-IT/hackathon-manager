@@ -426,12 +426,17 @@ async def test_list_check_ins_returns_participants_from_all_sessions(
     response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/check-ins")
 
     assert response.status_code == 200
-    assert [item["participant"]["name"] for item in response.json()] == [
+    assert response.json()["total"] == 2
+    assert [item["participant"]["name"] for item in response.json()["items"]] == [
         "First Participant",
         "Second Participant",
     ]
-    assert response.json()[0]["registration_public_id"] == str(first_registration.public_id)
-    assert response.json()[1]["registration_public_id"] == str(second_registration.public_id)
+    assert response.json()["items"][0]["registration_public_id"] == str(
+        first_registration.public_id
+    )
+    assert response.json()["items"][1]["registration_public_id"] == str(
+        second_registration.public_id
+    )
 
 
 async def test_list_check_ins_returns_empty_list_when_nobody_checked_in(
@@ -452,7 +457,7 @@ async def test_list_check_ins_returns_empty_list_when_nobody_checked_in(
     response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/check-ins")
 
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() == {"items": [], "total": 0, "limit": 50, "offset": 0}
 
 
 async def test_list_attendance_returns_all_accepted_participants_with_presence(
@@ -518,7 +523,8 @@ async def test_list_attendance_returns_all_accepted_participants_with_presence(
     response = await api_client.get(f"/api/hackathons/{hackathon.public_id}/attendance")
 
     assert response.status_code == 200
-    response_by_name = {item["participant"]["name"]: item for item in response.json()}
+    assert response.json()["total"] == 2
+    response_by_name = {item["participant"]["name"]: item for item in response.json()["items"]}
     assert set(response_by_name) == {"Present Participant", "Absent Participant"}
     assert response_by_name["Present Participant"]["is_present"] is True
     assert response_by_name["Present Participant"]["checked_in_at"] is not None
@@ -554,3 +560,133 @@ async def test_list_check_ins_rejects_user_without_management_permission(
         "error_code": "PERMISSION_DENIED",
         "detail": "Only hackathon organizers can manage check-in sessions.",
     }
+
+
+@pytest.mark.parametrize(
+    "endpoint, expected_total",
+    [
+        ("attendance", 6),
+        ("check-ins", 3),
+        ("teams", 3),
+    ],
+)
+async def test_paginated_lists_are_scoped_and_keep_complete_teams(
+    endpoint,
+    expected_total,
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    owner = make_user(name="Owner", email="owner-pages@example.com")
+    hackathon = make_hackathon(owner)
+    other_hackathon = make_hackathon(owner)
+    now = datetime.now(UTC)
+    for event in (hackathon, other_hackathon):
+        qr_session = CheckInSession(
+            hackathon=event,
+            token_hash=uuid.uuid4().hex * 2,
+            expires_at=now + timedelta(minutes=15),
+            created_by=owner,
+        )
+        session.add(qr_session)
+        for team_name in ("Beta", "Alpha", "Gamma"):
+            team = Team(hackathon=event, name=team_name, join_code=uuid.uuid4().hex[:8])
+            session.add(team)
+            for index in range(3):
+                user = make_user(name=f"{team_name} {index}", email=f"{uuid.uuid4()}@example.com")
+                registration = Registration(
+                    user=user,
+                    hackathon=event,
+                    team=team,
+                    status=(
+                        RegistrationStatus.ACCEPTED if index < 2 else RegistrationStatus.REJECTED
+                    ),
+                )
+                session.add(registration)
+                if index == 0:
+                    session.add(
+                        CheckIn(registration=registration, session=qr_session, checked_in_at=now)
+                    )
+    await session.commit()
+    path = f"/api/hackathons/{hackathon.public_id}/{endpoint}"
+    session.expunge_all()
+    force_authenticate(owner)
+
+    default_response = await api_client.get(path)
+    assert default_response.status_code == 200
+    default = default_response.json()
+    assert default["total"] == expected_total
+    assert default["limit"] == 50
+    assert default["offset"] == 0
+    collected = []
+    for offset in range(expected_total):
+        response = await api_client.get(path, params={"limit": 1, "offset": offset})
+        assert response.status_code == 200
+        page = response.json()
+        assert page["total"] == expected_total
+        assert page["limit"] == 1
+        assert page["offset"] == offset
+        assert len(page["items"]) == 1
+        collected.extend(page["items"])
+    assert collected == default["items"]
+    key = "public_id" if endpoint == "teams" else "registration_public_id"
+    assert len({item[key] for item in collected}) == expected_total
+    if endpoint == "teams":
+        assert [team["name"] for team in collected] == ["Alpha", "Beta", "Gamma"]
+        assert all(len(team["participants"]) == 2 for team in collected)
+        assert all("join_code" not in team for team in collected)
+    elif endpoint == "attendance":
+        assert sum(item["is_present"] for item in collected) == 3
+    past_end = await api_client.get(path, params={"offset": 100})
+    assert past_end.json() == {"items": [], "total": expected_total, "limit": 50, "offset": 100}
+
+
+@pytest.mark.parametrize("endpoint", ["attendance", "check-ins", "teams"])
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}, {"limit": "abc"}])
+async def test_paginated_management_lists_validate_query(
+    endpoint,
+    params,
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    owner = make_user(name="Owner", email="owner-query@example.com")
+    session.add(owner)
+    await session.commit()
+    force_authenticate(owner)
+    response = await api_client.get(f"/api/hackathons/{uuid.uuid4()}/{endpoint}", params=params)
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.parametrize("endpoint", ["attendance", "check-ins", "teams"])
+async def test_paginated_management_lists_preserve_permissions(
+    endpoint,
+    api_client,
+    force_authenticate,
+    session: AsyncSession,
+):
+    owner = make_user(name="Owner", email="owner-access@example.com")
+    co_organizer = make_user(name="Co", email="co-access@example.com")
+    admin = make_user(name="Admin", email="admin-access@example.com", role=UserRole.ADMIN)
+    participant = make_user(name="Participant", email="participant-access@example.com")
+    hackathon = make_hackathon(owner)
+    hackathon.co_organizers = [co_organizer]
+    session.add_all([hackathon, admin, participant])
+    await session.commit()
+    path = f"/api/hackathons/{hackathon.public_id}/{endpoint}"
+    response = await api_client.get(path)
+    assert response.status_code == 401
+    force_authenticate(participant)
+    response = await api_client.get(path)
+    assert response.status_code == 403
+    assert "total" not in response.json()
+    for manager in (owner, co_organizer, admin):
+        force_authenticate(manager)
+        response = await api_client.get(path)
+        assert response.status_code == 200
+        assert response.json() == {"items": [], "total": 0, "limit": 50, "offset": 0}
+    hackathon.is_deleted = True
+    await session.commit()
+    response = await api_client.get(path)
+    assert response.status_code == 404

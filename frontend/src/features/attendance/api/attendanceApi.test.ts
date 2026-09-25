@@ -14,6 +14,20 @@ vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
 describe('attendanceApi', () => {
   beforeEach(() => vi.mocked(apiRequest).mockReset())
 
+  it.each([
+    [getCheckIns, 'check-ins'],
+    [getAttendanceParticipants, 'attendance'],
+    [getAttendanceTeams, 'teams'],
+  ] as const)('passes page parameters and cancellation signal (%s)', async (load, endpoint) => {
+    const signal = new AbortController().signal
+    const response = { items: [], total: 65, limit: 20, offset: 40 }
+    vi.mocked(apiRequest).mockResolvedValue(response)
+    expect(await load('hackathon/id', { limit: 20, offset: 40, signal })).toEqual(response)
+    expect(apiRequest).toHaveBeenCalledWith(
+      `/api/hackathons/hackathon%2Fid/${endpoint}?limit=20&offset=40`, { signal },
+    )
+  })
+
   it('gets summary for the selected hackathon with cancellation support', () => {
     const controller = new AbortController()
     getAttendanceSummary('hackathon/id', controller.signal)
@@ -52,7 +66,7 @@ describe('attendanceApi', () => {
     getCheckIns('hackathon/id')
 
     expect(apiRequest).toHaveBeenCalledWith(
-      '/api/hackathons/hackathon%2Fid/check-ins',
+      '/api/hackathons/hackathon%2Fid/check-ins?limit=50&offset=0',
       { signal: undefined },
     )
   })
@@ -61,7 +75,7 @@ describe('attendanceApi', () => {
     getAttendanceParticipants('hackathon/id')
 
     expect(apiRequest).toHaveBeenCalledWith(
-      '/api/hackathons/hackathon%2Fid/attendance',
+      '/api/hackathons/hackathon%2Fid/attendance?limit=50&offset=0',
       { signal: undefined },
     )
   })
@@ -70,7 +84,7 @@ describe('attendanceApi', () => {
     getAttendanceTeams('hackathon/id')
 
     expect(apiRequest).toHaveBeenCalledWith(
-      '/api/hackathons/hackathon%2Fid/teams',
+      '/api/hackathons/hackathon%2Fid/teams?limit=50&offset=0',
       { signal: undefined },
     )
   })

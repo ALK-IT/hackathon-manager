@@ -58,11 +58,22 @@ class TeamRepository:
         result = await self.session.execute(statement)
         return list(result.scalars().all())
 
-    async def get_teams(self, hackathon_id: int) -> list[Team]:
+    async def get_teams(
+        self,
+        hackathon_id: int,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Team], int]:
+        total = await self.session.scalar(
+            select(func.count(Team.id)).where(Team.hackathon_id == hackathon_id)
+        )
         statement = (
             select(Team)
             .where(Team.hackathon_id == hackathon_id)
-            .order_by(Team.name)
+            .order_by(Team.name, Team.id)
+            .limit(limit)
+            .offset(offset)
             .options(
                 selectinload(
                     Team.registrations.and_(Registration.status == RegistrationStatus.ACCEPTED)
@@ -70,7 +81,7 @@ class TeamRepository:
             )
         )
         result = await self.session.execute(statement)
-        return list(result.scalars().all())
+        return list(result.scalars().all()), int(total or 0)
 
     async def create(self, team: Team) -> Team:
         async with self.session.begin_nested():

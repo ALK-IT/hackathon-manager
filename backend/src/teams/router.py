@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
@@ -9,7 +9,7 @@ from src.registration.dependencies import get_registration_service
 from src.registration.schema import RegistrationCreate, RegistrationResponse
 from src.registration.service import RegistrationService
 from src.teams.dependencies import get_teams_service
-from src.teams.schemas import TeamDetailResponse
+from src.teams.schemas import TeamDetailResponse, TeamListResponse
 from src.teams.service import TeamService
 
 router = APIRouter(prefix="/api", tags=["teams"])
@@ -40,13 +40,25 @@ async def create_registration(
 
 @router.get(
     "/hackathons/{hackathon_public_id}/teams",
-    response_model=list[TeamDetailResponse],
+    response_model=TeamListResponse,
     status_code=status.HTTP_200_OK,
 )
 async def get_all_teams(
     hackathon_public_id: uuid.UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     service: Annotated[TeamService, Depends(get_teams_service)],
-) -> list[TeamDetailResponse]:
-    result = await service.get_all_teams(hackathon_public_id, current_user)
-    return [TeamDetailResponse.from_team(team) for team in result]
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> TeamListResponse:
+    result, total = await service.get_all_teams(
+        hackathon_public_id,
+        current_user,
+        limit=limit,
+        offset=offset,
+    )
+    return TeamListResponse(
+        items=[TeamDetailResponse.from_team(team) for team in result],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )

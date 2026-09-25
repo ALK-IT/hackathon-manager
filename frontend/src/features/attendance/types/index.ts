@@ -12,6 +12,19 @@ export interface CheckInSession {
   is_active: boolean
 }
 
+export interface AttendancePage<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface AttendancePageOptions {
+  limit?: number
+  offset?: number
+  signal?: AbortSignal
+}
+
 export interface CheckIn {
   public_id: string
   checked_in_at: string
