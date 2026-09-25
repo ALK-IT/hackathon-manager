@@ -12,6 +12,7 @@ const task: ParticipantTask = {
   public_id: 'task-id',
   title: 'Publiczne API',
   description: 'Zbuduj API dla aplikacji.',
+  criteria: [],
   visible_from: '2026-09-03T08:00:00Z',
   created_at: '2026-09-03T08:00:00Z',
   updated_at: '2026-09-03T08:00:00Z',

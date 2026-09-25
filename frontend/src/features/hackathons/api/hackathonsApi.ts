@@ -8,6 +8,7 @@ import type {
   HackathonFilters,
   HackathonPage,
   HackathonTask,
+  UpdateHackathonTaskPayload,
   UpdateHackathonPayload,
   UserSummary,
 } from '../types'
@@ -106,6 +107,21 @@ export function createHackathonTask(
     `/api/hackathons/${encodeURIComponent(publicId)}/tasks`,
     {
       method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' },
+    },
+  )
+}
+
+export function updateHackathonTask(
+  publicId: string,
+  taskPublicId: string,
+  payload: UpdateHackathonTaskPayload,
+) {
+  return apiRequest<HackathonTask>(
+    `/api/hackathons/${encodeURIComponent(publicId)}/tasks/${encodeURIComponent(taskPublicId)}`,
+    {
+      method: 'PATCH',
       body: JSON.stringify(payload),
       headers: { 'Content-Type': 'application/json' },
     },

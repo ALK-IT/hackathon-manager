@@ -3,7 +3,14 @@ from datetime import datetime
 from decimal import Decimal
 from urllib.parse import urlsplit, urlunsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 
@@ -14,12 +21,24 @@ def _normalize_text(value: object) -> object:
     return value
 
 
+class TaskCriterion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=2_000)
+    max_points: int = Field(ge=1, le=1_000)
+
+    _normalize_name = field_validator("name", mode="before")(_normalize_text)
+    _normalize_description = field_validator("description", mode="before")(_normalize_text)
+
+
 class TaskCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1, max_length=10_000)
     visible_from: datetime | None = None
+    criteria: list[TaskCriterion] = Field(default_factory=list, max_length=20)
 
     _normalize_title = field_validator("title", mode="before")(_normalize_text)
     _normalize_description = field_validator("description", mode="before")(_normalize_text)
@@ -38,6 +57,7 @@ class TaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, min_length=1, max_length=10_000)
     visible_from: datetime | None = None
+    criteria: list[TaskCriterion] | None = Field(default=None, max_length=20)
 
     _normalize_title = field_validator("title", mode="before")(_normalize_text)
     _normalize_description = field_validator("description", mode="before")(_normalize_text)
@@ -64,6 +84,7 @@ class TaskResponse(BaseModel):
     public_id: uuid.UUID
     title: str
     description: str
+    criteria: list[TaskCriterion]
     visible_from: datetime
     created_at: datetime
     updated_at: datetime
@@ -106,21 +127,40 @@ class SubmissionTeamResponse(BaseModel):
     name: str
 
 
+class CriterionScore(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    criterion_index: int = Field(ge=0)
+    points: Decimal = Field(ge=0, max_digits=8, decimal_places=2)
+
+    @field_serializer("points")
+    def serialize_points(self, value: Decimal) -> float:
+        return float(value)
+
+
 class TaskSubmissionEvaluationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    score: Decimal = Field(ge=0, le=10, max_digits=4, decimal_places=2)
+    criterion_scores: list[CriterionScore] = Field(default_factory=list, max_length=20)
+    score: Decimal | None = Field(default=None, ge=0, le=10, max_digits=4, decimal_places=2)
     feedback: str | None = Field(
         default=None,
         min_length=1,
         max_length=10_000,
     )
 
+    @model_validator(mode="after")
+    def require_score(self) -> "TaskSubmissionEvaluationUpdate":
+        if not self.criterion_scores and self.score is None:
+            raise ValueError("criterion_scores are required")
+        return self
+
 
 class TaskSubmissionEvaluationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     score: float
+    criterion_scores: list[CriterionScore]
     feedback: str | None
     evaluated_by: SubmissionUserResponse | None
     evaluated_at: datetime
@@ -163,6 +203,7 @@ class SubmissionTaskResponse(BaseModel):
 
     public_id: uuid.UUID
     title: str
+    criteria: list[TaskCriterion]
 
 
 class HackathonTaskSubmissionResponse(TaskSubmissionResponse):
@@ -190,6 +231,18 @@ class HackathonTaskSubmissionListResponse(BaseModel):
     offset: int
 
 
+class LeaderboardEntry(BaseModel):
+    rank: int
+    team_public_id: uuid.UUID
+    team_name: str
+    total_score: float
+    evaluated_tasks: int
+
+
+class LeaderboardResponse(BaseModel):
+    items: list[LeaderboardEntry]
+
+
 class ParticipantTaskResponse(TaskResponse):
     submission: TaskSubmissionResponse | None = None
 
@@ -203,6 +256,7 @@ class ParticipantTaskResponse(TaskResponse):
             public_id=task.public_id,
             title=task.title,
             description=task.description,
+            criteria=task.criteria,
             visible_from=task.visible_from,
             created_at=task.created_at,
             updated_at=task.updated_at,

@@ -4,11 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Hackathon } from '../types'
 import { HackathonListItem } from './HackathonListItem'
 
-vi.mock('../../attendance/components/AttendanceSummaryPanel', () => ({
-  AttendanceSummaryPanel: ({ hackathonPublicId }: { hackathonPublicId: string }) =>
-    <div>Summary: {hackathonPublicId}</div>,
-}))
-
 const hackathon: Hackathon = {
   public_id: '7b8b88c5-21cd-4b70-a4ad-240b32f365db',
   name: 'Test Hackathon',
@@ -24,22 +19,6 @@ const hackathon: Hackathon = {
 describe('HackathonListItem', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it.each(['owner', 'co_organizer'] as const)('shows summary for %s', (access_level) => {
-    render(<MemoryRouter>
-      <HackathonListItem hackathon={{ ...hackathon, access_level }} />
-    </MemoryRouter>)
-    expect(screen.getByLabelText(`Podsumowanie: ${hackathon.name}`)).toHaveTextContent(hackathon.public_id)
-  })
-
-  it('shows summary for a global admin with viewer access', () => {
-    render(<MemoryRouter><HackathonListItem hackathon={hackathon} isAdmin /></MemoryRouter>)
-    expect(screen.getByLabelText(`Podsumowanie: ${hackathon.name}`)).toBeInTheDocument()
-  })
-
-  it('does not mount summary for an ordinary viewer', () => {
-    render(<MemoryRouter><HackathonListItem hackathon={hackathon} /></MemoryRouter>)
-    expect(screen.queryByLabelText(`Podsumowanie: ${hackathon.name}`)).not.toBeInTheDocument()
-  })
   it('renders the hackathon details', () => {
     render(
       <MemoryRouter>
@@ -175,6 +154,30 @@ describe('HackathonListItem', () => {
     </MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: 'Zobacz wyniki' }))
     expect(screen.getByText(`/hackathons/${hackathon.public_id}/participant-area?view=results`)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['owner', false],
+    ['co_organizer', false],
+    ['viewer', true],
+  ] as const)('links a finished hackathon manager to managed results (%s)', (access_level, isAdmin) => {
+    function Location() {
+      const location = useLocation()
+      return <output>{location.pathname}{location.search}</output>
+    }
+    render(<MemoryRouter>
+      <HackathonListItem hackathon={{
+        ...hackathon,
+        access_level,
+        end_date: new Date(Date.now() - 1000).toISOString(),
+      }} isAdmin={isAdmin} />
+      <Location />
+    </MemoryRouter>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zobacz wyniki' }))
+    expect(screen.getByText(
+      `/hackathons/${hackathon.public_id}/attendance?view=solutions`,
+    )).toBeInTheDocument()
   })
 
   it('shows a rejected status without registration or participant area buttons', () => {

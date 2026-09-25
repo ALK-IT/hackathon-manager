@@ -58,14 +58,18 @@ const auth: AuthContextValue = {
   logout: vi.fn(),
 }
 
-function renderPage() {
+function renderPage(authValue: AuthContextValue = auth) {
   return render(
     <MemoryRouter initialEntries={[`/hackathons/${hackathon.public_id}`]}>
-      <AuthContext.Provider value={auth}>
+      <AuthContext.Provider value={authValue}>
         <Routes>
           <Route
             path="/hackathons/:hackathonPublicId"
             element={<HackathonDetailsPage />}
+          />
+          <Route
+            path="/hackathons/:hackathonPublicId/attendance"
+            element={<p>Widok zarządzania uczestnikami</p>}
           />
         </Routes>
       </AuthContext.Provider>
@@ -103,6 +107,7 @@ describe('HackathonDetailsPage', () => {
     })
     renderPage()
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Kod QR' }))
     expect(
       await screen.findByRole('button', { name: 'Wygeneruj kod QR' }),
     ).toBeInTheDocument()
@@ -121,6 +126,7 @@ describe('HackathonDetailsPage', () => {
     ])
     renderPage()
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Współorganizatorzy' }))
     fireEvent.change(await screen.findByLabelText('Nazwa użytkownika'), {
       target: { value: 'Jan' },
     })
@@ -138,11 +144,25 @@ describe('HackathonDetailsPage', () => {
 
   it('does not show management controls to a viewer', async () => {
     vi.mocked(getHackathon).mockResolvedValue({ ...hackathon, access_level: 'viewer' })
-    renderPage()
+    renderPage({
+      ...auth,
+      user: auth.user && { ...auth.user, role: 'user' },
+    })
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Współorganizatorzy' }))
     expect(await screen.findByRole('heading', { name: 'Współorganizatorzy' })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Zadania' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Uczestnicy' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Nazwa użytkownika')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Dodaj zadanie' })).not.toBeInTheDocument()
+  })
+
+  it('offers managers a link-like tab to participant management', async () => {
+    renderPage()
+
+    const participants = await screen.findByRole('button', { name: 'Uczestnicy' })
+    fireEvent.click(participants)
+    expect(await screen.findByText('Widok zarządzania uczestnikami')).toBeInTheDocument()
   })
 
   it('allows a manager to add a task with its publication date', async () => {
@@ -150,12 +170,14 @@ describe('HackathonDetailsPage', () => {
       public_id: 'task-id',
       title: 'Publiczne API',
       description: 'Zbuduj API.',
+      criteria: [],
       visible_from: '2026-09-01T12:00:00Z',
       created_at: '2026-08-01T10:00:00Z',
       updated_at: '2026-08-01T10:00:00Z',
     })
     renderPage()
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Zadania' }))
     fireEvent.change(await screen.findByLabelText('Nazwa zadania'), {
       target: { value: 'Publiczne API' },
     })
@@ -175,6 +197,7 @@ describe('HackathonDetailsPage', () => {
   it('sets task publication to the hackathon start date', async () => {
     renderPage()
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Zadania' }))
     const publicationField = await screen.findByLabelText(
       'Widoczne dla uczestników od',
     )
@@ -194,6 +217,7 @@ describe('HackathonDetailsPage', () => {
   it('requires selecting a user from the suggestions', async () => {
     renderPage()
 
+    fireEvent.click(await screen.findByRole('tab', { name: 'Współorganizatorzy' }))
     fireEvent.change(await screen.findByLabelText('Nazwa użytkownika'), {
       target: { value: 'Nieznany użytkownik' },
     })

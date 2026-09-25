@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ParticipantResults } from '../../evaluations/components/ParticipantResults'
+import { Leaderboard } from '../../evaluations/components/Leaderboard'
 import { useHasEnded } from '../../evaluations/utils'
 import { AttendanceQrScanner } from '../../attendance'
 import { isHackathonInProgress } from '../../hackathons/utils/hackathonTime'
@@ -130,7 +131,12 @@ export function ParticipantAreaPage() {
                 )}
 
                 {hasEnded && resultsRequested ? (
-                  <ParticipantResults tasks={participantArea.tasks} />
+                  <>
+                    <ParticipantResults tasks={participantArea.tasks} />
+                    {participantArea.leaderboard_visible_to_participants && (
+                      <Leaderboard hackathonId={participantArea.public_id} />
+                    )}
+                  </>
                 ) : (
                   <section aria-labelledby="participant-tasks-heading">
                     <h2 id="participant-tasks-heading">{t.tasks}</h2>

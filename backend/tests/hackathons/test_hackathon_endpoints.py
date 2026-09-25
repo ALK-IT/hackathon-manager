@@ -55,6 +55,7 @@ async def test_create_endpoint_returns_hackathon_without_internal_ids(
     assert response.json()["public_id"] == str(hackathon.public_id)
     assert response.json()["access_level"] == "owner"
     assert response.json()["teams_enabled"] is True
+    assert response.json()["leaderboard_visible_to_participants"] is False
     assert datetime.fromisoformat(response.json()["registration_opens_at"]) == (
         hackathon.registration_opens_at
     )

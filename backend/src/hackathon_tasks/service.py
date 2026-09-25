@@ -1,10 +1,12 @@
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.auth.models import User
 from src.hackathon_tasks.exceptions import (
+    InvalidCriterionScoresError,
     InvalidTaskVisibilityDateError,
     TaskEvaluationNotOpenError,
     TaskNotFoundError,
@@ -183,8 +185,30 @@ class TaskService:
         submission = await self.repository.get_submission_for_update(submission_public_id, task.id)
         if submission is None:
             raise TaskSubmissionNotFoundError()
+        criteria = task.criteria
+        scores = sorted(data.criterion_scores, key=lambda item: item.criterion_index)
+        if criteria:
+            if len(scores) != len(criteria) or [item.criterion_index for item in scores] != list(
+                range(len(criteria))
+            ):
+                raise InvalidCriterionScoresError()
+            for criterion, criterion_score in zip(criteria, scores, strict=True):
+                if criterion_score.points > Decimal(str(criterion["max_points"])):
+                    raise InvalidCriterionScoresError()
+            final_score = sum((item.points for item in scores), Decimal(0))
+        elif data.score is not None:
+            final_score = data.score
+        else:
+            raise InvalidCriterionScoresError()
         try:
-            submission.score = data.score
+            submission.criterion_scores = [
+                {
+                    "criterion_index": item.criterion_index,
+                    "points": float(item.points),
+                }
+                for item in scores
+            ]
+            submission.score = final_score
             submission.feedback = data.feedback
             submission.evaluated_at = datetime.now(UTC)
             submission.evaluated_by = current_user

@@ -318,6 +318,7 @@ class RegistrationService:
                 description=hackathon.description,
                 start_date=hackathon.start_date,
                 end_date=hackathon.end_date,
+                leaderboard_visible_to_participants=hackathon.leaderboard_visible_to_participants,
                 team=None,
                 tasks=tasks,
             )
@@ -337,6 +338,7 @@ class RegistrationService:
             description=hackathon.description,
             start_date=hackathon.start_date,
             end_date=hackathon.end_date,
+            leaderboard_visible_to_participants=hackathon.leaderboard_visible_to_participants,
             team=team_response,
             tasks=tasks,
         )

@@ -7,6 +7,7 @@ import {
   getHackathon,
   getHackathons,
   getHackathonTasks,
+  updateHackathonTask,
   searchCoOrganizerCandidates,
   updateHackathon,
 } from './hackathonsApi'
@@ -115,6 +116,7 @@ describe('getHackathons', () => {
       title: 'API',
       description: 'Zbuduj API.',
       visible_from: '2026-09-01T10:00:00.000Z',
+      criteria: [{ name: 'Jakość', description: 'Czytelność kodu', max_points: 10 }],
     }
 
     createHackathonTask('hackathon-id', payload)
@@ -123,6 +125,19 @@ describe('getHackathons', () => {
       method: 'POST',
       body: JSON.stringify(payload),
       headers: { 'Content-Type': 'application/json' },
+    })
+  })
+
+  it('updates the same task', () => {
+    const payload = {
+      title: 'API v2', description: 'Rozszerzony opis.',
+      visible_from: '2026-09-01T10:00:00.000Z', criteria: [],
+    }
+
+    updateHackathonTask('hackathon-id', 'task/id', payload)
+
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hackathon-id/tasks/task%2Fid', {
+      method: 'PATCH', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' },
     })
   })
 })

@@ -12,7 +12,7 @@ export function ParticipantResults({ tasks }: { tasks: ParticipantTask[] }) {
         <p>{task.description}</p>
         {task.submission ? <>
           <a href={task.submission.github_url} target="_blank" rel="noreferrer">{task.submission.github_url}</a>
-          <EvaluationSummary evaluation={task.submission.evaluation} />
+          <EvaluationSummary evaluation={task.submission.evaluation} criteria={task.criteria} />
         </> : <p>Nie przesłano rozwiązania.</p>}
       </Card>)}
     </section>

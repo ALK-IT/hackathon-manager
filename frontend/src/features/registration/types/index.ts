@@ -56,6 +56,7 @@ export interface TaskSubmissionTeam {
 
 export interface TaskSubmissionEvaluation {
   score: number
+  criterion_scores: Array<{ criterion_index: number; points: number }>
   feedback: string | null
   evaluated_by: TaskSubmissionUser | null
   evaluated_at: string
@@ -75,11 +76,18 @@ export interface ParticipantTask {
   public_id: string
   title: string
   description: string
+  criteria: Array<{
+    name: string
+    description: string
+    max_points: number
+  }>
   visible_from: string
   created_at: string
   updated_at: string
   submission: TaskSubmission | null
 }
+
+export type TaskCriterion = ParticipantTask['criteria'][number]
 
 export interface ParticipantArea {
   public_id: string
@@ -89,6 +97,7 @@ export interface ParticipantArea {
   end_date: string
   team: ParticipantTeam | null
   tasks: ParticipantTask[]
+  leaderboard_visible_to_participants?: boolean
 }
 
 export type TeamMode = 'none' | 'create' | 'join'

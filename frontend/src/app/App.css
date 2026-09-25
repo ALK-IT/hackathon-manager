@@ -119,6 +119,97 @@ button:disabled {
   border-color: #111827;
 }
 
+.hackathon-details-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.hackathon-details-tabs [role='tab'][aria-selected='true'] {
+  font-weight: 600;
+  border-color: #111827;
+}
+
+.task-criteria-fieldset {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+.solutions-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.solutions-tabs [role='tab'][aria-selected='true'] {
+  font-weight: 600;
+  border-color: #111827;
+}
+
+.leaderboard-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.task-criterion-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 180px);
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.task-criterion-row .form-field:nth-of-type(3),
+.task-criterion-row > button {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .task-criterion-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.attendance-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.attendance-tabs [role='tab'][aria-selected='true'] {
+  font-weight: 600;
+  border-color: #111827;
+}
+
+
 .participant-task-card {
   box-sizing: border-box;
   width: 100%;
@@ -587,34 +678,4 @@ button:disabled {
 
 @media (max-width: 560px) {
   .notification-panel { position: fixed; top: 76px; right: 16px; left: 16px; width: auto; }
-}
-.hackathon-card-with-summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(200px, 280px);
-  gap: 24px;
-}
-
-.hackathon-card-summary {
-  min-width: 0;
-}
-
-.hackathon-card-summary h2 {
-  margin-top: 0;
-}
-
-.hackathon-card-summary dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.hackathon-card-summary dd {
-  margin: 0;
-}
-
-@media (max-width: 760px) {
-  .hackathon-card-with-summary {
-    grid-template-columns: 1fr;
-  }
 }

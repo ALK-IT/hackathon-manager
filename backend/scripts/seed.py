@@ -16,6 +16,7 @@ import src.all_models  # noqa: F401
 from src.auth.models import User, UserRole
 from src.auth.utils import hash_password
 from src.database import DATABASE_URL, SessionLocal
+from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 from src.hackathons.models import Hackathon
 from src.registration.models import (
     Registration,
@@ -105,99 +106,208 @@ async def seed() -> bool:
             )
         ]
 
-        hackathon_public_id = seed_id("hackathon:demo")
-        existing = await session.scalar(
-            select(Hackathon.id).where(Hackathon.public_id == hackathon_public_id)
+        created = False
+        upcoming_public_id = seed_id("hackathon:demo")
+        upcoming = await session.scalar(
+            select(Hackathon).where(Hackathon.public_id == upcoming_public_id)
         )
-        if existing is not None:
-            return False
-
-        hackathon = Hackathon(
-            public_id=hackathon_public_id,
-            organizer=admin,
-            name="Hackathon Demo",
-            description="Przykładowy hackathon do lokalnego testowania aplikacji.",
-            registration_opens_at=now - timedelta(days=1),
-            registration_deadline=now + timedelta(days=14),
-            start_date=now + timedelta(days=21),
-            end_date=now + timedelta(days=23),
-            registration_open=True,
-            capacity=100,
-            max_team_size=4,
-            teams_enabled=True,
-        )
-        questions = [
-            RegistrationQuestion(
-                public_id=seed_id("question:experience"),
-                content="Jakie masz doświadczenie technologiczne?",
-                is_required=True,
-                hackathon=hackathon,
-            ),
-            RegistrationQuestion(
-                public_id=seed_id("question:expectations"),
-                content="Czego oczekujesz od hackathonu?",
-                is_required=False,
-                hackathon=hackathon,
-            ),
-        ]
-        team = Team(
-            public_id=seed_id("team:demo"),
-            name="Seed Squad",
-            join_code="SEED2026",
-            hackathon=hackathon,
-        )
-
-        statuses = [
-            RegistrationStatus.ACCEPTED,
-            RegistrationStatus.PENDING,
-            RegistrationStatus.REJECTED,
-        ]
-        for index, (participant, registration_status) in enumerate(
-            zip(participants, statuses, strict=True)
-        ):
-            registration = Registration(
-                public_id=seed_id(f"registration:{participant.email}"),
-                user=participant,
-                hackathon=hackathon,
-                team=team if index < 2 else None,
-                status=registration_status,
-                status_changed_at=(
-                    now if registration_status is not RegistrationStatus.PENDING else None
-                ),
-                status_changed_by=(
-                    admin if registration_status is not RegistrationStatus.PENDING else None
-                ),
+        if upcoming is None:
+            created = True
+            upcoming = Hackathon(
+                public_id=upcoming_public_id,
+                organizer=admin,
+                name="Hackathon Demo",
+                description="Przykładowy hackathon do lokalnego testowania aplikacji.",
+                registration_opens_at=now - timedelta(days=1),
+                registration_deadline=now + timedelta(days=14),
+                start_date=now + timedelta(days=21),
+                end_date=now + timedelta(days=23),
+                registration_open=True,
+                capacity=100,
+                max_team_size=4,
+                teams_enabled=True,
             )
-            registration.answers = [
-                RegistrationAnswer(
-                    question=questions[0],
-                    content=f"Przykładowa odpowiedź uczestnika {participant.name}.",
+            questions = [
+                RegistrationQuestion(
+                    public_id=seed_id("question:experience"),
+                    content="Jakie masz doświadczenie technologiczne?",
+                    is_required=True,
+                    hackathon=upcoming,
                 ),
-                RegistrationAnswer(
-                    question=questions[1],
-                    content="Nauki, współpracy i zbudowania działającego projektu.",
+                RegistrationQuestion(
+                    public_id=seed_id("question:expectations"),
+                    content="Czego oczekujesz od hackathonu?",
+                    is_required=False,
+                    hackathon=upcoming,
                 ),
             ]
-            session.add(registration)
-
-        resource = Resource(
-            public_id=seed_id("resource:api-keys"),
-            hackathon=hackathon,
-            name="Demo API keys",
-            type="api_key",
-            distribution_mode="manual",
-            target="individual",
-            resource_metadata={"provider": "demo", "environment": "local"},
-        )
-        resource.items = [
-            ResourceItem(
-                public_id=seed_id(f"resource-item:{index}"),
-                encrypted_value=encrypt_value(f"demo-api-key-{index:02d}"),
+            team = Team(
+                public_id=seed_id("team:demo"),
+                name="Seed Squad",
+                join_code="SEED2026",
+                hackathon=upcoming,
             )
-            for index in range(1, 6)
-        ]
-        session.add_all([hackathon, resource])
-        return True
+
+            statuses = [
+                RegistrationStatus.ACCEPTED,
+                RegistrationStatus.PENDING,
+                RegistrationStatus.REJECTED,
+            ]
+            for index, (participant, registration_status) in enumerate(
+                zip(participants, statuses, strict=True)
+            ):
+                registration = Registration(
+                    public_id=seed_id(f"registration:{participant.email}"),
+                    user=participant,
+                    hackathon=upcoming,
+                    team=team if index < 2 else None,
+                    status=registration_status,
+                    status_changed_at=(
+                        now if registration_status is not RegistrationStatus.PENDING else None
+                    ),
+                    status_changed_by=(
+                        admin if registration_status is not RegistrationStatus.PENDING else None
+                    ),
+                )
+                registration.answers = [
+                    RegistrationAnswer(
+                        question=questions[0],
+                        content=f"Przykładowa odpowiedź uczestnika {participant.name}.",
+                    ),
+                    RegistrationAnswer(
+                        question=questions[1],
+                        content="Nauki, współpracy i zbudowania działającego projektu.",
+                    ),
+                ]
+                session.add(registration)
+
+            resource = Resource(
+                public_id=seed_id("resource:api-keys"),
+                hackathon=upcoming,
+                name="Demo API keys",
+                type="api_key",
+                distribution_mode="manual",
+                target="individual",
+                resource_metadata={"provider": "demo", "environment": "local"},
+            )
+            resource.items = [
+                ResourceItem(
+                    public_id=seed_id(f"resource-item:{index}"),
+                    encrypted_value=encrypt_value(f"demo-api-key-{index:02d}"),
+                )
+                for index in range(1, 6)
+            ]
+            session.add_all([upcoming, resource])
+
+        ended_public_id = seed_id("hackathon:finished-demo")
+        ended = await session.scalar(
+            select(Hackathon).where(Hackathon.public_id == ended_public_id)
+        )
+        if ended is None:
+            created = True
+            ended = Hackathon(
+                public_id=ended_public_id,
+                organizer=admin,
+                name="Zakończony Hackathon Demo",
+                description="Hackathon z gotowymi rozwiązaniami oczekującymi na ocenę.",
+                registration_opens_at=now - timedelta(days=30),
+                registration_deadline=now - timedelta(days=12),
+                start_date=now - timedelta(days=10),
+                end_date=now - timedelta(days=8),
+                registration_open=False,
+                capacity=100,
+                max_team_size=4,
+                teams_enabled=True,
+                leaderboard_visible_to_participants=False,
+            )
+            solo_team = Team(
+                public_id=seed_id("team:finished-solo"),
+                name="Anna — indywidualnie",
+                join_code="SOLO2026",
+                hackathon=ended,
+            )
+            group_team = Team(
+                public_id=seed_id("team:finished-group"),
+                name="Demo Drużyna",
+                join_code="TEAM2026",
+                hackathon=ended,
+            )
+            for participant, team in zip(
+                participants, [solo_team, group_team, group_team], strict=True
+            ):
+                session.add(
+                    Registration(
+                        public_id=seed_id(f"registration:finished:{participant.email}"),
+                        user=participant,
+                        hackathon=ended,
+                        team=team,
+                        status=RegistrationStatus.ACCEPTED,
+                        status_changed_at=now - timedelta(days=15),
+                        status_changed_by=admin,
+                    )
+                )
+            individual_task = HackathonTask(
+                public_id=seed_id("task:finished-individual"),
+                hackathon=ended,
+                title="Indywidualny prototyp UX",
+                description="Przygotuj prototyp i opisz najważniejsze decyzje projektowe.",
+                visible_from=ended.start_date,
+                criteria=[
+                    {
+                        "name": "Użyteczność",
+                        "description": "Czy rozwiązanie jest intuicyjne?",
+                        "max_points": 100,
+                    },
+                    {
+                        "name": "Pomysł",
+                        "description": "Oryginalność i dopasowanie do problemu.",
+                        "max_points": 100,
+                    },
+                ],
+            )
+            team_task = HackathonTask(
+                public_id=seed_id("task:finished-team"),
+                hackathon=ended,
+                title="Drużynowa aplikacja webowa",
+                description="Zbuduj działającą aplikację i udokumentuj jej uruchomienie.",
+                visible_from=ended.start_date,
+                criteria=[
+                    {
+                        "name": "Funkcjonalność",
+                        "description": "Realizacja wymagań.",
+                        "max_points": 100,
+                    },
+                    {
+                        "name": "Jakość techniczna",
+                        "description": "Kod i architektura.",
+                        "max_points": 100,
+                    },
+                    {
+                        "name": "Prezentacja",
+                        "description": "Czytelność demonstracji.",
+                        "max_points": 100,
+                    },
+                ],
+            )
+            individual_task.submissions = [
+                TaskSubmission(
+                    public_id=seed_id("submission:finished-individual"),
+                    team=solo_team,
+                    submitted_by=participants[0],
+                    github_url="https://github.com/example/individual-ux-demo",
+                )
+            ]
+            team_task.submissions = [
+                TaskSubmission(
+                    public_id=seed_id("submission:finished-team"),
+                    team=group_team,
+                    submitted_by=participants[1],
+                    github_url="https://github.com/example/team-web-app",
+                )
+            ]
+            session.add_all([ended, individual_task, team_task])
+
+        return created
 
 
 async def main() -> None:

@@ -14,8 +14,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models import Base
@@ -47,6 +48,12 @@ class HackathonTask(Base):
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    criteria: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+        nullable=False,
+    )
     visible_from: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -77,7 +84,7 @@ class TaskSubmission(Base):
         UniqueConstraint("task_id", "team_id", name="uq_task_submission_task_team"),
         Index("ix_task_submissions_public_id", "public_id", unique=True),
         CheckConstraint(
-            "score >= 0 AND score <= 10",
+            "score >= 0",
             name="ck_task_submissions_score_range",
         ),
     )
@@ -117,7 +124,14 @@ class TaskSubmission(Base):
         nullable=False,
     )
 
-    score: Mapped[Decimal | None] = mapped_column(Numeric(4, 2), nullable=True)
+    score: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+
+    criterion_scores: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+        nullable=False,
+    )
 
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
 

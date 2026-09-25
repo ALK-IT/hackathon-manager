@@ -53,3 +53,8 @@ class TaskEvaluationNotOpenError(TaskError):
     status_code = 409
     error_code = ErrorCode.TASK_EVALUATION_NOT_OPEN
     detail = "Solutions can only be evaluated after the hackathon has ended."
+
+
+class InvalidCriterionScoresError(TaskError):
+    status_code = 422
+    detail = "Every criterion must be scored within its configured point limit."
