@@ -13,6 +13,9 @@ vi.mock('../../resources/components/HackathonResourcesPanel', () => ({
     <div>Panel zasobów: {hackathonPublicId}</div>
   ),
 }))
+vi.mock('../../evaluations/components/Leaderboard', () => ({
+  Leaderboard: () => <div>Ranking drużyn dla uczestnika</div>,
+}))
 
 function renderPage(query = '') {
   return render(
@@ -120,10 +123,11 @@ describe('ParticipantAreaPage', () => {
     vi.mocked(getParticipantArea).mockResolvedValue({
       public_id: 'hackathon-id', name: 'Zakończony', description: '',
       start_date: '2000-01-01T00:00:00Z', end_date: '2000-01-02T00:00:00Z',
-      team: null, tasks: [],
+      team: null, tasks: [], leaderboard_visible_to_participants: true,
     })
     renderPage('?view=results')
     expect(await screen.findByRole('heading', { name: 'Wyniki drużyny' })).toBeInTheDocument()
+    expect(screen.getByText('Ranking drużyn dla uczestnika')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Odśwież wyniki' }))
     await screen.findByRole('heading', { name: 'Wyniki drużyny' })
     expect(getParticipantArea).toHaveBeenCalledTimes(2)

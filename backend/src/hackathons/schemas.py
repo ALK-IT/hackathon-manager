@@ -249,12 +249,23 @@ class HackathonSummary(BaseModel):
     absent: int = Field(ge=0)
 
 
+class LeaderboardVisibilityUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    visible: bool
+
+
+class LeaderboardVisibilityResponse(BaseModel):
+    visible: bool
+
+
 class HackathonRead(HackathonListItem):
     description: str
     organizer: UserSummary
     co_organizers: list[UserSummary]
     created_at: datetime
     updated_at: datetime
+    leaderboard_visible_to_participants: bool
 
     @classmethod
     def from_hackathon(cls, hackathon: Hackathon, user_id: int | None) -> "HackathonRead":
@@ -270,6 +281,7 @@ class HackathonRead(HackathonListItem):
             capacity=hackathon.capacity,
             max_team_size=hackathon.max_team_size,
             teams_enabled=hackathon.teams_enabled,
+            leaderboard_visible_to_participants=hackathon.leaderboard_visible_to_participants,
             organizer=UserSummary.model_validate(hackathon.organizer),
             co_organizers=[
                 UserSummary.model_validate(co_organizer) for co_organizer in hackathon.co_organizers

@@ -6,7 +6,6 @@ import type { Language } from '../../auth'
 import { WithdrawRegistrationButton } from '../../registration/components/WithdrawRegistrationButton'
 import type { Hackathon } from '../types'
 import { useHasEnded } from '../../evaluations/utils'
-import { AttendanceSummaryPanel } from '../../attendance/components/AttendanceSummaryPanel'
 import { getDeleteHackathonErrorMessage } from '../utils/hackathonMessages'
 
 interface HackathonListItemProps {
@@ -26,7 +25,7 @@ export function HackathonListItem({
 }: HackathonListItemProps) {
   const navigate = useNavigate()
   const hasEnded = useHasEnded(hackathon.end_date)
-  const canSeeSummary = isAdmin || hackathon.access_level === 'owner' ||
+  const canManage = isAdmin || hackathon.access_level === 'owner' ||
     hackathon.access_level === 'co_organizer'
   const t = getTranslations(language)
   const registrationStatusLabels = {
@@ -71,7 +70,7 @@ export function HackathonListItem({
 
   return (
     <li>
-      <Card className={canSeeSummary ? 'hackathon-card-with-summary' : undefined}>
+      <Card>
         <div>
         <h3>
           <Link to={`/hackathons/${hackathon.public_id}`}>{hackathon.name}</Link>
@@ -88,7 +87,15 @@ export function HackathonListItem({
             {registrationStatusLabels[hackathon.my_registration_status]}
           </p>
         )}
-        {hackathon.my_registration_status === 'accepted' ? (
+        {hasEnded && canManage ? (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => navigate(`/hackathons/${hackathon.public_id}/attendance?view=solutions`)}
+          >
+            {language === 'en' ? 'View results' : 'Zobacz wyniki'}
+          </Button>
+        ) : hackathon.my_registration_status === 'accepted' ? (
           <Button
             type="button"
             variant="ghost"
@@ -146,11 +153,6 @@ export function HackathonListItem({
           </Button>
         )}
         </div>
-        {canSeeSummary && (
-          <aside className="hackathon-card-summary" aria-label={`Podsumowanie: ${hackathon.name}`}>
-            <AttendanceSummaryPanel hackathonPublicId={hackathon.public_id} />
-          </aside>
-        )}
       </Card>
     </li>
   )

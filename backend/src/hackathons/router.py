@@ -8,6 +8,8 @@ from src.auth.models import User
 from src.hackathon_tasks.schemas import (
     HackathonTaskSubmissionListResponse,
     HackathonTaskSubmissionResponse,
+    LeaderboardEntry,
+    LeaderboardResponse,
 )
 from src.hackathons.dependencies import get_current_admin, get_hackathon_service
 from src.hackathons.schemas import (
@@ -20,6 +22,8 @@ from src.hackathons.schemas import (
     HackathonRegistrationStateRead,
     HackathonSummary,
     HackathonUpdate,
+    LeaderboardVisibilityResponse,
+    LeaderboardVisibilityUpdate,
     UserSummary,
 )
 from src.hackathons.service import HackathonService
@@ -192,6 +196,46 @@ async def get_hackathon_summary(
     return HackathonSummary(
         accepted=accepted, teams=teams, present=present, absent=accepted - present
     )
+
+
+@router.get("/{hackathon_public_id}/leaderboard", response_model=LeaderboardResponse)
+async def get_leaderboard(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 10,
+) -> LeaderboardResponse:
+    rows = await service.leaderboard(hackathon_public_id, current_user, limit=limit)
+    return LeaderboardResponse(
+        items=[
+            LeaderboardEntry(
+                rank=index,
+                team_public_id=team_public_id,
+                team_name=team_name,
+                total_score=total_score,
+                evaluated_tasks=evaluated_tasks,
+            )
+            for index, (team_public_id, team_name, total_score, evaluated_tasks) in enumerate(
+                rows, start=1
+            )
+        ]
+    )
+
+
+@router.patch(
+    "/{hackathon_public_id}/leaderboard-visibility",
+    response_model=LeaderboardVisibilityResponse,
+)
+async def update_leaderboard_visibility(
+    hackathon_public_id: uuid.UUID,
+    data: LeaderboardVisibilityUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+) -> LeaderboardVisibilityResponse:
+    visible = await service.set_leaderboard_visibility(
+        hackathon_public_id, current_user, visible=data.visible
+    )
+    return LeaderboardVisibilityResponse(visible=visible)
 
 
 @router.get(

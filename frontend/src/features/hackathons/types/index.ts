@@ -23,6 +23,7 @@ export interface HackathonDetails extends Hackathon {
   co_organizers: UserSummary[]
   created_at: string
   updated_at: string
+  leaderboard_visible_to_participants?: boolean
 }
 
 export interface HackathonFilters {
@@ -61,10 +62,17 @@ export interface AddCoOrganizerPayload {
   user_public_id: string
 }
 
+export interface HackathonTaskCriterion {
+  name: string
+  description: string
+  max_points: number
+}
+
 export interface HackathonTask {
   public_id: string
   title: string
   description: string
+  criteria: HackathonTaskCriterion[]
   visible_from: string
   created_at: string
   updated_at: string
@@ -74,4 +82,7 @@ export interface CreateHackathonTaskPayload {
   title: string
   description: string
   visible_from: string
+  criteria: HackathonTaskCriterion[]
 }
+
+export type UpdateHackathonTaskPayload = CreateHackathonTaskPayload

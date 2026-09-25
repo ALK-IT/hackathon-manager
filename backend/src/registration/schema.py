@@ -72,6 +72,7 @@ class ParticipantAreaResponse(BaseModel):
     description: str
     start_date: datetime
     end_date: datetime
+    leaderboard_visible_to_participants: bool
     team: ParticipantTeamResponse | None
     tasks: list[ParticipantTaskResponse]
 

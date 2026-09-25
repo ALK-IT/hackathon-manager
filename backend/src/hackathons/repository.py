@@ -244,6 +244,47 @@ class HackathonRepository:
         result = await self.session.execute(statement)
         return list(result.scalars().all()), int(total or 0)
 
+    async def leaderboard(
+        self,
+        hackathon_id: int,
+        *,
+        limit: int,
+    ) -> list[tuple[uuid.UUID, str, float, int]]:
+        scores = (
+            select(
+                TaskSubmission.team_id.label("team_id"),
+                func.coalesce(func.sum(TaskSubmission.score), 0).label("total_score"),
+                func.count(TaskSubmission.score).label("evaluated_tasks"),
+            )
+            .join(HackathonTask, HackathonTask.id == TaskSubmission.task_id)
+            .where(HackathonTask.hackathon_id == hackathon_id)
+            .group_by(TaskSubmission.team_id)
+            .subquery()
+        )
+        total_score = func.coalesce(scores.c.total_score, 0)
+        evaluated_tasks = func.coalesce(scores.c.evaluated_tasks, 0)
+        result = await self.session.execute(
+            select(Team.public_id, Team.name, total_score, evaluated_tasks)
+            .outerjoin(scores, scores.c.team_id == Team.id)
+            .where(Team.hackathon_id == hackathon_id)
+            .order_by(total_score.desc(), evaluated_tasks.desc(), Team.name, Team.id)
+            .limit(limit)
+        )
+        return [
+            (public_id, name, float(score), int(task_count))
+            for public_id, name, score, task_count in result.tuples().all()
+        ]
+
+    async def has_accepted_registration(self, hackathon_id: int, user_id: int) -> bool:
+        registration_id = await self.session.scalar(
+            select(Registration.id).where(
+                Registration.hackathon_id == hackathon_id,
+                Registration.user_id == user_id,
+                Registration.status == RegistrationStatus.ACCEPTED,
+            )
+        )
+        return registration_id is not None
+
     async def add(self, hackathon: Hackathon) -> None:
         self.session.add(hackathon)
         await self.session.flush()

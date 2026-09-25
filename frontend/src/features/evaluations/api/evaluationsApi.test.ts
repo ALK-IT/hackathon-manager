@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiRequest } from '../../../lib/api/client'
-import { getSubmissions, saveEvaluation } from './evaluationsApi'
+import {
+  getLeaderboard,
+  getSubmissions,
+  saveEvaluation,
+  setLeaderboardVisibility,
+} from './evaluationsApi'
 
 vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
 
@@ -20,5 +25,21 @@ describe('evaluation API', () => {
     expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hack/tasks/task/submissions/submission/evaluation', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{"score":0,"feedback":null}',
     })
+  })
+
+  it('gets a limited leaderboard', () => {
+    const signal = new AbortController().signal
+    getLeaderboard('hack/id', 5, signal)
+    expect(apiRequest).toHaveBeenCalledWith('/api/hackathons/hack%2Fid/leaderboard?limit=5', {
+      signal,
+    })
+  })
+
+  it('changes leaderboard visibility for participants', () => {
+    setLeaderboardVisibility('hack/id', true)
+    expect(apiRequest).toHaveBeenCalledWith(
+      '/api/hackathons/hack%2Fid/leaderboard-visibility',
+      { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{"visible":true}' },
+    )
   })
 })

@@ -21,6 +21,14 @@ export interface SubmissionFilters {
   signal?: AbortSignal
 }
 
+export interface LeaderboardEntry {
+  rank: number
+  team_public_id: string
+  team_name: string
+  total_score: number
+  evaluated_tasks: number
+}
+
 export function getSubmissions(id: string, options: SubmissionFilters) {
   const query = new URLSearchParams({ limit: String(options.limit), offset: String(options.offset) })
   if (options.teamPublicId) query.set('team_public_id', options.teamPublicId)
@@ -29,6 +37,24 @@ export function getSubmissions(id: string, options: SubmissionFilters) {
   return apiRequest<SubmissionPage>(
     `/api/hackathons/${encodeURIComponent(id)}/task-submissions?${query}`,
     { signal: options.signal },
+  )
+}
+
+export function getLeaderboard(id: string, limit: number, signal?: AbortSignal) {
+  return apiRequest<{ items: LeaderboardEntry[] }>(
+    `/api/hackathons/${encodeURIComponent(id)}/leaderboard?limit=${limit}`,
+    { signal },
+  )
+}
+
+export function setLeaderboardVisibility(id: string, visible: boolean) {
+  return apiRequest<{ visible: boolean }>(
+    `/api/hackathons/${encodeURIComponent(id)}/leaderboard-visibility`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visible }),
+    },
   )
 }
 

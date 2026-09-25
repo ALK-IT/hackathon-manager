@@ -14,12 +14,24 @@ def _normalize_text(value: object) -> object:
     return value
 
 
+class TaskCriterion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=2_000)
+    max_points: int = Field(ge=1, le=1_000)
+
+    _normalize_name = field_validator("name", mode="before")(_normalize_text)
+    _normalize_description = field_validator("description", mode="before")(_normalize_text)
+
+
 class TaskCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(min_length=1, max_length=10_000)
     visible_from: datetime | None = None
+    criteria: list[TaskCriterion] = Field(default_factory=list, max_length=20)
 
     _normalize_title = field_validator("title", mode="before")(_normalize_text)
     _normalize_description = field_validator("description", mode="before")(_normalize_text)
@@ -38,6 +50,7 @@ class TaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, min_length=1, max_length=10_000)
     visible_from: datetime | None = None
+    criteria: list[TaskCriterion] | None = Field(default=None, max_length=20)
 
     _normalize_title = field_validator("title", mode="before")(_normalize_text)
     _normalize_description = field_validator("description", mode="before")(_normalize_text)
@@ -64,6 +77,7 @@ class TaskResponse(BaseModel):
     public_id: uuid.UUID
     title: str
     description: str
+    criteria: list[TaskCriterion]
     visible_from: datetime
     created_at: datetime
     updated_at: datetime
@@ -190,6 +204,18 @@ class HackathonTaskSubmissionListResponse(BaseModel):
     offset: int
 
 
+class LeaderboardEntry(BaseModel):
+    rank: int
+    team_public_id: uuid.UUID
+    team_name: str
+    total_score: float
+    evaluated_tasks: int
+
+
+class LeaderboardResponse(BaseModel):
+    items: list[LeaderboardEntry]
+
+
 class ParticipantTaskResponse(TaskResponse):
     submission: TaskSubmissionResponse | None = None
 
@@ -203,6 +229,7 @@ class ParticipantTaskResponse(TaskResponse):
             public_id=task.public_id,
             title=task.title,
             description=task.description,
+            criteria=task.criteria,
             visible_from=task.visible_from,
             created_at=task.created_at,
             updated_at=task.updated_at,

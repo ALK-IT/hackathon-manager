@@ -75,6 +75,11 @@ export interface ParticipantTask {
   public_id: string
   title: string
   description: string
+  criteria: Array<{
+    name: string
+    description: string
+    max_points: number
+  }>
   visible_from: string
   created_at: string
   updated_at: string
@@ -89,6 +94,7 @@ export interface ParticipantArea {
   end_date: string
   team: ParticipantTeam | null
   tasks: ParticipantTask[]
+  leaderboard_visible_to_participants?: boolean
 }
 
 export type TeamMode = 'none' | 'create' | 'join'

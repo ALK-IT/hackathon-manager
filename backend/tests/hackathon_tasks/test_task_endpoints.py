@@ -94,6 +94,7 @@ def test_task_routes_are_registered():
     paths = set(app.openapi()["paths"])
     assert {
         "/api/hackathons/{hackathon_public_id}/task-submissions",
+        "/api/hackathons/{hackathon_public_id}/leaderboard",
         "/api/hackathons/{hackathon_public_id}/tasks",
         "/api/hackathons/{hackathon_public_id}/tasks/{task_public_id}",
         "/api/hackathons/{hackathon_public_id}/tasks/{task_public_id}/submission",
@@ -118,18 +119,29 @@ async def test_manager_creates_updates_and_deletes_task(
             "title": "API",
             "description": "Build a REST API.",
             "visible_from": (datetime.now(UTC) + timedelta(hours=2)).isoformat(),
+            "criteria": [
+                {"name": "Code quality", "description": "Readable code", "max_points": 20}
+            ],
         },
     )
     assert create_response.status_code == 201
     assert create_response.json()["visible_from"] is not None
+    assert create_response.json()["criteria"] == [
+        {"name": "Code quality", "description": "Readable code", "max_points": 20}
+    ]
     task_public_id = create_response.json()["public_id"]
 
     update_response = await api_client.patch(
         f"/api/hackathons/{hackathon.public_id}/tasks/{task_public_id}",
-        json={"title": "Public API"},
+        json={
+            "title": "Public API",
+            "criteria": [{"name": "Security", "description": "", "max_points": 15}],
+        },
     )
     assert update_response.status_code == 200
+    assert update_response.json()["public_id"] == task_public_id
     assert update_response.json()["title"] == "Public API"
+    assert update_response.json()["criteria"][0]["name"] == "Security"
 
     delete_response = await api_client.delete(
         f"/api/hackathons/{hackathon.public_id}/tasks/{task_public_id}"
@@ -771,6 +783,25 @@ async def test_manager_lists_only_requested_hackathon_submissions(
     assert body[0]["team"]["name"] == "Byte Buccaneers"
     assert "join_code" not in body[0]["team"]
 
+    leaderboard = await api_client.get(
+        f"/api/hackathons/{event_id}/leaderboard", params={"limit": 5}
+    )
+    assert leaderboard.status_code == 200
+    assert leaderboard.json()["items"] == [
+        {
+            "rank": 1,
+            "team_public_id": body[0]["team"]["public_id"],
+            "team_name": "Byte Buccaneers",
+            "total_score": 0.0,
+            "evaluated_tasks": 1,
+        }
+    ]
+    visibility = await api_client.patch(
+        f"/api/hackathons/{event_id}/leaderboard-visibility", json={"visible": True}
+    )
+    assert visibility.status_code == 200
+    assert visibility.json() == {"visible": True}
+
     path = f"/api/hackathons/{event_id}/task-submissions"
     page = await api_client.get(path, params={"limit": 1, "offset": 1})
     assert page.json()["total"] == 2
@@ -812,7 +843,10 @@ async def test_manager_lists_only_requested_hackathon_submissions(
     force_authenticate(participant)
     area = await api_client.get(f"/api/hackathons/{event_id}/participant-area")
     assert area.status_code == 200
+    assert area.json()["leaderboard_visible_to_participants"] is True
     assert area.json()["tasks"][0]["submission"]["evaluation"]["score"] == 0
+    participant_leaderboard = await api_client.get(f"/api/hackathons/{event_id}/leaderboard")
+    assert participant_leaderboard.status_code == 200
 
 
 async def test_hackathon_submissions_access_and_empty_results(

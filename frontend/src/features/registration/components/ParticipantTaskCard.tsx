@@ -51,6 +51,15 @@ export function ParticipantTaskCard({
     <Card className="participant-task-card">
       <h3>{task.title}</h3>
       <p>{task.description}</p>
+      {task.criteria.length > 0 && <section aria-label={language === 'en' ? 'Evaluation criteria' : 'Kryteria oceny'}>
+        <h4>{language === 'en' ? 'Evaluation criteria' : 'Kryteria oceny'}</h4>
+        <ul>
+          {task.criteria.map((criterion, index) => <li key={`${criterion.name}-${index}`}>
+            <strong>{criterion.name}</strong> — {criterion.max_points} {language === 'en' ? 'points' : 'pkt'}
+            {criterion.description && <p>{criterion.description}</p>}
+          </li>)}
+        </ul>
+      </section>}
 
       {submission && (
         <p>

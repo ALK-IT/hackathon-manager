@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Alert, Button, Card, Countdown, Spinner } from '../../../components/ui'
 import { AttendanceQrGenerator } from '../../attendance'
-import { useHasEnded } from '../../evaluations/utils'
 import { useAuth } from '../../auth'
 import { useTranslation } from '../../../i18n/useTranslation'
 import { addCoOrganizer, getHackathon } from '../api/hackathonsApi'
@@ -29,7 +28,7 @@ export function HackathonDetailsPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const hasEnded = useHasEnded(hackathon?.end_date ?? '')
+  const [activeTab, setActiveTab] = useState<'details' | 'co-organizers' | 'tasks' | 'attendance'>('details')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -104,7 +103,38 @@ export function HackathonDetailsPage() {
 
       {hackathon && (
         <div className="hackathon-details-stack">
-          <Card>
+          {(() => {
+            const canManageTasks = hackathon.access_level === 'owner' ||
+              hackathon.access_level === 'co_organizer'
+            const canManageAttendance = user?.role === 'admin' || canManageTasks
+            const attendanceAvailable = canManageAttendance &&
+              isHackathonInProgress(hackathon.start_date, hackathon.end_date)
+
+            return <>
+          <div className="hackathon-details-tabs" role="tablist" aria-label={language === 'en' ? 'Hackathon sections' : 'Sekcje hackathonu'}>
+            <Button type="button" role="tab" variant="ghost" aria-selected={activeTab === 'details'}
+              aria-controls="hackathon-details-panel" onClick={() => setActiveTab('details')}>
+              {language === 'en' ? 'Information' : 'Informacje'}
+            </Button>
+            <Button type="button" role="tab" variant="ghost" aria-selected={activeTab === 'co-organizers'}
+              aria-controls="hackathon-co-organizers-panel" onClick={() => setActiveTab('co-organizers')}>
+              {t.coOrganizers}
+            </Button>
+            {canManageTasks && <Button type="button" role="tab" variant="ghost" aria-selected={activeTab === 'tasks'}
+              aria-controls="hackathon-tasks-panel" onClick={() => setActiveTab('tasks')}>
+              {language === 'en' ? 'Tasks' : 'Zadania'}
+            </Button>}
+            {canManageAttendance && <Button type="button" variant="ghost"
+              onClick={() => navigate(`/hackathons/${hackathon.public_id}/attendance`)}>
+              {language === 'en' ? 'Participants' : 'Uczestnicy'}
+            </Button>}
+            {attendanceAvailable && <Button type="button" role="tab" variant="ghost" aria-selected={activeTab === 'attendance'}
+              aria-controls="hackathon-attendance-panel" onClick={() => setActiveTab('attendance')}>
+              {language === 'en' ? 'QR check-in' : 'Kod QR'}
+            </Button>}
+          </div>
+
+          {activeTab === 'details' && <Card id="hackathon-details-panel" role="tabpanel">
             <h1>{hackathon.name}</h1>
             {hackathon.description && <p>{hackathon.description}</p>}
             <p>
@@ -127,9 +157,9 @@ export function HackathonDetailsPage() {
                 Zarejestruj się
               </Button>
             )}
-          </Card>
+          </Card>}
 
-          <Card>
+          {activeTab === 'co-organizers' && <Card id="hackathon-co-organizers-panel" role="tabpanel">
             <h2>{t.coOrganizers}</h2>
             {hackathon.co_organizers.length === 0 ? (
               <p>{t.noCoOrganizers}</p>
@@ -167,11 +197,10 @@ export function HackathonDetailsPage() {
                 </Button>
               </form>
             )}
-          </Card>
+          </Card>}
 
-          {(hackathon.access_level === 'owner' ||
-            hackathon.access_level === 'co_organizer') && (
-            <Card>
+          {activeTab === 'tasks' && canManageTasks && (
+            <Card id="hackathon-tasks-panel" role="tabpanel">
               <HackathonTaskManager
                 hackathonPublicId={hackathon.public_id}
                 hackathonStartDate={hackathon.start_date}
@@ -180,11 +209,8 @@ export function HackathonDetailsPage() {
             </Card>
           )}
 
-          {isHackathonInProgress(hackathon.start_date, hackathon.end_date) &&
-            (user?.role === 'admin' ||
-              hackathon.access_level === 'owner' ||
-              hackathon.access_level === 'co_organizer') && (
-              <Card>
+          {activeTab === 'attendance' && attendanceAvailable && (
+              <Card id="hackathon-attendance-panel" role="tabpanel">
                 <AttendanceQrGenerator
                   hackathonPublicId={hackathon.public_id}
                 />
@@ -203,12 +229,8 @@ export function HackathonDetailsPage() {
                 </div>
               </Card>
             )}
-          {hasEnded && (user?.role === 'admin' || hackathon.access_level === 'owner' ||
-            hackathon.access_level === 'co_organizer') && (
-            <Card>
-              <Link to={`/hackathons/${hackathon.public_id}/solutions`}>Oceń rozwiązania</Link>
-            </Card>
-          )}
+            </>
+          })()}
         </div>
       )}
     </main>

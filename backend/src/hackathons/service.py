@@ -117,6 +117,36 @@ class HackathonService:
             evaluated=evaluated,
         )
 
+    async def leaderboard(
+        self,
+        hackathon_public_id: uuid.UUID,
+        user: User,
+        *,
+        limit: int,
+    ) -> list[tuple[uuid.UUID, str, float, int]]:
+        hackathon = await self.get_hackathon(hackathon_public_id)
+        if not can_manage_hackathon(hackathon, user):
+            is_participant = await self.hackathon_repository.has_accepted_registration(
+                hackathon.id, user.id
+            )
+            if not hackathon.leaderboard_visible_to_participants or not is_participant:
+                raise TaskPermissionDeniedError()
+        return await self.hackathon_repository.leaderboard(hackathon.id, limit=limit)
+
+    async def set_leaderboard_visibility(
+        self,
+        hackathon_public_id: uuid.UUID,
+        user: User,
+        *,
+        visible: bool,
+    ) -> bool:
+        hackathon = await self.get_hackathon(hackathon_public_id)
+        if not can_manage_hackathon(hackathon, user):
+            raise TaskPermissionDeniedError()
+        hackathon.leaderboard_visible_to_participants = visible
+        await self.hackathon_repository.commit()
+        return visible
+
     async def create_hackathon(self, data: HackathonCreate, user: User) -> Hackathon:
         if user.role != UserRole.ADMIN:
             raise AdminRequiredError

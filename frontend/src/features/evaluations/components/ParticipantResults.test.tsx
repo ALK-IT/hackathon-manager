@@ -4,7 +4,7 @@ import { evaluation, submission } from '../testFixtures'
 import { ParticipantResults } from './ParticipantResults'
 
 it('distinguishes a zero score, pending evaluation, and missing submission', () => {
-  const task = { public_id: 'task', title: 'Zadanie', description: 'Opis', visible_from: '', created_at: '', updated_at: '' }
+  const task = { public_id: 'task', title: 'Zadanie', description: 'Opis', criteria: [], visible_from: '', created_at: '', updated_at: '' }
   render(<ParticipantResults tasks={[
     { ...task, public_id: '1', submission: { ...submission, evaluation } },
     { ...task, public_id: '2', submission },
