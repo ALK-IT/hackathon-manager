@@ -84,7 +84,7 @@ class TaskSubmission(Base):
         UniqueConstraint("task_id", "team_id", name="uq_task_submission_task_team"),
         Index("ix_task_submissions_public_id", "public_id", unique=True),
         CheckConstraint(
-            "score >= 0 AND score <= 10",
+            "score >= 0",
             name="ck_task_submissions_score_range",
         ),
     )
@@ -124,7 +124,14 @@ class TaskSubmission(Base):
         nullable=False,
     )
 
-    score: Mapped[Decimal | None] = mapped_column(Numeric(4, 2), nullable=True)
+    score: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+
+    criterion_scores: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+        nullable=False,
+    )
 
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
 

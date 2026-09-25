@@ -1,8 +1,8 @@
 import { apiRequest } from '../../../lib/api/client'
-import type { TaskSubmission, TaskSubmissionEvaluation } from '../../registration/types'
+import type { TaskCriterion, TaskSubmission, TaskSubmissionEvaluation } from '../../registration/types'
 
 export interface SubmissionWithTask extends TaskSubmission {
-  task: { public_id: string; title: string }
+  task: { public_id: string; title: string; criteria: TaskCriterion[] }
 }
 
 export interface SubmissionPage {
@@ -62,7 +62,10 @@ export function saveEvaluation(
   hackathonId: string,
   taskId: string,
   submissionId: string,
-  payload: { score: number; feedback: string | null },
+  payload: {
+    criterion_scores: Array<{ criterion_index: number; points: number }>
+    feedback: string | null
+  },
 ) {
   return apiRequest<TaskSubmissionEvaluation>(
     `/api/hackathons/${encodeURIComponent(hackathonId)}/tasks/${encodeURIComponent(taskId)}/submissions/${encodeURIComponent(submissionId)}/evaluation`,

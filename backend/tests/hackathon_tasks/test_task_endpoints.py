@@ -331,6 +331,10 @@ async def test_team_members_share_one_submission_and_manager_can_list_it(
         hackathon=hackathon,
         title="API",
         description="Build it.",
+        criteria=[
+            {"name": "Quality", "description": "", "max_points": 100},
+            {"name": "Idea", "description": "", "max_points": 100},
+        ],
         visible_from=datetime.now(UTC) - timedelta(minutes=1),
     )
     session.add(task)
@@ -376,6 +380,10 @@ async def test_manager_evaluates_submission_without_changing_its_author(
         hackathon=hackathon,
         title="API",
         description="Build it.",
+        criteria=[
+            {"name": "Quality", "description": "", "max_points": 100},
+            {"name": "Idea", "description": "", "max_points": 100},
+        ],
         visible_from=datetime.now(UTC) - timedelta(minutes=1),
     )
     submission = TaskSubmission(
@@ -391,12 +399,22 @@ async def test_manager_evaluates_submission_without_changing_its_author(
     response = await api_client.patch(
         f"/api/hackathons/{hackathon.public_id}/tasks/{task.public_id}"
         f"/submissions/{submission.public_id}/evaluation",
-        json={"score": 8.75, "feedback": "Solid implementation."},
+        json={
+            "criterion_scores": [
+                {"criterion_index": 0, "points": 80},
+                {"criterion_index": 1, "points": 70},
+            ],
+            "feedback": "Solid implementation.",
+        },
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["score"] == 8.75
+    assert body["score"] == 150
+    assert body["criterion_scores"] == [
+        {"criterion_index": 0, "points": 80},
+        {"criterion_index": 1, "points": 70},
+    ]
     assert body["feedback"] == "Solid implementation."
     assert body["evaluated_by"] == {
         "public_id": str(organizer.public_id),
@@ -405,7 +423,7 @@ async def test_manager_evaluates_submission_without_changing_its_author(
     assert body["evaluated_at"] is not None
 
     await session.refresh(submission)
-    assert submission.score == Decimal("8.75")
+    assert submission.score == Decimal(150)
     assert submission.feedback == "Solid implementation."
     assert submission.evaluated_by_id == organizer.id
     assert submission.evaluated_at is not None
@@ -547,7 +565,7 @@ async def test_evaluation_validates_score(
     assert response.json()["error_code"] == "VALIDATION_ERROR"
 
 
-async def test_database_rejects_score_outside_range(
+async def test_database_rejects_negative_score(
     session: AsyncSession,
 ):
     organizer = await create_user(session, "organizer@example.com", role=UserRole.ADMIN)
@@ -565,7 +583,7 @@ async def test_database_rejects_score_outside_range(
         team=team,
         github_url="https://github.com/example/repo",
         submitted_by=participant,
-        score=Decimal("10.01"),
+        score=Decimal("-0.01"),
     )
     session.add(submission)
 

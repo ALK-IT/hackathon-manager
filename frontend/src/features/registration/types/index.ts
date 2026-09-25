@@ -56,6 +56,7 @@ export interface TaskSubmissionTeam {
 
 export interface TaskSubmissionEvaluation {
   score: number
+  criterion_scores: Array<{ criterion_index: number; points: number }>
   feedback: string | null
   evaluated_by: TaskSubmissionUser | null
   evaluated_at: string
@@ -85,6 +86,8 @@ export interface ParticipantTask {
   updated_at: string
   submission: TaskSubmission | null
 }
+
+export type TaskCriterion = ParticipantTask['criteria'][number]
 
 export interface ParticipantArea {
   public_id: string

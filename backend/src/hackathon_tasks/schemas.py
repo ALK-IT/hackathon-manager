@@ -3,7 +3,14 @@ from datetime import datetime
 from decimal import Decimal
 from urllib.parse import urlsplit, urlunsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from src.hackathon_tasks.models import HackathonTask, TaskSubmission
 
@@ -120,21 +127,40 @@ class SubmissionTeamResponse(BaseModel):
     name: str
 
 
+class CriterionScore(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    criterion_index: int = Field(ge=0)
+    points: Decimal = Field(ge=0, max_digits=8, decimal_places=2)
+
+    @field_serializer("points")
+    def serialize_points(self, value: Decimal) -> float:
+        return float(value)
+
+
 class TaskSubmissionEvaluationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    score: Decimal = Field(ge=0, le=10, max_digits=4, decimal_places=2)
+    criterion_scores: list[CriterionScore] = Field(default_factory=list, max_length=20)
+    score: Decimal | None = Field(default=None, ge=0, le=10, max_digits=4, decimal_places=2)
     feedback: str | None = Field(
         default=None,
         min_length=1,
         max_length=10_000,
     )
 
+    @model_validator(mode="after")
+    def require_score(self) -> "TaskSubmissionEvaluationUpdate":
+        if not self.criterion_scores and self.score is None:
+            raise ValueError("criterion_scores are required")
+        return self
+
 
 class TaskSubmissionEvaluationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     score: float
+    criterion_scores: list[CriterionScore]
     feedback: str | None
     evaluated_by: SubmissionUserResponse | None
     evaluated_at: datetime
@@ -177,6 +203,7 @@ class SubmissionTaskResponse(BaseModel):
 
     public_id: uuid.UUID
     title: str
+    criteria: list[TaskCriterion]
 
 
 class HackathonTaskSubmissionResponse(TaskSubmissionResponse):

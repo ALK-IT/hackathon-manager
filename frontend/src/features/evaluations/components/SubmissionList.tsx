@@ -59,7 +59,7 @@ export function SubmissionList({ hackathonId, teamId, taskId, evaluated, canEval
             <Card key={submission.public_id}>
               <h2>{submission.team.name} — {submission.task.title}</h2>
               <a href={submission.github_url} target="_blank" rel="noreferrer">{submission.github_url}</a>
-              <EvaluationSummary evaluation={submission.evaluation} />
+              <EvaluationSummary evaluation={submission.evaluation} criteria={submission.task.criteria} />
               {canEvaluate && <EvaluationForm
                 hackathonId={hackathonId} submission={submission}
                 onSaved={() => {
