@@ -1452,6 +1452,7 @@ async def test_participant_area_returns_accepted_team_members(
         description="Build something useful",
         start_date=now - timedelta(hours=1),
         end_date=now + timedelta(days=1),
+        leaderboard_visible_to_participants=False,
     )
     team = SimpleNamespace(id=20, public_id=uuid.uuid4(), name="Byte Buccaneers")
     members = [
@@ -1473,6 +1474,7 @@ async def test_participant_area_returns_accepted_team_members(
 
     assert result.public_id == hackathon.public_id
     assert result.name == hackathon.name
+    assert result.leaderboard_visible_to_participants is False
     assert result.team is not None
     assert result.team.public_id == team.public_id
     assert [member.name for member in result.team.members] == [
@@ -1496,6 +1498,7 @@ async def test_participant_area_returns_null_team_for_accepted_individual(
         description="Build something useful",
         start_date=now - timedelta(hours=1),
         end_date=now + timedelta(days=1),
+        leaderboard_visible_to_participants=False,
     )
     registration_repository.get_by_hackathon_and_user.return_value = SimpleNamespace(
         status=RegistrationStatus.ACCEPTED,
@@ -1509,6 +1512,7 @@ async def test_participant_area_returns_null_team_for_accepted_individual(
         current_user,
     )
 
+    assert result.leaderboard_visible_to_participants is False
     assert result.team is None
     team_service.list_accepted_users.assert_not_awaited()
 
