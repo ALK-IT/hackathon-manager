@@ -1,15 +1,17 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getAttendanceParticipants } from '../api/attendanceApi'
+import { exportAttendance, getAttendanceParticipants } from '../api/attendanceApi'
 import { AttendanceCheckInList } from './AttendanceCheckInList'
 
 vi.mock('../api/attendanceApi', () => ({
   getAttendanceParticipants: vi.fn(),
+  exportAttendance: vi.fn(),
 }))
 
 describe('AttendanceCheckInList', () => {
   beforeEach(() => {
     vi.mocked(getAttendanceParticipants).mockReset()
+    vi.mocked(exportAttendance).mockReset()
   })
 
   it('displays all accepted participants and their presence status', async () => {

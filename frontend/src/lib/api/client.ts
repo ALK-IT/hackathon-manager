@@ -116,3 +116,28 @@ export async function apiRequest<T>(
 
   return body as T
 }
+
+export async function downloadApiFile(
+  path: string,
+  fallbackFilename: string,
+  skipRefresh = false,
+): Promise<void> {
+  const headers = new Headers()
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
+  const response = await fetch(`${API_URL}${path}`, { credentials: 'include', headers })
+  if (response.status === 401 && !skipRefresh && await refreshAccessToken()) {
+    return downloadApiFile(path, fallbackFilename, true)
+  }
+  if (!response.ok) {
+    throw new ApiError(response.status, asErrorPayload(await parseJson(response)))
+  }
+  const disposition = response.headers.get('content-disposition') ?? ''
+  const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  const filename = encodedName ? decodeURIComponent(encodedName) : fallbackFilename
+  const url = URL.createObjectURL(await response.blob())
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}

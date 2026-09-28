@@ -4,6 +4,7 @@ import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { useTranslation } from '../../../i18n/useTranslation'
 import {
   getManagedRegistrations,
+  exportManagedRegistrations,
   updateManagedRegistration,
   type ManagedRegistration,
   type ManagedStatus,
@@ -30,6 +31,7 @@ export function ManageRegistrationsPage() {
   const [hasNextPage, setHasNextPage] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [statusChangesLocked, setStatusChangesLocked] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const selected = registrations.find(({ public_id }) => public_id === selectedId)
 
   useEffect(() => {
@@ -88,6 +90,14 @@ export function ManageRegistrationsPage() {
     <main className="app-page">
       <Link to="/hackathons">{t.backToHackathons}</Link>
       <h1>{t.applications}</h1>
+      {hackathonPublicId && <Button type="button" variant="ghost" disabled={exporting}
+        onClick={async () => {
+          setExporting(true)
+          setActionError(null)
+          try { await exportManagedRegistrations(hackathonPublicId) }
+          catch (error) { setActionError(getManagedRegistrationsErrorMessage(error, language)) }
+          finally { setExporting(false) }
+        }}>{exporting ? 'Eksportowanie…' : 'Eksportuj CSV'}</Button>}
       {loading && <Spinner label={t.loadingApplications} />}
       {loadError && <Alert variant="error">{loadError}</Alert>}
       {actionError && <Alert variant="error">{actionError}</Alert>}

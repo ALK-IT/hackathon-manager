@@ -1,5 +1,6 @@
-import { Button } from '../../../components/ui'
-import { getAttendanceParticipants } from '../api/attendanceApi'
+import { useState } from 'react'
+import { Alert, Button } from '../../../components/ui'
+import { exportAttendance, getAttendanceParticipants } from '../api/attendanceApi'
 import type { AttendanceParticipant } from '../types'
 import { AttendancePagedList } from './AttendancePagedList'
 import { AttendanceTeamGroup } from './AttendanceTeamGroup'
@@ -33,6 +34,8 @@ function ParticipantGroups({
 }
 
 export function AttendanceCheckInList({ hackathonPublicId }: { hackathonPublicId: string }) {
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   return (
     <section className="attendance-participants" aria-label="Lista uczestników">
       <div className="attendance-participants-actions">
@@ -40,7 +43,15 @@ export function AttendanceCheckInList({ hackathonPublicId }: { hackathonPublicId
           title="Wyśle zasoby wyłącznie uczestnikom z potwierdzoną obecnością; wymaga podłączenia backendu zasobów. Akcja obejmie wszystkich obecnych, niezależnie od strony.">
           Wyślij obecnym
         </Button>
+        <Button type="button" variant="ghost" disabled={exporting} onClick={async () => {
+          setExporting(true)
+          setExportError(null)
+          try { await exportAttendance(hackathonPublicId) }
+          catch { setExportError('Nie udało się wyeksportować listy obecności.') }
+          finally { setExporting(false) }
+        }}>{exporting ? 'Eksportowanie…' : 'Eksportuj CSV'}</Button>
       </div>
+      {exportError && <Alert variant="error">{exportError}</Alert>}
       <p>Grupowanie dotyczy bieżącej strony uczestników. Pełne składy znajdziesz w widoku „Drużyny”.</p>
       <AttendancePagedList hackathonPublicId={hackathonPublicId} loadPage={getAttendanceParticipants}
         label="Lista uczestników" emptyMessage="Brak zaakceptowanych uczestników.">

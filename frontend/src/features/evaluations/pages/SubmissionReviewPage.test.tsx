@@ -9,7 +9,9 @@ import { SubmissionReviewPage } from './SubmissionReviewPage'
 
 vi.mock('../../auth', () => ({ useAuth: () => ({ user: { role: 'user' }, isLoading: false }) }))
 vi.mock('../../hackathons/api/hackathonsApi', () => ({ getHackathon: vi.fn(), getHackathonTasks: vi.fn() }))
-vi.mock('../api/evaluationsApi', () => ({ getSubmissions: vi.fn(), saveEvaluation: vi.fn() }))
+vi.mock('../api/evaluationsApi', () => ({
+  getSubmissions: vi.fn(), saveEvaluation: vi.fn(), exportSubmissions: vi.fn(),
+}))
 
 const hackathon: HackathonDetails = {
   public_id: 'hack', name: 'Test', description: '', start_date: '2000-01-01T00:00:00Z',

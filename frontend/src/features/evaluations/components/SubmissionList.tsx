@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Card } from '../../../components/ui'
-import { getSubmissions, type SubmissionPage } from '../api/evaluationsApi'
+import { exportSubmissions, getSubmissions, type SubmissionPage } from '../api/evaluationsApi'
 import { evaluationError } from '../utils'
 import { EvaluationForm } from './EvaluationForm'
 import { EvaluationSummary } from './EvaluationSummary'
@@ -22,6 +22,7 @@ export function SubmissionList({ hackathonId, teamId, taskId, evaluated, canEval
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -48,6 +49,15 @@ export function SubmissionList({ hackathonId, teamId, taskId, evaluated, canEval
     <section aria-label="Lista rozwiązań" aria-busy={loading}>
       <Button type="button" variant="ghost" disabled={loading}
         onClick={() => setVersion((value) => value + 1)}>Odśwież rozwiązania</Button>
+      <Button type="button" variant="ghost" disabled={exporting} onClick={async () => {
+        setExporting(true)
+        setError(null)
+        try { await exportSubmissions(hackathonId, {
+          teamPublicId: teamId, taskPublicId: taskId, evaluated,
+        }) }
+        catch (cause) { setError(evaluationError(cause)) }
+        finally { setExporting(false) }
+      }}>{exporting ? 'Eksportowanie…' : 'Eksportuj CSV'}</Button>
       {message && <p role="status">{message}</p>}
       {loading && <p role="status">Ładowanie rozwiązań…</p>}
       {error && <Alert variant="error">{error}</Alert>}

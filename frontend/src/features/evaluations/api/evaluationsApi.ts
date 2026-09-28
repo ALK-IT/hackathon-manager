@@ -1,4 +1,4 @@
-import { apiRequest } from '../../../lib/api/client'
+import { apiRequest, downloadApiFile } from '../../../lib/api/client'
 import type { TaskCriterion, TaskSubmission, TaskSubmissionEvaluation } from '../../registration/types'
 
 export interface SubmissionWithTask extends TaskSubmission {
@@ -55,6 +55,18 @@ export function setLeaderboardVisibility(id: string, visible: boolean) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ visible }),
     },
+  )
+}
+
+export function exportSubmissions(id: string, options: Omit<SubmissionFilters, 'limit' | 'offset' | 'signal'>) {
+  const query = new URLSearchParams()
+  if (options.teamPublicId) query.set('team_public_id', options.teamPublicId)
+  if (options.taskPublicId) query.set('task_public_id', options.taskPublicId)
+  if (options.evaluated !== undefined) query.set('evaluated', String(options.evaluated))
+  const suffix = query.size ? `?${query}` : ''
+  return downloadApiFile(
+    `/api/hackathons/${encodeURIComponent(id)}/task-submissions/export${suffix}`,
+    'task-submissions.csv',
   )
 }
 

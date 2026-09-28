@@ -1,10 +1,13 @@
+import json
 import uuid
+from collections.abc import AsyncIterator, Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.auth.dependencies import get_current_user, get_optional_current_user
 from src.auth.models import User
+from src.common.csv_export import csv_streaming_response
 from src.hackathon_tasks.schemas import (
     HackathonTaskSubmissionListResponse,
     HackathonTaskSubmissionResponse,
@@ -267,4 +270,76 @@ async def get_task_submissions(
         total=total,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get("/{hackathon_public_id}/task-submissions/export")
+async def export_task_submissions(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[HackathonService, Depends(get_hackathon_service)],
+    team_public_id: Annotated[uuid.UUID | None, Query()] = None,
+    task_public_id: Annotated[uuid.UUID | None, Query()] = None,
+    evaluated: Annotated[bool | None, Query()] = None,
+):
+    filters = {
+        "team_public_id": team_public_id,
+        "task_public_id": task_public_id,
+        "evaluated": evaluated,
+    }
+    first_page, _ = await service.list_submissions(
+        hackathon_public_id, current_user, limit=100, offset=0, **filters
+    )
+
+    async def rows() -> AsyncIterator[Sequence[object]]:
+        page = first_page
+        offset = 0
+        while page:
+            for submission in page:
+                criteria = []
+                scores = {
+                    item["criterion_index"]: item["points"] for item in submission.criterion_scores
+                }
+                for index, criterion in enumerate(submission.task.criteria):
+                    criteria.append(
+                        {
+                            "name": criterion["name"],
+                            "points": scores.get(index),
+                            "max_points": criterion["max_points"],
+                        }
+                    )
+                yield [
+                    submission.public_id,
+                    submission.team.name,
+                    submission.task.title,
+                    submission.submitted_by.name if submission.submitted_by else "",
+                    submission.github_url,
+                    json.dumps(criteria, ensure_ascii=False),
+                    submission.score,
+                    submission.feedback or "",
+                    submission.evaluated_by.name if submission.evaluated_by else "",
+                    submission.evaluated_at or "",
+                ]
+            offset += len(page)
+            if len(page) < 100:
+                break
+            page, _ = await service.list_submissions(
+                hackathon_public_id, current_user, limit=100, offset=offset, **filters
+            )
+
+    return csv_streaming_response(
+        filename=f"hackathon-{hackathon_public_id}-task-submissions.csv",
+        headers=[
+            "ID rozwiązania",
+            "Drużyna",
+            "Zadanie",
+            "Przesłał",
+            "Repozytorium",
+            "Kryteria",
+            "Suma punktów",
+            "Feedback",
+            "Oceniający",
+            "Czas oceny",
+        ],
+        rows=rows(),
     )

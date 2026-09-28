@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiRequest } from '../../../lib/api/client'
+import { apiRequest, downloadApiFile } from '../../../lib/api/client'
 import {
   getLeaderboard,
   getSubmissions,
+  exportSubmissions,
   saveEvaluation,
   setLeaderboardVisibility,
 } from './evaluationsApi'
 
-vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
+vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn(), downloadApiFile: vi.fn() }))
 
 describe('evaluation API', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -43,6 +44,14 @@ describe('evaluation API', () => {
     expect(apiRequest).toHaveBeenCalledWith(
       '/api/hackathons/hack%2Fid/leaderboard-visibility',
       { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{"visible":true}' },
+    )
+  })
+
+  it('exports submissions with active filters', () => {
+    exportSubmissions('hack/id', { teamPublicId: 'team', evaluated: false })
+    expect(downloadApiFile).toHaveBeenCalledWith(
+      '/api/hackathons/hack%2Fid/task-submissions/export?team_public_id=team&evaluated=false',
+      'task-submissions.csv',
     )
   })
 })

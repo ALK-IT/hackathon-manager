@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import AsyncIterator, Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -17,6 +18,7 @@ from src.attendance.schemas import (
 from src.attendance.service import AttendanceService
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
+from src.common.csv_export import csv_streaming_response
 
 router = APIRouter(prefix="/api", tags=["attendance"])
 
@@ -93,6 +95,43 @@ async def list_attendance(
         total=total,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get("/hackathons/{hackathon_public_id}/attendance/export")
+async def export_attendance(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AttendanceService, Depends(get_attendance_service)],
+):
+    first_page, _ = await service.list_attendance(
+        hackathon_public_id, current_user, limit=100, offset=0
+    )
+
+    async def rows() -> AsyncIterator[Sequence[object]]:
+        page = first_page
+        offset = 0
+        while page:
+            for registration in page:
+                yield [
+                    registration.public_id,
+                    registration.user.name,
+                    registration.user.email,
+                    registration.team.name if registration.team else "",
+                    "tak" if registration.check_in else "nie",
+                    registration.check_in.checked_in_at if registration.check_in else "",
+                ]
+            offset += len(page)
+            if len(page) < 100:
+                break
+            page, _ = await service.list_attendance(
+                hackathon_public_id, current_user, limit=100, offset=offset
+            )
+
+    return csv_streaming_response(
+        filename=f"hackathon-{hackathon_public_id}-attendance.csv",
+        headers=["ID zgłoszenia", "Uczestnik", "E-mail", "Drużyna", "Obecny", "Czas check-inu"],
+        rows=rows(),
     )
 
 

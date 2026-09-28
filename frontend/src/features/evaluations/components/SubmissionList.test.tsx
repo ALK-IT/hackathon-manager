@@ -4,7 +4,9 @@ import { getSubmissions } from '../api/evaluationsApi'
 import { submission } from '../testFixtures'
 import { SubmissionList } from './SubmissionList'
 
-vi.mock('../api/evaluationsApi', () => ({ getSubmissions: vi.fn(), saveEvaluation: vi.fn() }))
+vi.mock('../api/evaluationsApi', () => ({
+  getSubmissions: vi.fn(), saveEvaluation: vi.fn(), exportSubmissions: vi.fn(),
+}))
 const page = { items: [submission], total: 21, limit: 20, offset: 0 }
 
 describe('SubmissionList', () => {
