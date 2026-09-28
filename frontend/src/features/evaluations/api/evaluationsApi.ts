@@ -69,7 +69,6 @@ export function exportSubmissions(id: string, options: Omit<SubmissionFilters, '
     'task-submissions.csv',
   )
 }
-
 export function saveEvaluation(
   hackathonId: string,
   taskId: string,
