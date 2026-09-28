@@ -1,4 +1,4 @@
-import { apiRequest } from '../../../lib/api/client'
+import { apiRequest, downloadApiFile } from '../../../lib/api/client'
 import type {
   AttendanceSummary,
   AttendanceParticipant,
@@ -70,4 +70,11 @@ export function getAttendanceTeams(
   options: AttendancePageOptions = {},
 ) {
   return getPage<AttendanceTeam>(hackathonPublicId, 'teams', options)
+}
+
+export function exportAttendance(hackathonPublicId: string) {
+  return downloadApiFile(
+    `/api/hackathons/${encodeURIComponent(hackathonPublicId)}/attendance/export`,
+    'attendance.csv',
+  )
 }

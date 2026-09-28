@@ -1,10 +1,12 @@
 import uuid
+from collections.abc import AsyncIterator, Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
 
 from src.auth.dependencies import get_current_user
 from src.auth.models import User
+from src.common.csv_export import csv_streaming_response
 from src.registration.dependencies import (
     get_registration_question_service,
     get_registration_service,
@@ -143,6 +145,61 @@ async def list_registrations(
         current_user=current_user,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get("/hackathons/{hackathon_public_id}/registrations/export")
+async def export_registrations(
+    hackathon_public_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[RegistrationService, Depends(get_registration_service)],
+    question_service: Annotated[
+        RegistrationQuestionService, Depends(get_registration_question_service)
+    ],
+):
+    questions = await question_service.list_questions(hackathon_public_id)
+    first_page = await service.list_registrations(
+        hackathon_public_id, current_user, limit=100, offset=0
+    )
+
+    async def rows() -> AsyncIterator[Sequence[object]]:
+        page = first_page
+        offset = 0
+        while page:
+            for registration in page:
+                answers = {
+                    answer.question.public_id: answer.content for answer in registration.answers
+                }
+                yield [
+                    registration.public_id,
+                    registration.user.name,
+                    registration.user.email,
+                    registration.status.value,
+                    registration.team.name if registration.team else "",
+                    registration.status_changed_at,
+                    registration.status_changed_by.name if registration.status_changed_by else "",
+                    *(answers.get(question.public_id, "") for question in questions),
+                ]
+            offset += len(page)
+            if len(page) < 100:
+                break
+            page = await service.list_registrations(
+                hackathon_public_id, current_user, limit=100, offset=offset
+            )
+
+    return csv_streaming_response(
+        filename=f"hackathon-{hackathon_public_id}-registrations.csv",
+        headers=[
+            "ID zgłoszenia",
+            "Uczestnik",
+            "E-mail",
+            "Status",
+            "Drużyna",
+            "Data zmiany statusu",
+            "Status zmienił",
+            *(question.content for question in questions),
+        ],
+        rows=rows(),
     )
 
 

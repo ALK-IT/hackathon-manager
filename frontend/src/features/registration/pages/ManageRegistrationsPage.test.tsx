@@ -2,12 +2,13 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../lib/api/client'
-import { getManagedRegistrations, updateManagedRegistration } from '../managementApi'
+import { exportManagedRegistrations, getManagedRegistrations, updateManagedRegistration } from '../managementApi'
 import { ManageRegistrationsPage } from './ManageRegistrationsPage'
 
 vi.mock('../managementApi', () => ({
   getManagedRegistrations: vi.fn(),
   updateManagedRegistration: vi.fn(),
+  exportManagedRegistrations: vi.fn(),
 }))
 
 const registration = {
@@ -40,6 +41,7 @@ describe('ManageRegistrationsPage', () => {
   beforeEach(() => {
     vi.mocked(getManagedRegistrations).mockReset()
     vi.mocked(updateManagedRegistration).mockReset()
+    vi.mocked(exportManagedRegistrations).mockReset()
   })
 
   it('shows answers after selecting a registration', async () => {

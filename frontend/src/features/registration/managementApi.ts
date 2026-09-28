@@ -1,4 +1,4 @@
-import { apiRequest } from '../../lib/api/client'
+import { apiRequest, downloadApiFile } from '../../lib/api/client'
 
 export type ManagedStatus = 'pending' | 'accepted' | 'rejected'
 
@@ -44,4 +44,10 @@ export const updateManagedRegistration = (
       body: JSON.stringify({ status }),
       headers: { 'Content-Type': 'application/json' },
     },
+  )
+
+export const exportManagedRegistrations = (hackathonId: string) =>
+  downloadApiFile(
+    `/api/hackathons/${encodeURIComponent(hackathonId)}/registrations/export`,
+    'registrations.csv',
   )

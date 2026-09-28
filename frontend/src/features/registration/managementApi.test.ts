@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiRequest } from '../../lib/api/client'
-import { getManagedRegistrations, updateManagedRegistration } from './managementApi'
+import { apiRequest, downloadApiFile } from '../../lib/api/client'
+import { exportManagedRegistrations, getManagedRegistrations, updateManagedRegistration } from './managementApi'
 
-vi.mock('../../lib/api/client', () => ({ apiRequest: vi.fn() }))
+vi.mock('../../lib/api/client', () => ({ apiRequest: vi.fn(), downloadApiFile: vi.fn() }))
 
 describe('managementApi', () => {
   beforeEach(() => vi.mocked(apiRequest).mockReset())
+
+  it('exports registrations', () => {
+    exportManagedRegistrations('hackathon/id')
+    expect(downloadApiFile).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon%2Fid/registrations/export', 'registrations.csv',
+    )
+  })
 
   it('gets registrations', () => {
     const controller = new AbortController()

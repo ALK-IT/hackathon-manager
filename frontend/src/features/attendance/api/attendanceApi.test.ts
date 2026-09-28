@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiRequest } from '../../../lib/api/client'
+import { apiRequest, downloadApiFile } from '../../../lib/api/client'
 import {
   checkInCurrentUser,
   createCheckInSession,
@@ -7,12 +7,20 @@ import {
   getAttendanceSummary,
   getAttendanceTeams,
   getCheckIns,
+  exportAttendance,
 } from './attendanceApi'
 
-vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn() }))
+vi.mock('../../../lib/api/client', () => ({ apiRequest: vi.fn(), downloadApiFile: vi.fn() }))
 
 describe('attendanceApi', () => {
   beforeEach(() => vi.mocked(apiRequest).mockReset())
+
+  it('exports attendance', () => {
+    exportAttendance('hackathon/id')
+    expect(downloadApiFile).toHaveBeenCalledWith(
+      '/api/hackathons/hackathon%2Fid/attendance/export', 'attendance.csv',
+    )
+  })
 
   it.each([
     [getCheckIns, 'check-ins'],
