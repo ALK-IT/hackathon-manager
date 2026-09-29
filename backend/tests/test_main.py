@@ -84,6 +84,7 @@ def test_expected_routes_are_registered() -> None:
 async def test_lifespan_validates_resource_configuration(monkeypatch) -> None:
     validation_calls = []
     monkeypatch.setattr("src.main.validate_configuration", lambda: None)
+    monkeypatch.setattr("src.main.validate_api_rate_limit_configuration", lambda: None)
     monkeypatch.setattr(
         "src.main.validate_resource_configuration",
         lambda: validation_calls.append(True),

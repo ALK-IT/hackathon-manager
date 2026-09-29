@@ -201,6 +201,10 @@ VITE_API_URL=http://localhost:8000 npm run dev
 | `REFRESH_TOKEN_EXPIRE_DAYS` | nie | Czas ważności refresh tokena; domyślnie `7`. |
 | `AUTH_COOKIE_SECURE` | nie | Ustaw `true` przy HTTPS; domyślnie `false`. |
 | `AUTH_COOKIE_SAMESITE` | nie | `lax`, `strict` albo `none`; domyślnie `lax`. |
+| `API_RATE_LIMIT_ENABLED` | nie | Globalny rate limiting tras `/api/*`; domyślnie `true`. Healthcheck i żądania `OPTIONS` są pomijane. |
+| `API_RATE_LIMIT_READ_REQUESTS` | nie | Limit odczytów na zalogowanego użytkownika, a dla ruchu anonimowego na IP; domyślnie `240` na minutę. |
+| `API_RATE_LIMIT_WRITE_REQUESTS` | nie | Limit operacji zmieniających dane na użytkownika/IP; domyślnie `60` na minutę. |
+| `API_RATE_LIMIT_EXPORT_REQUESTS` | nie | Limit eksportów CSV na użytkownika/IP; domyślnie `10` na minutę. |
 | `VITE_API_URL` | nie | Adres backendu używany podczas budowania frontendu; domyślnie `http://localhost:8000`. |
 | `TEST_DATABASE_URL` | testy | Adres oddzielnej bazy testowej, której nazwa musi kończyć się na `_test`. |
 
