@@ -35,6 +35,8 @@ describe('HackathonsPage', () => {
       </MemoryRouter>,
     )
 
+    expect(screen.getByText('Zalogowano jako: Admin')).toBeInTheDocument()
+    expect(screen.queryByText('admin@example.com')).not.toBeInTheDocument()
     expect(screen.getByText('Rola: admin')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Utwórz hackathon' })).toBeInTheDocument()
   })

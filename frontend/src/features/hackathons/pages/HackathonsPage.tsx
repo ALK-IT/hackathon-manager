@@ -39,7 +39,7 @@ export function HackathonsPage() {
       <header className="page-header">
         <div>
           <h1>{t.hackathons}</h1>
-          {user && <p>{t.loggedInAs}: {user.email}</p>}
+          {user && <p>{t.loggedInAs}: {user.name}</p>}
         </div>
         {user ? (
           <div className="page-header-actions">
