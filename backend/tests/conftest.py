@@ -19,6 +19,12 @@ from src.models import Base
 ForceAuthenticate = Callable[[User | None], None]
 
 
+@pytest.fixture(autouse=True)
+def disable_global_api_rate_limit(monkeypatch) -> None:
+    """Endpoint tests exercise domain behavior; limiter behavior has focused tests."""
+    monkeypatch.setenv("API_RATE_LIMIT_ENABLED", "false")
+
+
 class DiscardingEmailService:
     async def send_registration_status_changed(
         self,

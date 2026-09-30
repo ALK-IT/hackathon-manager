@@ -8,6 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import src.all_models  # noqa: F401
 from src.api import api_router
 from src.auth.config import get_frontend_origins, validate_configuration
+from src.cache import redis_client
+from src.common.api_rate_limit import (
+    ApiRateLimitMiddleware,
+    validate_api_rate_limit_configuration,
+)
 from src.common.exception_handlers import register_exception_handlers
 from src.common.observability import RequestLoggingMiddleware
 from src.resources.config import validate_resource_configuration
@@ -42,6 +47,7 @@ logging.config.dictConfig(
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     validate_configuration()
+    validate_api_rate_limit_configuration()
     validate_resource_configuration()
     yield
 
@@ -51,12 +57,13 @@ app.include_router(api_router)
 register_exception_handlers(app)
 
 
+app.add_middleware(ApiRateLimitMiddleware, cache=redis_client)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_frontend_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Request-ID"],
+    expose_headers=["X-Request-ID", "Retry-After"],
 )
 app.add_middleware(RequestLoggingMiddleware)
