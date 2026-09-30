@@ -19,6 +19,12 @@ class TeamFullError(TeamError):
     detail = "Team has reached its maximum number of members."
 
 
+class TeamChangeLockedError(TeamError):
+    status_code = 409
+    error_code = ErrorCode.TEAM_CHANGE_LOCKED
+    detail = "Teams can only be changed before the hackathon starts."
+
+
 class TeamsDisabledError(TeamError):
     status_code = 409
     error_code = ErrorCode.TEAMS_DISABLED

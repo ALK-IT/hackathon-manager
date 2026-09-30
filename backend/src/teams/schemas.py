@@ -21,10 +21,9 @@ class TeamCreateRequest(BaseModel):
         return value
 
 
-class TeamJoinRequest(BaseModel):
+class TeamChangeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    action: Literal["join"]
     join_code: str = Field(min_length=8, max_length=8)
 
     @field_validator("join_code", mode="before")
@@ -33,6 +32,10 @@ class TeamJoinRequest(BaseModel):
         if isinstance(value, str):
             return value.strip().upper()
         return value
+
+
+class TeamJoinRequest(TeamChangeRequest):
+    action: Literal["join"]
 
 
 TeamSelection = Annotated[TeamCreateRequest | TeamJoinRequest, Field(discriminator="action")]

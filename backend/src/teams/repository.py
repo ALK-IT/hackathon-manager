@@ -11,6 +11,31 @@ class TeamRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get_by_join_code(self, join_code: str, hackathon_id: int) -> Team | None:
+        return await self.session.scalar(
+            select(Team).where(Team.join_code == join_code, Team.hackathon_id == hackathon_id)
+        )
+
+    async def lock_teams(self, team_ids: list[int]) -> list[Team]:
+        result = await self.session.scalars(
+            select(Team)
+            .where(Team.id.in_(team_ids))
+            .order_by(Team.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return list(result.all())
+
+    async def has_history(self, team_id: int) -> bool:
+        return bool(
+            await self.session.scalar(
+                select(Team.id).where(
+                    Team.id == team_id,
+                    Team.resource_assignments.any() | Team.task_submissions.any(),
+                )
+            )
+        )
+
     async def get_by_join_code_for_update(
         self,
         join_code: str,

@@ -67,6 +67,29 @@ class TeamService:
             raise TeamFullError()
         return team
 
+    async def prepare_team_change(
+        self, join_code: str, old_team_id: int | None, hackathon: Hackathon
+    ) -> Team:
+        self._ensure_teams_enabled(hackathon)
+        target = await self.repository.get_by_join_code(join_code, hackathon.id)
+        if target is None:
+            raise TeamNotFoundError()
+        ids = [target.id] if old_team_id is None else [old_team_id, target.id]
+        locked = await self.repository.lock_teams(ids)
+        target = next((team for team in locked if team.join_code == join_code), None)
+        if target is None:
+            raise TeamNotFoundError()
+        if (
+            target.id != old_team_id
+            and await self.repository.count_active_members(target.id) >= hackathon.max_team_size
+        ):
+            raise TeamFullError()
+        return target
+
+    async def delete_empty_team_without_history(self, team_id: int) -> None:
+        if not await self.repository.has_history(team_id):
+            await self.delete_if_empty(team_id)
+
     async def ensure_member_can_be_activated(
         self,
         team_id: int,

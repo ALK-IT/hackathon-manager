@@ -24,11 +24,26 @@ from src.registration.service import (
     RegistrationQuestionService,
     RegistrationService,
 )
+from src.teams.schemas import TeamChangeRequest
 
 router = APIRouter(
     prefix="/api",
     tags=["registrations"],
 )
+
+
+@router.patch(
+    "/hackathons/{hackathon_public_id}/registrations/me/team",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def change_my_team(
+    hackathon_public_id: uuid.UUID,
+    data: TeamChangeRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[RegistrationService, Depends(get_registration_service)],
+) -> Response:
+    await service.change_team(hackathon_public_id, data, current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get(
