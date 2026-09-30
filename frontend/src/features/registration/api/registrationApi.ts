@@ -1,4 +1,5 @@
 import { apiRequest } from '../../../lib/api/client'
+
 import type {
   ParticipantArea,
   RegistrationPayload,
@@ -7,6 +8,14 @@ import type {
   RegistrationResponse,
   TaskSubmission,
 } from '../types'
+
+export function changeMyTeam(hackathonPublicId: string, joinCode: string) {
+  return apiRequest<void>(`/api/hackathons/${hackathonPublicId}/registrations/me/team`, {
+    method: 'PATCH',
+    body: JSON.stringify({ join_code: joinCode }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
 
 export function getParticipantArea(
   hackathonPublicId: string,

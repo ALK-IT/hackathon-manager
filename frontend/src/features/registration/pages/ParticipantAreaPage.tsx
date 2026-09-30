@@ -9,6 +9,7 @@ import { Alert, Button, Card, Spinner } from '../../../components/ui'
 import { HackathonResourcesPanel } from '../../resources/components/HackathonResourcesPanel'
 import { getParticipantArea } from '../api/registrationApi'
 import { ParticipantTaskCard } from '../components/ParticipantTaskCard'
+import { ChangeTeamForm } from '../components/ChangeTeamForm'
 import type { ParticipantArea } from '../types'
 import { getParticipantAreaErrorMessage } from '../utils/registrationMessages'
 import { useTranslation } from '../../../i18n/useTranslation'
@@ -106,6 +107,12 @@ export function ParticipantAreaPage() {
                           <li key={member.public_id}>{member.name}</li>
                         ))}
                       </ul>
+                      <ChangeTeamForm
+                        key={participantArea.public_id}
+                        hackathonPublicId={participantArea.public_id}
+                        startDate={participantArea.start_date}
+                        onChanged={() => setRefresh((value) => value + 1)}
+                      />
                     </section>
                   ) : (
                     <p>{t.noTeam}</p>
