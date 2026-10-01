@@ -43,6 +43,8 @@ from src.registration.status_notifications import (
     RegistrationStatusChanged,
     RegistrationStatusChangedHandler,
 )
+from src.teams.exceptions import TeamChangeLockedError
+from src.teams.schemas import TeamChangeRequest
 from src.teams.service import TeamService
 
 
@@ -173,6 +175,44 @@ class RegistrationService:
         self.team_service = team_service
         self.task_repository = task_repository
         self.status_changed_handler = status_changed_handler
+
+    async def change_team(
+        self, hackathon_public_id: uuid.UUID, data: TeamChangeRequest, user: User
+    ) -> None:
+        try:
+            hackathon = await self.hackathon_repository.get_active_by_public_id_for_update(
+                hackathon_public_id
+            )
+            if hackathon is None:
+                raise HackathonNotFoundError()
+            registration = await self.registration_repository.get_by_hackathon_and_user(
+                hackathon_public_id, user.public_id
+            )
+            if registration is None:
+                raise RegistrationNotFoundError()
+            registration = await self.registration_repository.get_active_by_public_id(
+                registration.public_id, for_update=True
+            )
+            if registration is None:
+                raise RegistrationNotFoundError()
+            if registration.status != RegistrationStatus.ACCEPTED:
+                raise RegistrationNotAcceptedError()
+            if datetime.now(UTC) >= hackathon.start_date:
+                raise TeamChangeLockedError()
+            old_team_id = registration.team_id
+            target = await self.team_service.prepare_team_change(
+                data.join_code, old_team_id, hackathon
+            )
+            # Locks can wait; recheck the deadline immediately before writing.
+            if datetime.now(UTC) >= hackathon.start_date:
+                raise TeamChangeLockedError()
+            await self.registration_repository.change_team(registration, target)
+            if old_team_id is not None and old_team_id != target.id:
+                await self.team_service.delete_empty_team_without_history(old_team_id)
+            await self.registration_repository.commit()
+        except Exception:
+            await self.registration_repository.rollback()
+            raise
 
     async def list_registrations(
         self,

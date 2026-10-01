@@ -47,4 +47,6 @@ Wzorowane na podejściu z [open-mercato](https://github.com/open-mercato/open-me
 | SPEC-028 | Egzekwowanie limitu uczestników hackathonu | Zaimplementowany | [implemented/SPEC-028-2026-09-22-limit-uczestnikow-hackathonu.md](implemented/SPEC-028-2026-09-22-limit-uczestnikow-hackathonu.md) |
 | SPEC-029 | Paginacja obecności i drużyn | Zaimplementowany | [implemented/SPEC-029-2026-09-14-paginacja-obecnosci-i-druzyn.md](implemented/SPEC-029-2026-09-14-paginacja-obecnosci-i-druzyn.md) |
 
+| SPEC-031 | Samodzielna zmiana drużyny | Zaimplementowany | [implemented/SPEC-031-2026-09-30-zmiana-druzyny.md](implemented/SPEC-031-2026-09-30-zmiana-druzyny.md) |
+
 Zasady utrzymania tego indeksu i współpracy z agentami AI: [AGENTS.md](AGENTS.md).

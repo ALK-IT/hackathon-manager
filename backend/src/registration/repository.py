@@ -226,6 +226,10 @@ class RegistrationRepository:
         await self.session.flush()
         return registration
 
+    async def change_team(self, registration: Registration, team: Team) -> None:
+        registration.team = team
+        await self.session.flush()
+
     async def delete(self, registration: Registration) -> None:
         await self.session.delete(registration)
         await self.session.flush()
